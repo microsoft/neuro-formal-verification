@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "provenance": {"kind": "synthetic-offline-integration-fixture", "note": "Not a real GitHub PR. Both the source and the intentionally false developer claim are test data."},
+  "identity": {
+    "repository": "local/synthetic",
+    "number": 1,
+    "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_repository": "local/synthetic",
+    "head_repository": "local/synthetic",
+    "merged": false,
+    "merge_sha": null,
+    "source_kind": "synthetic",
+    "closed_at": null
+  },
+  "signals": [
+    {"id": "comment:synthetic", "kind": "comment", "text": "The return value equals the input.", "url": ""}
+  ],
+  "changed": {"increment.cpp": [2]},
+  "sources": {"increment.cpp": {"text": "int increment(int x) {\n  return x + 1;\n}\n"}},
+  "declarations_and_preconditions": [],
+  "callee_names": [],
+  "context_omissions": []
+}

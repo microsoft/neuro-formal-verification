@@ -1,0 +1,27 @@
+{
+  "kind": "local-live-model-smoke",
+  "date": "2026-10-12",
+  "source": "synthetic general-model example in this directory",
+  "model": "gpt-5.6-sol",
+  "candidate_count": 1,
+  "limits": {
+    "syntax_rounds": 1,
+    "proof_rounds": 1,
+    "verifier_timeout_seconds": 60,
+    "model_timeout_seconds": 120,
+    "entry_timeout_seconds": 600
+  },
+  "accepted_refutations": 0,
+  "abstentions": [
+    "Original property goal was altered"
+  ],
+  "errors": [],
+  "usage": {
+    "api_calls": 1,
+    "transport_retries": 0,
+    "input_tokens": 1322,
+    "output_tokens": 2195
+  },
+  "publication_attempted": false,
+  "notes": "The live proposal was rejected by the goal-integrity gate. This is not a successful refutation, an end-to-end GitHub Actions run, or a paper experiment. The deterministic replay is separate evidence."
+}

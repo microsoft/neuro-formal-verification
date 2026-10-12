@@ -1,0 +1,17 @@
+{
+  "kind": "live-local-model-call-on-archived-public-input",
+  "date": "2026-10-12",
+  "provider": "nfv.shared.copilot_client.CopilotChat",
+  "authenticated_account": "shuvendu-lahiri",
+  "account_type": "non-EMU",
+  "sdk_version": "1.0.4",
+  "requested_model": "gpt-5.5",
+  "input": "bundle.json",
+  "output": "model-proposals.json",
+  "output_candidates": 0,
+  "checker_report": "model-replay/report.json",
+  "accepted_refutations": 0,
+  "github_actions_run": false,
+  "discussion_created": false,
+  "note": "One local proposer smoke invocation was made after the initial offline tests passed, using only the public Z3 excerpt. It predates the later independent source-binding publication gate and its stricter prompt. The model returned [], an honest abstention. No private source was submitted and no target repository was mutated. No further inference was performed for the strengthened gate."
+}

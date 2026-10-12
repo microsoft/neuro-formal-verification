@@ -1,0 +1,136 @@
+{
+  "schema": 1,
+  "identity": {
+    "repository": "local/synthetic",
+    "number": 2,
+    "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_repository": "local/synthetic",
+    "head_repository": "local/synthetic",
+    "merged": false,
+    "merge_sha": null,
+    "source_kind": "synthetic",
+    "closed_at": null
+  },
+  "findings": [
+    {
+      "candidate": {
+        "path": "src/caller.cpp",
+        "lines": [
+          3
+        ],
+        "signal_id": "comment:synthetic",
+        "quote": "The return value equals the input.",
+        "property": "The return value equals the input.",
+        "explanation": "The source-bound helper increments the input.",
+        "correspondence": "Synthetic scalar source with one quoted header and its unique companion implementation.",
+        "model": {
+          "parameters": [
+            {
+              "name": "x",
+              "type": "int"
+            }
+          ],
+          "result_type": "int",
+          "body": {
+            "call": [
+              "helper",
+              "x"
+            ]
+          },
+          "property": {
+            "==": [
+              "result",
+              "x"
+            ]
+          },
+          "witness": {
+            "x": 0
+          },
+          "preconditions": [],
+          "assumptions": [],
+          "environment": [
+            {
+              "name": "helper",
+              "parameters": [
+                {
+                  "name": "x",
+                  "type": "int"
+                }
+              ],
+              "result_type": "int",
+              "body": {
+                "+": [
+                  "x",
+                  1
+                ]
+              },
+              "source": {
+                "path": "src/helper.cpp",
+                "lines": [
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "description": "Source-defined leaf increment declared in helper.h."
+            }
+          ]
+        },
+        "id": "8b8bf40795e8da28eed9"
+      },
+      "retained_assumptions": [],
+      "source_binding": {
+        "status": "matched-scalar-source",
+        "result": 1,
+        "function": "caller",
+        "source_derived_callee_contracts": [
+          {
+            "function": "helper",
+            "definition": "src/helper.cpp",
+            "declaration": "src/helper.h",
+            "parameters": [
+              {
+                "name": "x",
+                "type": "int"
+              }
+            ],
+            "result_type": "int",
+            "body": {
+              "+": [
+                "x",
+                1
+              ]
+            },
+            "origin": "source-derived-definition"
+          }
+        ],
+        "conditions": [
+          "The captured declaration is compiled without macro substitution or a different overload.",
+          "Source int parameters and arithmetic use signed 32-bit values; the concrete calculation stays in range.",
+          "The concrete inputs satisfy any external API or caller preconditions not expressed in the captured declaration.",
+          "The displayed formalized expectation accurately represents the quoted developer claim.",
+          "The build links each captured cross-file leaf, identified by the unique same-basename implementation of its quoted header."
+        ]
+      },
+      "minimization": [],
+      "result": {
+        "outcome": "verified",
+        "exit_code": 0,
+        "duration_s": 1.227,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [],
+        "stdout": "\nDafny program verifier finished with 1 verified, 0 errors\n",
+        "stderr": "",
+        "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+      },
+      "dafny_sha256": "79e99f61238455a824e41c9e524e294129dd0886911761aebd3a3a44521269ec",
+      "evidence": "8b8bf40795e8da28eed9/final/model.dfy",
+      "dafny": "function helper(x: int): int { (x + 1) }\n\nfunction NfvTarget(x: int): int\n\n{ helper(x) }\n\nmethod NfvRefutation()\n{\n  var x: int := 0;\n  var result := NfvTarget(x);\n  assert !((result == x));\n}\n"
+    }
+  ],
+  "abstentions": [],
+  "errors": []
+}

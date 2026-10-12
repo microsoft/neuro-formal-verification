@@ -1,0 +1,225 @@
+{
+  "schema": 2,
+  "mode": "general-model-refutation",
+  "identity": {
+    "repository": "local/synthetic",
+    "number": 3,
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "merged": false,
+    "source_kind": "synthetic"
+  },
+  "limits": {
+    "syntax_rounds": 6,
+    "proof_rounds": 10,
+    "verifier_timeout": 60,
+    "model_timeout": 240,
+    "entry_seconds": 1800
+  },
+  "findings": [
+    {
+      "kind": "conditional-model-refutation",
+      "candidate": {
+        "path": "src/counter.cpp",
+        "lines": [
+          4
+        ],
+        "signal_id": "comment:fixture",
+        "quote": "The result equals n.",
+        "property": "The result equals n.",
+        "language": "cpp",
+        "id": "5fe14aa38b450cbf588d"
+      },
+      "translation": {
+        "entry_point": "Target",
+        "original_ensures": [
+          "r == n"
+        ],
+        "source_span": [
+          1,
+          5
+        ],
+        "witness": {
+          "n": 2
+        },
+        "assumptions": [
+          {
+            "clause": "n >= 0",
+            "description": "Nonnegative iteration count",
+            "origin": "inferred",
+            "optional": false
+          }
+        ],
+        "environment": [],
+        "required_context": [
+          "src/counter.cpp"
+        ],
+        "correspondence": "Source correspondence is not established. The model uses exact small integer arithmetic and excludes overflow, concurrency, and exceptional execution.",
+        "explanation": "The modeled loop counts to the input, then adds one more before returning.",
+        "source_notes": [
+          {
+            "path": "src/counter.cpp",
+            "line": 4,
+            "note": "The translated return adds one after the loop."
+          }
+        ],
+        "model": "// src: src/counter.cpp:1 | int count(int n) {\nmethod Target(n: int) returns (r: int)\n// synth: inferred input domain\n  requires n >= 0\n// synth: original intended property\n  ensures r == n\n// synth: method body\n{\n// src: src/counter.cpp:2 | int total = 0;\n  r := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  var i := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  while i < n\n// synth: initial loop bound\n    invariant 0 <= i <= n\n// synth: loop body\n  {\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    r := r + 1;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    i := i + 1;\n// synth: loop body end\n  }\n// src: src/counter.cpp:4 | return total + 1;\n  r := r + 1;\n// synth: method end\n}\n"
+      },
+      "frozen_negative_model": "// src: src/counter.cpp:1 | int count(int n) {\nmethod Target(n: int) returns (r: int)\n// synth: inferred input domain\n  requires n >= 0\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((r == n))\n// synth: method body\n// synth: refutation witness\n  requires n == 2\n{\n// src: src/counter.cpp:2 | int total = 0;\n  r := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  var i := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  while i < n\n// synth: initial loop bound\n    invariant 0 <= i <= n\n// synth: loop body\n  {\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    r := r + 1;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    i := i + 1;\n// synth: loop body end\n  }\n// src: src/counter.cpp:4 | return total + 1;\n  r := r + 1;\n// synth: method end\n}\n",
+      "checked_model": "// src: src/counter.cpp:1 | int count(int n) {\nmethod Target(n: int) returns (r: int)\n// synth: inferred input domain\n  requires n >= 0\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((r == n))\n// synth: method body\n// synth: refutation witness\n  requires n == 2\n{\n// src: src/counter.cpp:2 | int total = 0;\n  r := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  var i := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  while i < n\n// synth: proof repair annotation\n  invariant r == i\n// synth: initial loop bound\n    invariant 0 <= i <= n\n// synth: loop body\n  {\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    r := r + 1;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    i := i + 1;\n// synth: loop body end\n  }\n// src: src/counter.cpp:4 | return total + 1;\n  r := r + 1;\n// synth: method end\n}\n",
+      "annotation_plan": [
+        {
+          "after": 16,
+          "text": "invariant r == i"
+        }
+      ],
+      "retained_assumptions": [
+        0
+      ],
+      "minimization": [],
+      "dafny": "// src: src/counter.cpp:1 | int count(int n) {\nmethod Target(n: int) returns (r: int)\n// synth: inferred input domain\n  requires n >= 0\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((r == n))\n// synth: method body\n// synth: refutation witness\n  requires n == 2\n{\n// src: src/counter.cpp:2 | int total = 0;\n  r := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  var i := 0;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n  while i < n\n// synth: proof repair annotation\n  invariant r == i\n// synth: initial loop bound\n    invariant 0 <= i <= n\n// synth: loop body\n  {\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    r := r + 1;\n// src: src/counter.cpp:3 | for (int i = 0; i < n; ++i) { ++total; }\n    i := i + 1;\n// synth: loop body end\n  }\n// src: src/counter.cpp:4 | return total + 1;\n  r := r + 1;\n// synth: method end\n}\n\nmethod NfvWitnessCheck()\n{\n  var n: int := 2;\n  var NfvResult0 := Target(n);\n}\n",
+      "dafny_sha256": "e0caf7f077d27140cd0cf96e6c4349e1fd1d2da21ddfe1a72600e1a658759e92",
+      "evidence": "5fe14aa38b450cbf588d/final/model.dfy",
+      "result": {
+        "outcome": "verified",
+        "exit_code": 0,
+        "duration_s": 1.314,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [],
+        "stdout": "\nDafny program verifier finished with 2 verified, 0 errors\n",
+        "stderr": "",
+        "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+      },
+      "reachability_result": {
+        "outcome": "failed",
+        "exit_code": 4,
+        "duration_s": 1.304,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [
+          "workflow/examples/general-model/evidence/5fe14aa38b450cbf588d/reach-final/model.dfy(43,0): Error: a postcondition could not be proved on this return path"
+        ],
+        "stdout": "workflow/examples/general-model/evidence/5fe14aa38b450cbf588d/reach-final/model.dfy(43,0): Error: a postcondition could not be proved on this return path\n   |\n43 | {\n   | ^\n\nworkflow/examples/general-model/evidence/5fe14aa38b450cbf588d/reach-final/model.dfy(42,10): Related location: this is the postcondition that could not be proved\n   |\n42 |   ensures false\n   |           ^^^^^\n\n\nDafny program verifier finished with 0 verified, 1 error\n",
+        "stderr": "",
+        "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+      },
+      "gates": {
+        "integrity": true,
+        "goal": true,
+        "source_freeze": true,
+        "conditions": true,
+        "source_freeze_hash": "55e1cd5a3abbc2bd",
+        "computation_sha256": "75d4e5516e3cb17be859938ee198f0c834febd7a1dd30f4046222ed91227bd60",
+        "witness_consistency": true,
+        "reachability": true,
+        "source_correspondence": "not established"
+      },
+      "source_map": [
+        {
+          "model_line": 2,
+          "path": "src/counter.cpp",
+          "line": 1,
+          "source": "int count(int n) {",
+          "model": "method Target(n: int) returns (r: int)"
+        },
+        {
+          "model_line": 10,
+          "path": "src/counter.cpp",
+          "line": 2,
+          "source": "int total = 0;",
+          "model": "r := 0;"
+        },
+        {
+          "model_line": 12,
+          "path": "src/counter.cpp",
+          "line": 3,
+          "source": "for (int i = 0; i < n; ++i) { ++total; }",
+          "model": "var i := 0;"
+        },
+        {
+          "model_line": 14,
+          "path": "src/counter.cpp",
+          "line": 3,
+          "source": "for (int i = 0; i < n; ++i) { ++total; }",
+          "model": "while i < n"
+        },
+        {
+          "model_line": 20,
+          "path": "src/counter.cpp",
+          "line": 3,
+          "source": "for (int i = 0; i < n; ++i) { ++total; }",
+          "model": "r := r + 1;"
+        },
+        {
+          "model_line": 22,
+          "path": "src/counter.cpp",
+          "line": 3,
+          "source": "for (int i = 0; i < n; ++i) { ++total; }",
+          "model": "i := i + 1;"
+        },
+        {
+          "model_line": 26,
+          "path": "src/counter.cpp",
+          "line": 4,
+          "source": "return total + 1;",
+          "model": "r := r + 1;"
+        }
+      ],
+      "counters": {
+        "translation_calls": 1,
+        "syntax_repairs": 0,
+        "proof_repairs": 1
+      },
+      "limits": {
+        "syntax_rounds": 6,
+        "proof_rounds": 10,
+        "verifier_timeout": 60,
+        "model_timeout": 240,
+        "entry_seconds": 1800
+      },
+      "typecheck_log": [
+        {
+          "outcome": "verified",
+          "exit_code": 0,
+          "duration_s": 0.62,
+          "mode": "typecheck",
+          "unroll": null,
+          "errors": [],
+          "stdout": "\nDafny program verifier did not attempt verification\n",
+          "stderr": "",
+          "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+        }
+      ],
+      "proof_log": [
+        {
+          "outcome": "failed",
+          "exit_code": 4,
+          "duration_s": 1.375,
+          "mode": "unbounded",
+          "unroll": null,
+          "errors": [
+            "workflow/examples/general-model/evidence/5fe14aa38b450cbf588d/proof-0/model.dfy(10,0): Error: a postcondition could not be proved on this return path"
+          ],
+          "stdout": "workflow/examples/general-model/evidence/5fe14aa38b450cbf588d/proof-0/model.dfy(10,0): Error: a postcondition could not be proved on this return path\n   |\n10 | {\n   | ^\n\nworkflow/examples/general-model/evidence/5fe14aa38b450cbf588d/proof-0/model.dfy(6,15): Related location: this is the postcondition that could not be proved\n  |\n6 |   ensures !((r == n))\n  |                ^^\n\n\nDafny program verifier finished with 1 verified, 1 error\n",
+          "stderr": "",
+          "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+        },
+        {
+          "outcome": "verified",
+          "exit_code": 0,
+          "duration_s": 1.315,
+          "mode": "unbounded",
+          "unroll": null,
+          "errors": [],
+          "stdout": "\nDafny program verifier finished with 2 verified, 0 errors\n",
+          "stderr": "",
+          "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+        }
+      ]
+    }
+  ],
+  "abstentions": [],
+  "errors": []
+}

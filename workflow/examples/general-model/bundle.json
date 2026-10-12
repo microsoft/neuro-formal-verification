@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "provenance": {"kind": "synthetic-imperative-model-replay", "note": "Handwritten source and intended claim. Not a real GitHub PR or a live translator response."},
+  "identity": {
+    "repository": "local/synthetic",
+    "number": 3,
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "merged": false,
+    "source_kind": "synthetic"
+  },
+  "sources": {
+    "src/counter.cpp": {
+      "text": "int count(int n) {\n  int total = 0;\n  for (int i = 0; i < n; ++i) { ++total; }\n  return total + 1;\n}\n"
+    }
+  },
+  "changed": {"src/counter.cpp": [4]},
+  "signals": [{"id": "comment:fixture", "text": "The result equals n."}],
+  "declarations_and_preconditions": [],
+  "callee_names": [],
+  "context_omissions": []
+}

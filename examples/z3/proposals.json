@@ -1,0 +1,35 @@
+[
+  {
+    "path": "src/ast/simplifiers/ff_simplify.cpp",
+    "lines": [541, 542, 550],
+    "signal_id": "commit:8a9551d9e1870b44eb30af5c32a4538d06938214",
+    "quote": "declines\n  to run under proofs",
+    "property": "When proof production is enabled, the finite-field simplifier does not delegate to m_impl->reduce().",
+    "explanation": "The proposed input enables proofs. The first branch stops before delegation, so this candidate should not refute the stated expectation.",
+    "correspondence": "This slice concerns only reachability of the delegation call. The Boolean inputs are snapshots of the three source queries. Throwing, returning, and skipping are represented as not delegating; no claim is made about exception handling, AST effects, resource exhaustion, or the behavior of m_impl->reduce().",
+    "model": {
+      "parameters": [
+        {"name": "proofsEnabled", "type": "bool"},
+        {"name": "preprocessEnabled", "type": "bool"},
+        {"name": "skipBooleanGoal", "type": "bool"}
+      ],
+      "result_type": "bool",
+      "body": {
+        "if": [
+          "proofsEnabled",
+          false,
+          {"if": [{"not": "preprocessEnabled"}, false, {"not": "skipBooleanGoal"}]}
+        ]
+      },
+      "property": {"||": [{"not": "proofsEnabled"}, {"not": "result"}]},
+      "witness": {
+        "proofsEnabled": true,
+        "preprocessEnabled": true,
+        "skipBooleanGoal": false
+      },
+      "preconditions": [],
+      "assumptions": [],
+      "environment": []
+    }
+  }
+]

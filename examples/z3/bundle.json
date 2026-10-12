@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "provenance": {
+    "kind": "archived-public-source-excerpt",
+    "captured_date": "2026-10-12",
+    "pr_url": "https://github.com/Z3Prover/z3/pull/11007",
+    "source_url": "https://github.com/Z3Prover/z3/blob/7467919f10cdddc6c736da2c46d205f62dd13bea/src/ast/simplifiers/ff_simplify.cpp#L540-L551",
+    "full_source_blob_sha": "a8c761fbdd4d619fd96a5ba0eddaf8ba54c6b270",
+    "note": "A manually curated, exact 12-line excerpt, not a complete live collector bundle. The source file was added by this PR. Model proposal is hand-authored for deterministic replay."
+  },
+  "identity": {
+    "repository": "Z3Prover/z3",
+    "number": 11007,
+    "base_sha": "36828e144e0802a1e936031b6efa2dbe89fde9a5",
+    "head_sha": "7467919f10cdddc6c736da2c46d205f62dd13bea",
+    "source_sha": "7467919f10cdddc6c736da2c46d205f62dd13bea",
+    "source_repository": "Z3Prover/z3",
+    "head_repository": "Z3Prover/z3",
+    "merged": false,
+    "merge_sha": null,
+    "source_kind": "pull-request-head",
+    "closed_at": "2026-10-02T17:10:16Z"
+  },
+  "signals": [
+    {
+      "id": "commit:8a9551d9e1870b44eb30af5c32a4538d06938214",
+      "kind": "commit",
+      "text": "- ff_simplify_simplifier composes these together with rewriter_simplifier,\n  propagate_values and a solve-eqs wrapper gated on Boolean-domain\n  candidates (mirroring the former and_then/cond pipeline), and declines\n  to run under proofs (QF_FF certificates are not supported in v1).",
+      "url": "https://github.com/Z3Prover/z3/commit/8a9551d9e1870b44eb30af5c32a4538d06938214"
+    }
+  ],
+  "changed": {
+    "src/ast/simplifiers/ff_simplify.cpp": [540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551]
+  },
+  "sources": {
+    "src/ast/simplifiers/ff_simplify.cpp": {
+      "line_start": 540,
+      "text": "void ff_basic_simplifier::reduce() {\n    if (m_fmls.proofs_enabled())\n        throw rewriter_exception(\"QF_FF certificates are not supported in v1\");\n    if (!m_params.get_bool(\"ff.preprocess\", true))\n        return;\n    scoped_watch watch(m_elapsed);\n    if (skip_boolean_goal()) {\n        ++m_boolean_skips;\n        return;\n    }\n    m_impl->reduce();\n}\n"
+    }
+  },
+  "declarations_and_preconditions": [],
+  "callee_names": ["proofs_enabled", "get_bool", "skip_boolean_goal", "reduce"],
+  "context_omissions": [
+    "This fixture models only whether delegation is reached. It does not model AST mutation, exception propagation, resource exhaustion, or callee implementations."
+  ]
+}
