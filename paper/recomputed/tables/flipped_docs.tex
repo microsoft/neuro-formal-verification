@@ -1,0 +1,56 @@
+\paragraph{\texttt{HumanEval\_11} (\texttt{string\_xor}).}\leavevmode
+\begin{lstlisting}[style=fig,language=Python,title={docstring, as supplied}]
+Input are two strings a and b consisting only of 1s and 0s. Perform binary XOR on these inputs and return result also as a string.
+\end{lstlisting}
+\begin{lstlisting}[style=fig,language=Python,title={postcondition, as supplied}]
+assert len(return_value) == len(a) == len(b) and all((ch in '01' for ch in return_value))
+\end{lstlisting}
+
+\paragraph{\texttt{HumanEval\_20} (\texttt{find\_closest\_elements}).}\leavevmode
+\begin{lstlisting}[style=fig,language=Python,title={docstring, as supplied}]
+From a supplied list of numbers (of length at least two) select and return two that are the closest to each other and return them in order (smaller number, larger number).
+\end{lstlisting}
+\begin{lstlisting}[style=fig,language=Python,title={postcondition, as supplied}]
+assert return_value in [(x, y) for i, x in enumerate(numbers) for j, y in enumerate(numbers) if i != j and x <= y]
+\end{lstlisting}
+
+\paragraph{\texttt{HumanEval\_49} (\texttt{modp}).}\leavevmode
+\begin{lstlisting}[style=fig,language=Python,title={docstring, as supplied}]
+Return 2^n modulo p (be aware of numerics).
+\end{lstlisting}
+\begin{lstlisting}[style=fig,language=Python,title={postcondition, as supplied}]
+assert 0 <= return_value < p
+\end{lstlisting}
+
+\paragraph{\texttt{HumanEval\_64} (\texttt{vowels\_count}).}\leavevmode
+\begin{lstlisting}[style=fig,language=Python,title={docstring, as supplied}]
+Write a function vowels_count which takes a string representing a word as input and returns the number of vowels in the string. Vowels in this case are 'a', 'e', 'i', 'o', 'u'. Here, 'y' is also a vowel, but only when it is at the end of the given word.
+\end{lstlisting}
+\begin{lstlisting}[style=fig,language=Python,title={postcondition, as supplied}]
+assert return_value == s.lower().count('a') + s.lower().count('e') + s.lower().count('i') + s.lower().count('o') + s.lower().count('u') + (1 if s.lower().endswith('y') else 0)
+\end{lstlisting}
+
+\paragraph{\texttt{HumanEval\_79} (\texttt{decimal\_to\_binary}).}\leavevmode
+\begin{lstlisting}[style=fig,language=Python,title={docstring, as supplied}]
+You will be given a number in decimal form and your task is to convert it to binary format. The function should return a string, with each character representing a binary number. Each character in the string will be '0' or '1'. There will be an extra couple of characters 'db' at the beginning and at the end of the string. The extra characters are there to help with the format.
+\end{lstlisting}
+\begin{lstlisting}[style=fig,language=Python,title={postcondition, as supplied}]
+import re
+assert re.match('^db[01]+db$', return_value)
+\end{lstlisting}
+
+\paragraph{\texttt{HumanEval\_111} (\texttt{histogram}).}\leavevmode
+\begin{lstlisting}[style=fig,language=Python,title={docstring, as supplied}]
+Given a string representing a space separated lowercase letters, return a dictionary of the letter with the most repetition and containing the corresponding count. If several letters have the same occurrence, return all of them.
+\end{lstlisting}
+\begin{lstlisting}[style=fig,language=Python,title={postcondition, as supplied}]
+assert all([isinstance(key, str) and key.islower() and isinstance(value, int) and (value == test.count(key)) for key, value in return_value.items()])
+\end{lstlisting}
+
+\paragraph{\texttt{HumanEval\_116} (\texttt{sort\_array}).}\leavevmode
+\begin{lstlisting}[style=fig,language=Python,title={docstring, as supplied}]
+In this Kata, you have to sort an array of non-negative integers according to number of ones in their binary representation in ascending order. For similar number of ones, sort based on decimal value. It must be implemented like this:
+\end{lstlisting}
+\begin{lstlisting}[style=fig,language=Python,title={postcondition, as supplied}]
+assert all((bin(return_value[i]).count('1') <= bin(return_value[i + 1]).count('1') and (bin(return_value[i]).count('1') != bin(return_value[i + 1]).count('1') or return_value[i] <= return_value[i + 1]) for i in range(len(return_value) - 1)))
+\end{lstlisting}

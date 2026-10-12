@@ -1,0 +1,30 @@
+\paragraph{L0 --- HumanEval/157.} It uses nothing beyond arithmetic, indexing and control flow. Nothing outside the program has to be described, so the model's trusted base can be empty.
+\begin{lstlisting}[language=Python]
+def right_angle_triangle(a, b, c):
+    return a ** 2 + b ** 2 == c ** 2 or a ** 2 + c ** 2 == b ** 2 or b ** 2 + c ** 2 == a ** 2
+\end{lstlisting}
+
+\paragraph{L1 --- HumanEval/121.} Beyond arithmetic, indexing and control flow it uses \texttt{sum}. Each call here is one self-contained, total function whose meaning the model can state in a line.
+\begin{lstlisting}[language=Python]
+def solution(lst):
+    return sum((lst[i] for i in range(len(lst)) if i % 2 == 0 and lst[i] % 2 == 1))
+\end{lstlisting}
+
+\paragraph{L2a --- HumanEval/120.} Beyond arithmetic, indexing and control flow it uses \texttt{.sort}, \texttt{sorted}. A faithful specification has to relate whole collections --- what the result contains, and in what order --- rather than give a single value.
+\begin{lstlisting}[language=Python]
+def maximum(arr, k):
+    return sorted(sorted(arr)[::-1][:k])
+\end{lstlisting}
+
+\paragraph{L2b --- HumanEval/30.} Beyond arithmetic, indexing and control flow it uses \texttt{filter}, \texttt{list}. The specification must quantify over an argument whose body it cannot see, which is a different demand from describing a collection.
+\begin{lstlisting}[language=Python]
+def get_positive(l: list):
+    return list(filter(lambda x: x > 0, l))
+\end{lstlisting}
+
+\paragraph{L3 --- HumanEval/133.} Beyond arithmetic, indexing and control flow it uses \texttt{import math}, \texttt{map}, \texttt{math.ceil}, \texttt{sum}. The boundary is not the model's to choose: it must axiomatise a surface defined elsewhere, and any axiom it writes about that surface is assumed, not checked.
+\begin{lstlisting}[language=Python]
+def sum_squares(lst):
+    import math
+    return sum(map(lambda x: math.ceil(x) ** 2, lst))
+\end{lstlisting}

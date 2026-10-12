@@ -1,0 +1,1328 @@
+{
+  "paper": {
+    "url": "https://arxiv.org/abs/2608.21516v3",
+    "verified_html": "https://arxiv.org/html/2608.21516v3",
+    "retained_snapshot": "nfv/paper/nfv_arxiv",
+    "note": "Source snapshot retained without editing. Claims checked against official v3 HTML; not a claim of identical arXiv archive bytes."
+  },
+  "source": {
+    "repository": "https://github.com/shuvendu-lahiri/quasi-formal-verification",
+    "ref": "neuro-formal-v1",
+    "commit": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
+    "results_in_head": 0,
+    "results_path_history": "git log --all -- nfv/results returned no commits",
+    "github_results_probe": "contents/nfv/results/lemma4_verify.jsonl?ref=neuro-formal-v1 returned HTTP 404"
+  },
+  "remote_artifact_search": {
+    "repository": "shuvendu-lahiri/quasi-formal-verification",
+    "checked_at": "2026-10-12T22:28:46.381957+00:00",
+    "account": "shuvendu-lahiri",
+    "checks": {
+      "releases": {
+        "status": "ok",
+        "total_count": 0,
+        "items": []
+      },
+      "actions_artifacts": {
+        "status": "ok",
+        "total_count": 0,
+        "items": []
+      },
+      "workflow_runs": {
+        "status": "ok",
+        "total_count": 0,
+        "items": []
+      }
+    }
+  },
+  "local_result_recovery": {
+    "retrieved_at": "2026-10-12T22:30:53.857529+00:00",
+    "local_checkout_name": "informal-verification-paper",
+    "origin": "https://github.com/shuvendu-lahiri/quasi-formal-verification.git",
+    "head": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
+    "branch": "neuro-formal-v1",
+    "tracked_dirty_paths": [],
+    "untracked_status_entries": 0,
+    "note": "Results were ignored local files, not present in Git. Checkout cleanliness at extraction does not reconstruct historical dirty/resumed run states. Original files were not modified.",
+    "files": [
+      {
+        "source_relative_path": "nfv/results/cbmc_theory.jsonl",
+        "destination": "nfv/results/cbmc_theory.jsonl",
+        "bytes": 2477475,
+        "records": 206,
+        "sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "cbmc-theory"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/judge.jsonl",
+        "destination": "nfv/results/judge.jsonl",
+        "bytes": 177430,
+        "records": 206,
+        "sha256": "461d95817a29b53ce100917c7b7f0abf0bd47368d58504ef5d93731e30d8c38d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "llm-judge"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_haiku_refute.jsonl",
+        "destination": "nfv/results/lemma4_haiku_refute.jsonl",
+        "bytes": 549536,
+        "records": 206,
+        "sha256": "4e4e679cc839128e4a776a9eb7ca63f3135416bf8f5d149739e2b6bf45cdcad3",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_haiku_verify.jsonl",
+        "destination": "nfv/results/lemma4_haiku_verify.jsonl",
+        "bytes": 782423,
+        "records": 206,
+        "sha256": "d7936b0958d8844fc7e8f403ec86516e10099a011ea6198bfe067149c4c49862",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_mini_refute.jsonl",
+        "destination": "nfv/results/lemma4_mini_refute.jsonl",
+        "bytes": 1217921,
+        "records": 206,
+        "sha256": "8defc75aeaab44110ee8eacc36fd8c95d91571b8a36f0330338b8ac367454000",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_mini_verify.jsonl",
+        "destination": "nfv/results/lemma4_mini_verify.jsonl",
+        "bytes": 1581296,
+        "records": 206,
+        "sha256": "d7e23f3620dd003a935868bbf91d2200152138667100892140ce39cb0bff999b",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_oracle.jsonl",
+        "destination": "nfv/results/lemma4_oracle.jsonl",
+        "bytes": 797188,
+        "records": 103,
+        "sha256": "b2dd2b56a1d74ca62a68ed97e827de2174a9dd89900083c0c91cbd6330b50f8d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_refute.jsonl",
+        "destination": "nfv/results/lemma4_refute.jsonl",
+        "bytes": 1564660,
+        "records": 206,
+        "sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "destination": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "bytes": 772777,
+        "records": 203,
+        "sha256": "ed8485258c310eb4cd33611f5093c91a70778cc072c463090b14e82001ab6d27",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "destination": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "bytes": 1122774,
+        "records": 206,
+        "sha256": "8100a6b4405c6af4c63810d0c9b90067b835375de6d7abd90bfdf0a85de3d251",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_verify.jsonl",
+        "destination": "nfv/results/lemma4_verify.jsonl",
+        "bytes": 2881974,
+        "records": 206,
+        "sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/naive_nogates.jsonl",
+        "destination": "nfv/results/naive_nogates.jsonl",
+        "bytes": 668458,
+        "records": 206,
+        "sha256": "4d8977d9a244ce3e61714d7f2d4a5bd71f95d137652ab03378082762a1a7e7ad",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-naive"
+        ]
+      }
+    ]
+  },
+  "runtime": {
+    "python": "3.10+; release validation 3.14",
+    "sdk": "github-copilot-sdk==1.0.4 (source client docstring)",
+    "dafny": "4.11.0",
+    "z3_for_dafny": "4.12.1",
+    "cbmc": "6.9.0 (local validation; historical paper version not recorded)",
+    "model": "gpt-5.6-sol",
+    "comparison_models": [
+      "claude-haiku-4.5",
+      "gpt-5-mini",
+      "claude-sonnet-4.6"
+    ],
+    "dataset_validation_model": "claude-sonnet-4.5 (100 tests/task)",
+    "availability": "Historical model IDs and account entitlements are external; no inference calls made during extraction."
+  },
+  "host_portability": {
+    "historical_host_evidence": "Windows paths and MSVC in EXPERIMENTS.md; recovered metrics are not Ubuntu measurements.",
+    "supported_new_experiment_host": "Ubuntu 22.04",
+    "dafny_version": "4.11.0",
+    "ubuntu_archive_sha256": "a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179",
+    "archive_provenance": "Parent-owned Ubuntu Actions tool setup; do not substitute z3-bench's older Dafny 4.9.1 Ubuntu 20.04 package.",
+    "validation_scope": "Non-Windows discovery regression tests here; real Ubuntu binary execution belongs to parent Actions validation."
+  },
+  "budgets": {
+    "main_and_weak_models": {
+      "attempts": 5,
+      "proof_rounds": 10
+    },
+    "oracle": {
+      "translation_attempts": 1,
+      "proof_rounds": 3,
+      "mutants_only": 103
+    },
+    "unstaged_baseline": {
+      "attempts": 1,
+      "proof_rounds": 3
+    },
+    "warning": "Use each logged command, not current CLI defaults. Refutation separately defaults to 5 witness attempts. A5 is not 5 full refutation restarts."
+  },
+  "reported_claims": {
+    "dafny_verify": {
+      "correct_claims": 72,
+      "wrong_claims": 5,
+      "class_population": 103
+    },
+    "dafny_refute": {
+      "correct_claims": 47,
+      "wrong_claims": 6,
+      "class_population": 103
+    },
+    "combined": {
+      "claims": 128,
+      "correct_claims": 118,
+      "population": 206,
+      "rule": "make_tasks_table.py joins two independent arms; not run.py's newer combined mode"
+    },
+    "cbmc": {
+      "recall_percent_rounded": 63,
+      "precision_percent_rounded": 90
+    },
+    "judge": {
+      "precision_percent_rounded": 72
+    },
+    "unstaged": {
+      "proved_percent_each_class_rounded": 98,
+      "precision_percent": 50
+    }
+  },
+  "result_files": {
+    "cbmc_theory.jsonl": {
+      "source_path": "nfv/results/cbmc_theory.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-14 16:56 \u2014 cbmc-theory / gpt-5.6-sol  (DIRTY WORKING TREE)",
+          "experiment_log_line": 8099,
+          "commit": "2234f47",
+          "dirty": true,
+          "command": "python -m nfv.run --backend cbmc-theory --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase bounded --resume --out nfv\\results\\cbmc_theory.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        },
+        {
+          "heading": "## Run 2026-08-15 16:01 \u2014 cbmc-theory / gpt-5.6-sol  (DIRTY WORKING TREE)",
+          "experiment_log_line": 8450,
+          "commit": "9a21dac",
+          "dirty": true,
+          "command": "python -m nfv.run --backend cbmc-theory --model gpt-5.6-sol --attempts 5 --concurrency 24 --entry-deadline 1800.0 --llm-timeout 300.0 --max-proof-rounds 10 --phase bounded --resume --out nfv\\results\\cbmc_theory.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/cbmc_theory.jsonl",
+        "destination": "nfv/results/cbmc_theory.jsonl",
+        "bytes": 2477475,
+        "records": 206,
+        "sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "cbmc-theory"
+        ]
+      }
+    },
+    "judge.jsonl": {
+      "source_path": "nfv/results/judge.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/judge.jsonl",
+        "destination": "nfv/results/judge.jsonl",
+        "bytes": 177430,
+        "records": 206,
+        "sha256": "461d95817a29b53ce100917c7b7f0abf0bd47368d58504ef5d93731e30d8c38d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "llm-judge"
+        ]
+      }
+    },
+    "lemma4_haiku_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_haiku_refute.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-17 13:17 \u2014 dafny-theory-lemma4 / claude-haiku-4.5  (DIRTY WORKING TREE)",
+          "experiment_log_line": 9004,
+          "commit": "b12b5c3",
+          "dirty": true,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-haiku-4.5 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --out nfv/results/lemma4_haiku_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_haiku_refute.jsonl",
+        "destination": "nfv/results/lemma4_haiku_refute.jsonl",
+        "bytes": 549536,
+        "records": 206,
+        "sha256": "4e4e679cc839128e4a776a9eb7ca63f3135416bf8f5d149739e2b6bf45cdcad3",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_haiku_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_haiku_verify.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-17 11:58 \u2014 dafny-theory-lemma4 / claude-haiku-4.5",
+          "experiment_log_line": 8949,
+          "commit": "a5f2fb6",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-haiku-4.5 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_haiku_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_haiku_verify.jsonl",
+        "destination": "nfv/results/lemma4_haiku_verify.jsonl",
+        "bytes": 782423,
+        "records": 206,
+        "sha256": "d7936b0958d8844fc7e8f403ec86516e10099a011ea6198bfe067149c4c49862",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_mini_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_mini_refute.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-17 18:04 \u2014 dafny-theory-lemma4 / gpt-5-mini",
+          "experiment_log_line": 9116,
+          "commit": "0f6a026",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5-mini --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --out nfv/results/lemma4_mini_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_mini_refute.jsonl",
+        "destination": "nfv/results/lemma4_mini_refute.jsonl",
+        "bytes": 1217921,
+        "records": 206,
+        "sha256": "8defc75aeaab44110ee8eacc36fd8c95d91571b8a36f0330338b8ac367454000",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_mini_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_mini_verify.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-17 14:45 \u2014 dafny-theory-lemma4 / gpt-5-mini",
+          "experiment_log_line": 9062,
+          "commit": "3b22314",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5-mini --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_mini_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_mini_verify.jsonl",
+        "destination": "nfv/results/lemma4_mini_verify.jsonl",
+        "bytes": 1581296,
+        "records": 206,
+        "sha256": "d7e23f3620dd003a935868bbf91d2200152138667100892140ce39cb0bff999b",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_oracle.jsonl": {
+      "source_path": "nfv/results/lemma4_oracle.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-17 04:42 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
+          "experiment_log_line": 8673,
+          "commit": "8f7d4cf",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --oracle-witness --phase refute --resume --out nfv/results/lemma4_oracle.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        },
+        {
+          "heading": "## Run 2026-08-17 05:12 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
+          "experiment_log_line": 8878,
+          "commit": "c7481ec",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --oracle-witness --phase refute --resume --out nfv/results/lemma4_oracle.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_oracle.jsonl",
+        "destination": "nfv/results/lemma4_oracle.jsonl",
+        "bytes": 797188,
+        "records": 103,
+        "sha256": "b2dd2b56a1d74ca62a68ed97e827de2174a9dd89900083c0c91cbd6330b50f8d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_refute.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-17 04:19 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
+          "experiment_log_line": 8611,
+          "commit": "656632d",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --resume --out nfv/results/lemma4_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        },
+        {
+          "heading": "## Run 2026-08-17 05:12 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
+          "experiment_log_line": 8833,
+          "commit": "51cfe05",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --resume --out nfv/results/lemma4_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_refute.jsonl",
+        "destination": "nfv/results/lemma4_refute.jsonl",
+        "bytes": 1564660,
+        "records": 206,
+        "sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_sonnet46_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "destination": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "bytes": 772777,
+        "records": 203,
+        "sha256": "ed8485258c310eb4cd33611f5093c91a70778cc072c463090b14e82001ab6d27",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_sonnet46_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-18 02:26 \u2014 dafny-theory-lemma4 / claude-sonnet-4.6",
+          "experiment_log_line": 9196,
+          "commit": "90aa134",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-sonnet-4.6 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_sonnet46_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "destination": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "bytes": 1122774,
+        "records": 206,
+        "sha256": "8100a6b4405c6af4c63810d0c9b90067b835375de6d7abd90bfdf0a85de3d251",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_verify.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-17 05:12 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
+          "experiment_log_line": 8778,
+          "commit": "d8d8b7b",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --resume --out nfv/results/lemma4_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_verify.jsonl",
+        "destination": "nfv/results/lemma4_verify.jsonl",
+        "bytes": 2881974,
+        "records": 206,
+        "sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "naive_nogates.jsonl": {
+      "source_path": "nfv/results/naive_nogates.jsonl",
+      "tracked_at_source_commit": false,
+      "status": "recovered_local",
+      "logged_runs": [
+        {
+          "heading": "## Run 2026-08-12 19:31 \u2014 dafny-naive / gpt-5.6-sol",
+          "experiment_log_line": 6573,
+          "commit": "8fe439f",
+          "dirty": false,
+          "command": "python -m nfv.run --backend dafny-naive --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --phase unbounded --out nfv\\results\\naive_nogates.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/naive_nogates.jsonl",
+        "destination": "nfv/results/naive_nogates.jsonl",
+        "bytes": 668458,
+        "records": 206,
+        "sha256": "4d8977d9a244ce3e61714d7f2d4a5bd71f95d137652ab03378082762a1a7e7ad",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-naive"
+        ]
+      }
+    }
+  },
+  "recomputation": {
+    "command": "python -m paper.reproduce --require-complete",
+    "report": "paper/recomputed/metrics.json",
+    "note": "Recovered per-entry results, not substituted historical plain-arm results, drive the final tables."
+  },
+  "generators": {
+    "make_tasks_table": [
+      "lemma4_verify.jsonl",
+      "lemma4_refute.jsonl",
+      "lemma4_oracle.jsonl"
+    ],
+    "make_tier_table": [
+      "lemma4_verify.jsonl",
+      "lemma4_refute.jsonl",
+      "lemma4_oracle.jsonl"
+    ],
+    "make_compare_tables": [
+      "lemma4_verify.jsonl",
+      "lemma4_refute.jsonl",
+      "lemma4_haiku_verify.jsonl",
+      "lemma4_haiku_refute.jsonl",
+      "lemma4_mini_verify.jsonl",
+      "lemma4_mini_refute.jsonl",
+      "lemma4_sonnet46_verify.jsonl",
+      "lemma4_sonnet46_refute.jsonl"
+    ],
+    "check_causes": [
+      "lemma4_verify.jsonl",
+      "lemma4_refute.jsonl"
+    ],
+    "make_cbmc_clean": [
+      "cbmc_theory.jsonl"
+    ],
+    "make_cbmc_falsecex": [
+      "cbmc_theory.jsonl"
+    ],
+    "make_judge_numbers": [
+      "judge.jsonl"
+    ],
+    "make_naive_table": [
+      "naive_nogates.jsonl"
+    ]
+  },
+  "files": [
+    {
+      "source": "nfv/__init__.py",
+      "destination": "nfv/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/__init__.py",
+      "destination": "nfv/agent/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/c_integrity.py",
+      "destination": "nfv/agent/c_integrity.py",
+      "source_sha256": "cbb94f8c86c37734c6545d781f768e1fabca8f5269e07760255d9c784091e106",
+      "source_git_blob": "1d63b0f0d4b308773185960d9700665f7b8c9b54",
+      "release_sha256": "cbb94f8c86c37734c6545d781f768e1fabca8f5269e07760255d9c784091e106",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/c_witness.py",
+      "destination": "nfv/agent/c_witness.py",
+      "source_sha256": "b7f561a17e45f0a8a8d6fc120a4de2eac69c12eab810ba157e01bb8479694f7c",
+      "source_git_blob": "1870a89c87a8affbc895e7a2bc5f268b52a339a5",
+      "release_sha256": "b7f561a17e45f0a8a8d6fc120a4de2eac69c12eab810ba157e01bb8479694f7c",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/integrity.py",
+      "destination": "nfv/agent/integrity.py",
+      "source_sha256": "9b6dcb37aa7064ed53105aed805d3c0a27a0cb80a27e11d46c65cecd1b7087d8",
+      "source_git_blob": "1db9c75f98d05ecda593f1f37302c3e3a2dcc95d",
+      "release_sha256": "9b6dcb37aa7064ed53105aed805d3c0a27a0cb80a27e11d46c65cecd1b7087d8",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/invariant_agent.py",
+      "destination": "nfv/agent/invariant_agent.py",
+      "source_sha256": "0b6c9a6437bfc6b7d6acc2cc30ff0d1183afb9b7ca959fefb27c0e0a87d2c26a",
+      "source_git_blob": "505ddfd1c4d23d624d1e805c1dba6107142980a4",
+      "release_sha256": "26a1a005e943de92f48e142b0c8010826d63c6043bd757f5aa405117ff9cfec5",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/library_theory.py",
+      "destination": "nfv/agent/library_theory.py",
+      "source_sha256": "1408be66f2d583ea2d101947b08ebf83bb8e843218a86d3f958cbf39a7e4cf16",
+      "source_git_blob": "fe63abe664c91c3ebe2326480b58904675685326",
+      "release_sha256": "bd878837a3dede901654a6584b06d720382367115495bc4a0ba5cef74b7acd18",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/oracle_witness.py",
+      "destination": "nfv/agent/oracle_witness.py",
+      "source_sha256": "5d856d5158b9e517045572b6655817b40ad7997d0a94be3abba6070c7a37c59a",
+      "source_git_blob": "3fec900b383b26aa4c6643bb21a246a315b6692d",
+      "release_sha256": "5d856d5158b9e517045572b6655817b40ad7997d0a94be3abba6070c7a37c59a",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/provenance.py",
+      "destination": "nfv/agent/provenance.py",
+      "source_sha256": "d1832375611adbf9e5231c5c9bb1beb47538677eb2a3da81888745e132bdc867",
+      "source_git_blob": "52293514abbf8f97c5bce38d41aa4be6b92d193b",
+      "release_sha256": "d1832375611adbf9e5231c5c9bb1beb47538677eb2a3da81888745e132bdc867",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/pydocs.py",
+      "destination": "nfv/agent/pydocs.py",
+      "source_sha256": "d79ab92631bb9d03d692e580bce4b2bb8d3d78dfff0be84b5b9a2dd1dfde3bb5",
+      "source_git_blob": "37d98e7e2768843f6b9abc71a0aa3679fd50814e",
+      "release_sha256": "d79ab92631bb9d03d692e580bce4b2bb8d3d78dfff0be84b5b9a2dd1dfde3bb5",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/refute.py",
+      "destination": "nfv/agent/refute.py",
+      "source_sha256": "178e0111b48b7893858c39102ad88f6346355f2e53560eb2f9b0f3925957c4e4",
+      "source_git_blob": "9bcf24877a53f3f23991ee00e52c6f8ee2ebd428",
+      "release_sha256": "c840227a9ea8d2dbbea4d86df616e2e87a09b86b51f8a31073f5658f7691b048",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/tautology.py",
+      "destination": "nfv/agent/tautology.py",
+      "source_sha256": "c5b171f8e109a01ff587bc0ea4e56ea11c383f0fc8da8a35a72532d4ada492b3",
+      "source_git_blob": "58c38db03a583c9476b3d4f00e1930cbfe091d6b",
+      "release_sha256": "c5b171f8e109a01ff587bc0ea4e56ea11c383f0fc8da8a35a72532d4ada492b3",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/translate.py",
+      "destination": "nfv/agent/translate.py",
+      "source_sha256": "292c7ccbdc8544c36997b591bbce8ab9ddec92d3868ff25f696e7fb7cf37d497",
+      "source_git_blob": "279016efc5d8d6f7c19b743b4082c7175753fcc7",
+      "release_sha256": "6731b2ee2e491694e58e9c76089987ec37ead371280bc552861612d1da76e556",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/ub_repair.py",
+      "destination": "nfv/agent/ub_repair.py",
+      "source_sha256": "0eca96472f7693df8a5b3fef8b9802879960a733456b1b388308405999899b01",
+      "source_git_blob": "74d5d36e98dd69144df270650c09307125d50ef8",
+      "release_sha256": "0eca96472f7693df8a5b3fef8b9802879960a733456b1b388308405999899b01",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/backends/__init__.py",
+      "destination": "nfv/backends/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/backends/_scratch.py",
+      "destination": "nfv/backends/_scratch.py",
+      "source_sha256": "0a3d2667684ad8b6e235cb7ca9c5de943a17a4e430c5dfba57f9139cf851eba8",
+      "source_git_blob": "80bff8b1d68522bde485265844448fc6bf433dcf",
+      "release_sha256": "2a83e9823bd724b6d14927ebd9a19aae9f08825dafd9b6590d67c436e1f7b5a1",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/backends/cbmc.py",
+      "destination": "nfv/backends/cbmc.py",
+      "source_sha256": "123e3b9cfe2db3380ea5146925b39fafc188b75424cef8a99b56f2db905312a9",
+      "source_git_blob": "9b6800481d921a27f3619f73f8ad1ceb702722c3",
+      "release_sha256": "d56758ee4bdf2eb0d789d1c68cf77f84779eef49eb32af81bc464e090c3d7162",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/backends/dafny.py",
+      "destination": "nfv/backends/dafny.py",
+      "source_sha256": "c0c662ce454212dce9d459c27bd40c09b3042ecd80ea4ad506385f24b9b1a2e7",
+      "source_git_blob": "02f2ad03472f81052d4f55393709f4f8dbb0f50e",
+      "release_sha256": "c0c662ce454212dce9d459c27bd40c09b3042ecd80ea4ad506385f24b9b1a2e7",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/backends/registry.py",
+      "destination": "nfv/backends/registry.py",
+      "source_sha256": "8456debd764913f8040a5cdeb85f6c9063c3d353f21b377787249851afaf9d3b",
+      "transformation": "AST-selected source slices; retained variants and dependencies only",
+      "source_git_blob": "1482c8534dd1ec4c1f7c063229f22965b926202f",
+      "release_sha256": "ef586fb9f47981c94401c05ecded1ee2fee7a623c7dccf54f2f18b0c16a31d2d",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/MANIFEST.md",
+      "destination": "nfv/data/MANIFEST.md",
+      "source_sha256": "23582ce208d8160284b4686816914bcba38bf1eb1f9af9cb4205cbb99ad15ba8",
+      "source_git_blob": "38347d0e9bbf9b41ed75e91c5b1e2611031c28f3",
+      "release_sha256": "23582ce208d8160284b4686816914bcba38bf1eb1f9af9cb4205cbb99ad15ba8",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/data/__init__.py",
+      "destination": "nfv/data/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/data/build_safe.py",
+      "destination": "nfv/data/build_safe.py",
+      "source_sha256": "a23b330ae432960546889afa53e53c2f4852e08c29c5e93189eff87e59a861e0",
+      "source_git_blob": "3ec4a55b95303cff3c880026452246b7be587a89",
+      "release_sha256": "93ebb5a4fad11dd2ba36c870f1735f727837ecbd6b447c8abec015b03f54ae29",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/build_subset.py",
+      "destination": "nfv/data/build_subset.py",
+      "source_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc",
+      "source_git_blob": "0e22eecd8af06efbf2af8254a763d4a8f70e9901",
+      "release_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/data/input_assumptions.json",
+      "destination": "nfv/data/input_assumptions.json",
+      "source_sha256": "33793c340ac69609655d1fdc61ebe3835b971ebdfe9ecbabb49722710654c6ec",
+      "source_git_blob": "c0242bd8bfe62d5f9aabfbb9de49291382d8b41c",
+      "release_sha256": "33793c340ac69609655d1fdc61ebe3835b971ebdfe9ecbabb49722710654c6ec",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/data/killing_tests.py",
+      "destination": "nfv/data/killing_tests.py",
+      "source_sha256": "ff66e0d8f1d629c57c53956ed27d3a178bd2ee57f7b56c071c7d54ff60e27731",
+      "source_git_blob": "7ad272adebd048342cbfc2e5c31fcbd1ee244bee",
+      "release_sha256": "65ceb767e6e7472d472bb8bc91063cc6934dff40c94250010bd620864cf3bfc1",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/nl2post_safe.json",
+      "destination": "nfv/data/nl2post_safe.json",
+      "source_sha256": "ec6822a561b5f865e21efeee6f5680236ada2c67312771a6643dff914993e963",
+      "source_git_blob": "c719c04da1527249f1740bc364d2652cdce86085",
+      "release_sha256": "ec6822a561b5f865e21efeee6f5680236ada2c67312771a6643dff914993e963",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/data/rebuild_dataset.py",
+      "destination": "nfv/data/rebuild_dataset.py",
+      "source_sha256": "44a48c4b4a755f68feda7d648b0e3e06f784d97a7b237e3923875d49cd78bed5",
+      "source_git_blob": "09eb897e25311fb89cef39e34ce633b77b391fa2",
+      "release_sha256": "988cc10e724579c1439d95df1447f2fd1bb92f9249086c387ada61f48222fdb4",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/subsets/pilot10.json",
+      "destination": "nfv/data/subsets/pilot10.json",
+      "source_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf",
+      "source_git_blob": "1adf2ae0564ecd88043bc53bb1cb92baf118f7ed",
+      "release_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/data/verify_no_leak.py",
+      "destination": "nfv/data/verify_no_leak.py",
+      "source_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830",
+      "source_git_blob": "eeac36b979e973f1811934fbebabb814c138eb06",
+      "release_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/metrics.py",
+      "destination": "nfv/metrics.py",
+      "source_sha256": "a2d50ea2bce1b29bc33ea7519e02716fa1f7ec8dfd8c287e90e691e09ba18f6c",
+      "source_git_blob": "d977c50b66d463d431d6c1d75c9fd64a006a58ef",
+      "release_sha256": "a2d50ea2bce1b29bc33ea7519e02716fa1f7ec8dfd8c287e90e691e09ba18f6c",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/check_causes.py",
+      "destination": "nfv/paper/check_causes.py",
+      "source_sha256": "fb6e31e489791720d589d3b57acbbeffdc78b5d528687a5d50a01c782e5c6352",
+      "source_git_blob": "fc2cc4cbaa3ba8e616f87e944c67e8e43444169e",
+      "release_sha256": "fb6e31e489791720d589d3b57acbbeffdc78b5d528687a5d50a01c782e5c6352",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/dataset_size.py",
+      "destination": "nfv/paper/dataset_size.py",
+      "source_sha256": "6a17ba2851b4231c97ae83ff69f12256b8c40604841849828983aa1e5e7b201b",
+      "source_git_blob": "0386beaa855b82252a7e70466995565ba0c8c078",
+      "release_sha256": "6a17ba2851b4231c97ae83ff69f12256b8c40604841849828983aa1e5e7b201b",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/make_cbmc_clean.py",
+      "destination": "nfv/paper/make_cbmc_clean.py",
+      "source_sha256": "5b79faa3dcae0cc0e13e52b75b5fff5e8505ceb5cbb6542821bcb6bcc07b05d5",
+      "source_git_blob": "35909b30e4ade9ef602b6bb183ac4619b726d8b2",
+      "release_sha256": "5b79faa3dcae0cc0e13e52b75b5fff5e8505ceb5cbb6542821bcb6bcc07b05d5",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/make_cbmc_falsecex.py",
+      "destination": "nfv/paper/make_cbmc_falsecex.py",
+      "source_sha256": "9602c30f91062e2d5a7695ddd894c7ebee693b3cc33594c551ebfb86da9823ca",
+      "source_git_blob": "9dd54974794e6c36babe0a0769016d235627516e",
+      "release_sha256": "9602c30f91062e2d5a7695ddd894c7ebee693b3cc33594c551ebfb86da9823ca",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/make_compare_tables.py",
+      "destination": "nfv/paper/make_compare_tables.py",
+      "source_sha256": "e0eafc44313b7ce3ef23cf0b43d3c87e8d4b114f8b60c1d5066df9aa231c0b09",
+      "source_git_blob": "b26a10698fad134433613de81cafd1451a62edb6",
+      "release_sha256": "bc5931af60335397df86a9b75dc6b9112379d613450bfad49d26658e5646f8dd",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/paper/make_dataset_provenance.py",
+      "destination": "nfv/paper/make_dataset_provenance.py",
+      "source_sha256": "f9cbd730efaf9c2e2c044359844eed02a94145230748f560b71b56b1fdc0ced5",
+      "source_git_blob": "f24f55ed09c69fe0d0abfb686d43de40e796fe84",
+      "release_sha256": "2b1ce67bfff6ac8f78ad5fe27d1c136e1880356905c348bd1daf166a91a58b86",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/paper/make_tables.py",
+      "destination": "nfv/paper/make_dataset_tables.py",
+      "source_git_blob": "9165ae8dfdbb490e332db4547b923279a715d184",
+      "release_sha256": "4961a1661ae5904c2ad2b680fafc695e95e1782f9700fad76131b7bfb81e8069",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "nfv/paper/make_judge_numbers.py",
+      "destination": "nfv/paper/make_judge_numbers.py",
+      "source_sha256": "40a1427e5bcbe72b97b40b156f6812701fc3b5da07235ef825ad7cbcde0320e3",
+      "source_git_blob": "d31038a5f7e0f076cccd6d68b224f6268cd13658",
+      "release_sha256": "40a1427e5bcbe72b97b40b156f6812701fc3b5da07235ef825ad7cbcde0320e3",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/make_naive_table.py",
+      "destination": "nfv/paper/make_naive_table.py",
+      "source_git_blob": "95b3d18dd1829375b20248a7faefc733be8b5a0c",
+      "release_sha256": "153ba0bfaa44424e69a4824b9e298af7ec8508f50f148f9b265d9c50b3a33eb2",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "nfv/paper/make_tasks_table.py",
+      "destination": "nfv/paper/make_tasks_table.py",
+      "source_sha256": "b04197ec8ede221307cb4f906074e4bc0c4715a780c4bcd686ee4a6a50695051",
+      "source_git_blob": "ea8302bee178b76c8c99192e2bb0d3d71133ac59",
+      "release_sha256": "b04197ec8ede221307cb4f906074e4bc0c4715a780c4bcd686ee4a6a50695051",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/make_tier_examples.py",
+      "destination": "nfv/paper/make_tier_examples.py",
+      "source_sha256": "77e66845a3026d08a354c4b3b81903b9e41ffe514d5d5108bad57fc2fbba2d7c",
+      "source_git_blob": "54e070b57286c8de0c3de67c03d9bc98bd15ed5c",
+      "release_sha256": "77e66845a3026d08a354c4b3b81903b9e41ffe514d5d5108bad57fc2fbba2d7c",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/make_tier_table.py",
+      "destination": "nfv/paper/make_tier_table.py",
+      "source_sha256": "101f5e58a0bc30f988dee99d7fd0edbf82ed742b69b5f2a4155ccde38e061c67",
+      "source_git_blob": "79629e70b2fd27dbc39ac9b048e05050fb980c77",
+      "release_sha256": "101f5e58a0bc30f988dee99d7fd0edbf82ed742b69b5f2a4155ccde38e061c67",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/run.py",
+      "destination": "nfv/run.py",
+      "source_sha256": "009b543b070add04e80296dc7a2503ff0d24a5c59eaa4f3d2eaf32950e5cb226",
+      "source_git_blob": "9838a3ed1603ae01a0603a9ec2643cf95f18c341",
+      "release_sha256": "4213c91dfc7c6d9774ef568a3986d33a7bb9d95a02f82a12400db3f5f9240309",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/run_judge.py",
+      "destination": "nfv/run_judge.py",
+      "source_sha256": "88c76f4f08b078ec1f8d4a9e2dabce64bc061b0674a1ac256be63ae50440f66e",
+      "source_git_blob": "f85a9cb484cfbc235db2406b8bf2c9bf7d24041e",
+      "release_sha256": "88c76f4f08b078ec1f8d4a9e2dabce64bc061b0674a1ac256be63ae50440f66e",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/shared/__init__.py",
+      "destination": "nfv/shared/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/shared/account.py",
+      "destination": "nfv/shared/account.py",
+      "source_sha256": "464da79ac7931827ceeca3610e250afe8dddde2acd335f36fc3a0a5dbba26206",
+      "source_git_blob": "f6635e82bb9374465e41306b43dff2c1daa2b267",
+      "release_sha256": "312a910d71642990a14c2c122e1a002350bd3aa61f0ba4665ecf456815026348",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/shared/config.py",
+      "destination": "nfv/shared/config.py",
+      "source_sha256": "b85e2da0d1da4e0d883b97a51de2d8952a71379c0d64ea5e6d8c31a00fcc1d53",
+      "source_git_blob": "ffec7c190e968f16c8afb7b88c734d634d928cec",
+      "release_sha256": "8f38bdb157099d9aeafc960a6493e8fcf35a277662e756fe9344ca1997f1053d",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/shared/copilot_client.py",
+      "destination": "nfv/shared/copilot_client.py",
+      "source_sha256": "cf2416e460a75c5d4471fa4acb184cf3f7c2e20c6106b04e98e1c80a26cc486f",
+      "source_git_blob": "e8537a07cad320614ce50568248cb29e2e8250b9",
+      "release_sha256": "cf2416e460a75c5d4471fa4acb184cf3f7c2e20c6106b04e98e1c80a26cc486f",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/shared/store.py",
+      "destination": "nfv/shared/store.py",
+      "source_sha256": "8060211d6e6ac2e8c18f7ed859b6a964bce0bd54debb8c88c033af0d98115239",
+      "source_git_blob": "122d143bb3397475268bb92377ea5496b92da1db",
+      "release_sha256": "8060211d6e6ac2e8c18f7ed859b6a964bce0bd54debb8c88c033af0d98115239",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "a5r10_refute.jsonl",
+      "destination": "paper/data/upstream/a5r10_refute.jsonl",
+      "source_sha256": "9ce74f17bb1c20f40b86c9399a1c7004af0a542d2479cf9aae33647ab91a0655",
+      "source_git_blob": "ecfdcf47f9cfb96885690adaa1dc32f4cc4404ab",
+      "release_sha256": "9ce74f17bb1c20f40b86c9399a1c7004af0a542d2479cf9aae33647ab91a0655",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nl2post/__pycache__/build_nl2post_dataset.cpython-314.pyc",
+      "destination": "paper/data/upstream/nl2post/__pycache__/build_nl2post_dataset.cpython-314.pyc",
+      "source_git_blob": null,
+      "release_sha256": "49b274304dec7cf492856e0467ad2a18d23e510fde96ad0de286b12bdf195832",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "nl2post/__pycache__/validate_specs.cpython-314.pyc",
+      "destination": "paper/data/upstream/nl2post/__pycache__/validate_specs.cpython-314.pyc",
+      "source_git_blob": null,
+      "release_sha256": "eb049f2883f11a3faa3142cb367e78e247c27e980e91e0904d01c62f000cf670",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "nl2post/__pycache__/verify_nl2post_dataset.cpython-314.pyc",
+      "destination": "paper/data/upstream/nl2post/__pycache__/verify_nl2post_dataset.cpython-314.pyc",
+      "source_git_blob": null,
+      "release_sha256": "288d93916bd84148d5a32f96861f3765039aff629c37addaa305d12e501ff8d4",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "nl2post/build_nl2post_dataset.py",
+      "destination": "paper/data/upstream/nl2post/build_nl2post_dataset.py",
+      "source_git_blob": "ba2f14b8c02a1bef6bd267f84777a6fc9ceef5b0",
+      "release_sha256": "08860cfc69b7e9eaec736830f6231981eccb85f02ddc0b76ca043d44ea00825a",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "nl2post/nl2post_dataset.json",
+      "destination": "paper/data/upstream/nl2post/nl2post_dataset.json",
+      "source_sha256": "61df3cb88532d3a43f8be906548712206a9c374be3444ec5a325b3a19f2ef837",
+      "source_git_blob": "12891a16a798923c27831ec25890d95a61417d5f",
+      "release_sha256": "61df3cb88532d3a43f8be906548712206a9c374be3444ec5a325b3a19f2ef837",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nl2post/validate_specs.py",
+      "destination": "paper/data/upstream/nl2post/validate_specs.py",
+      "source_git_blob": "dbb21e5d2ddfc8aa97193a2fec7dcaf07a067199",
+      "release_sha256": "18d01d594a9501200ae8b69098223ce16f2265fb5a8f1d7bcc9c981ebc548d32",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "nl2post/verify_nl2post_dataset.py",
+      "destination": "paper/data/upstream/nl2post/verify_nl2post_dataset.py",
+      "source_git_blob": "5efaa48c886501874e510433ec28298375acfa17",
+      "release_sha256": "1730cfa85bfa728eb71208da4d1914d12ba93d86d9ae142ee3e0e45260ac1037",
+      "modified_from_materialized_source": null
+    },
+    {
+      "source": "results/nl2post_spec_validation.json",
+      "destination": "paper/data/upstream/results/nl2post_spec_validation.json",
+      "source_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
+      "source_git_blob": "8ae935603757080dcde9faea634c1fcd6f5abaa0",
+      "release_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "results/nl2post_verified_subset.json",
+      "destination": "paper/data/upstream/results/nl2post_verified_subset.json",
+      "source_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332",
+      "source_git_blob": "6cfa4999f8e19682ce39e8e2c23eb47fbfe9a792",
+      "release_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/PAPER_MAINTENANCE.md",
+      "destination": "paper/provenance/PAPER_MAINTENANCE.md",
+      "source_sha256": "430c5df4df6c1b642851e7019986c838d3d94afe800bcdaac4a0ec6800f39a84",
+      "source_git_blob": "954961fce5561efc91210342dd52d51d89a3a42a",
+      "release_sha256": "430c5df4df6c1b642851e7019986c838d3d94afe800bcdaac4a0ec6800f39a84",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/figs/northstar.pdf",
+      "destination": "paper/reported/figs/northstar.pdf",
+      "source_sha256": "285f716972504d84dfe2f1dc38f547d401a5422e58d1217ce1df89a13202a767",
+      "source_git_blob": "0190146ec907061fe1bcd5ddbc5eb1ec46981525",
+      "release_sha256": "285f716972504d84dfe2f1dc38f547d401a5422e58d1217ce1df89a13202a767",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/northstar.tex",
+      "destination": "paper/reported/northstar.tex",
+      "source_sha256": "07e512044d71cb55836a2da26626b49f5dcc6ec4779daa1ce368a8400e510d40",
+      "source_git_blob": "7e06aa2ac7ba21b17e0b8e75cc78fdde49385ea1",
+      "release_sha256": "07e512044d71cb55836a2da26626b49f5dcc6ec4779daa1ce368a8400e510d40",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/paper.tex",
+      "destination": "paper/reported/paper.tex",
+      "source_sha256": "394470d96c63fe57096a67b7f68b860f5a1bd5f8a7efca49853ea69cc400bcbd",
+      "source_git_blob": "1d6eb9520e42125c72280ce705fb54d689d4f1b5",
+      "release_sha256": "394470d96c63fe57096a67b7f68b860f5a1bd5f8a7efca49853ea69cc400bcbd",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/analysis_numbers.tex",
+      "destination": "paper/reported/tables/analysis_numbers.tex",
+      "source_sha256": "a20a8e06ccdaa4008dd8525cd7e0874595663574cf6b630641cb79bed00e51d9",
+      "source_git_blob": "e7c3c463e907ab61bdfc247ca92733afdaaa7b12",
+      "release_sha256": "a20a8e06ccdaa4008dd8525cd7e0874595663574cf6b630641cb79bed00e51d9",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/causes.tex",
+      "destination": "paper/reported/tables/causes.tex",
+      "source_sha256": "0c43154316aac594339de8e24c54bc6266953a5a34209ccb944ed8a8d8f4a105",
+      "source_git_blob": "a6240ce03a6c8dac4671d563df852498ae85466e",
+      "release_sha256": "0c43154316aac594339de8e24c54bc6266953a5a34209ccb944ed8a8d8f4a105",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/causes_numbers.tex",
+      "destination": "paper/reported/tables/causes_numbers.tex",
+      "source_sha256": "bc96cbe7daa1e5bf4bab62e469c7236bbbb653d9a72c5c1e98569b028234872f",
+      "source_git_blob": "8d08c2340aed02c17a9b86a376fd10589a15a289",
+      "release_sha256": "bc96cbe7daa1e5bf4bab62e469c7236bbbb653d9a72c5c1e98569b028234872f",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/cbmc_clean.tex",
+      "destination": "paper/reported/tables/cbmc_clean.tex",
+      "source_sha256": "8c17dac0f1c9713b14c8890141ce23203c1ed5a151e91fec2bb4dcd44f17994e",
+      "source_git_blob": "08f28d7a263a0793bfc0e3d49e7f4e2325a5fbe8",
+      "release_sha256": "8c17dac0f1c9713b14c8890141ce23203c1ed5a151e91fec2bb4dcd44f17994e",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/cbmc_falsecex.tex",
+      "destination": "paper/reported/tables/cbmc_falsecex.tex",
+      "source_sha256": "bdaa3c7db32c06f14dc410a26da37fe579d7a9dfd09720d2b6063df0944de4a2",
+      "source_git_blob": "76e05f7087727f41e04165a982f0fc4636a9a75d",
+      "release_sha256": "bdaa3c7db32c06f14dc410a26da37fe579d7a9dfd09720d2b6063df0944de4a2",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/dataset.tex",
+      "destination": "paper/reported/tables/dataset.tex",
+      "source_sha256": "fb36962687460e9dfad1d93f604bbe75f1831a2cf44e7cdbaeef6dea3eddd4c8",
+      "source_git_blob": "4ebabfe0068b74c0c9fa86c0161df1d5dd084e9a",
+      "release_sha256": "fb36962687460e9dfad1d93f604bbe75f1831a2cf44e7cdbaeef6dea3eddd4c8",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/dataset_numbers.tex",
+      "destination": "paper/reported/tables/dataset_numbers.tex",
+      "source_sha256": "3d3575736685191dddc012a14e27fde8560b3e64d55f634b20973c71f85daf15",
+      "source_git_blob": "4b64601186fd607a228057213ae9c6f7ecb55f0e",
+      "release_sha256": "3d3575736685191dddc012a14e27fde8560b3e64d55f634b20973c71f85daf15",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/judge_numbers.tex",
+      "destination": "paper/reported/tables/judge_numbers.tex",
+      "source_sha256": "9932a2796280a1a5d8cdc9df1e69786a1285df8004f395f75d9fc79db00df6f5",
+      "source_git_blob": "c179b07f9de838a3d6de8746725db014f15340f2",
+      "release_sha256": "9932a2796280a1a5d8cdc9df1e69786a1285df8004f395f75d9fc79db00df6f5",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/pipeline_numbers.tex",
+      "destination": "paper/reported/tables/pipeline_numbers.tex",
+      "source_sha256": "d250b7d817dd9df0bdc616bcce2900419bd403f38e52692664ad5e587b70f2fd",
+      "source_git_blob": "48532e71269c9449076b4b3b52889a23c916b2eb",
+      "release_sha256": "d250b7d817dd9df0bdc616bcce2900419bd403f38e52692664ad5e587b70f2fd",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/size.tex",
+      "destination": "paper/reported/tables/size.tex",
+      "source_sha256": "e90aa2e5066701122029ed0a3362ce5e1a2e6bbeeac566b30fe2cb73cdfddc52",
+      "source_git_blob": "79c9696dd542dab897e13cadfcd954842212fbb3",
+      "release_sha256": "e90aa2e5066701122029ed0a3362ce5e1a2e6bbeeac566b30fe2cb73cdfddc52",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/specs.tex",
+      "destination": "paper/reported/tables/specs.tex",
+      "source_sha256": "8e1ec1c87158ce9c03d22e8488c5f712d0aa1e17750d87913d205798136f69f6",
+      "source_git_blob": "0df35d51f0207dca46cff1c5d2a39077273752fb",
+      "release_sha256": "8e1ec1c87158ce9c03d22e8488c5f712d0aa1e17750d87913d205798136f69f6",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/tasks.tex",
+      "destination": "paper/reported/tables/tasks.tex",
+      "source_sha256": "2203c73d0812220be8933adac044e09d11384f1e3cf6070de9cbcdd28a226456",
+      "source_git_blob": "d7eb3505b593767ec451046fcf19fe0c1a80fa7b",
+      "release_sha256": "2203c73d0812220be8933adac044e09d11384f1e3cf6070de9cbcdd28a226456",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/tierexamples.tex",
+      "destination": "paper/reported/tables/tierexamples.tex",
+      "source_sha256": "9dcfe0d8f3f9331c03b2860a484c92320e0c69610ae560ce406703172ef7df38",
+      "source_git_blob": "9696c73e0a0f94b97ccd81135225665df3a13c61",
+      "release_sha256": "9dcfe0d8f3f9331c03b2860a484c92320e0c69610ae560ce406703172ef7df38",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/tiersfinal.tex",
+      "destination": "paper/reported/tables/tiersfinal.tex",
+      "source_sha256": "e95df3e441890686d5fbeb36681970c500994281a671b40661b4cb2d06913c56",
+      "source_git_blob": "df255f2275be52be603a6b3325e3924fe74b9ab0",
+      "release_sha256": "e95df3e441890686d5fbeb36681970c500994281a671b40661b4cb2d06913c56",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/paper/nfv_arxiv/tables/weakmodel.tex",
+      "destination": "paper/reported/tables/weakmodel.tex",
+      "source_sha256": "9c951f9c219c7b64b967301381d3d38b82baa54596e6ceb532f3d51fd4139f94",
+      "source_git_blob": "4d36a17444d9c73843a7033c1d4632d1641064ce",
+      "release_sha256": "9c951f9c219c7b64b967301381d3d38b82baa54596e6ceb532f3d51fd4139f94",
+      "modified_from_materialized_source": false
+    }
+  ],
+  "release_authored_files": [
+    {
+      "path": "paper/reproduce.py",
+      "sha256": "e393aa37c00528c2c0a71fcc089d2191491f13b66de19c4bde4372acace01513",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/prepare.py",
+      "sha256": "b93eb018212068d96ddf67e9c23b80416e0f0060be6b4258db924c5cacb65c4c",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/extract_source.py",
+      "sha256": "7f6e1cb292591f43b3a295d899fbeb69590bef16bf2656789b98d0748bbeb515",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/build_manifest.py",
+      "sha256": "2331f6be38152278bcd059bd2e95eee754af797f03607425c06c8dfb07b0a4c3",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "tests/test_paper_core.py",
+      "sha256": "8d7eaf045eb46d1d0cdaa6f9ee26a630694870ecc00d41b7bc527244f1663427",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    }
+  ],
+  "gaps": [
+    "Resumed files span multiple commits; dirty run deltas were not captured. Source HEAD is not an exact snapshot of every reported run.",
+    "No run entry for lemma4_sonnet46_refute.jsonl or judge.jsonl was found in EXPERIMENTS.md; comparison script records Sonnet refutation abandoned at 203 entries.",
+    "S1 upstream archives and historical EvalPlus cache/package version are not bundled; retained S1 output permits deterministic downstream checking.",
+    "S2 validate_specs.py is archival and references legacy py2c.call_llm_async, not included; original generated tests are not retained in its summary JSON. Do not regenerate S2 silently with a new model.",
+    "Nagini results mentioned in v3 are intentionally outside this Dafny/CBMC release scope.",
+    "The retained source does not explicitly pin the historical CBMC version. Version 6.9.0 is the executable discovered and self-tested locally, not independently established as the paper's exact binary."
+  ],
+  "ports": [
+    "Restricted backend registry and removed unsupported backend imports/branches; retained exact relevant prompt literals.",
+    "Removed the newer online combined mode, which was not the paper's offline join of two completed arms.",
+    "Relocated dataset predecessors under paper/data/upstream; original frozen dataset bytes retained.",
+    "Source-comparison generator narrowed to final model/analysis tables; dataset-only generators extracted from historical multipurpose script.",
+    "Verifier scratch directories are repository-local instead of system temporary paths.",
+    "CBMC inherits the normal compiler environment on non-Windows hosts instead of requiring MSVC there; Windows discovery is unchanged.",
+    "Non-Windows CBMC lookup uses the explicit override or PATH and does not select Windows .exe candidates.",
+    "Removed automatic git staging/commit of experiment logs; logging remains available without modifying Git history.",
+    "Future command logs omit the internal _resolved_backend object (a non-CLI argument); original historical log provenance is unchanged.",
+    "An explicit NFV_EXPECTED_LOGIN pin now fails closed if account identity is unavailable; no author-account default is set and historical EMU opt-in policy is retained.",
+    "Workflow reuses the existing stdlib-only run_dafny backend; no additional general-purpose refutation adapter is included."
+  ]
+}

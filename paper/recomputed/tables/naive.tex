@@ -1,0 +1,36 @@
+\begin{table}[t]\centering\small
+\caption{The naive baseline: one two-line translation prompt, three repair
+rounds, no library specifications, no blind preconditions, no provenance, no
+freeze and no checks, on all 206 entries with the same model and verifier
+as the staged pipeline. It proves 101 of 103 correct programs --- far
+above any staged configuration --- and 101 of 103 known-wrong ones,
+for a precision of 50.0\%, which is chance on a balanced benchmark. The
+proof rate and the failure are the same number. Below, each unsound proof is
+attributed to the mechanism that produced it and the stage that removes it;
+a goal stated in terms of the model's own helpers is counted first, since it
+makes the obligation vacuous regardless of what the body does.}
+\label{tab:naive}
+\begin{tabular}{lrr}
+\toprule
+& Proved & Rate \\
+\midrule
+Correct programs (103) & 101 & 98.1\% \\
+Known-wrong programs (103) & 101 & 98.1\% \\
+\midrule
+\multicolumn{2}{l}{\emph{Precision of a proof}} & \textbf{50.0\%} \\
+\bottomrule
+\end{tabular}
+
+\vspace{1em}
+\begin{tabular}{llr}
+\toprule
+Mechanism & Stage that removes it & Count \\
+\midrule
+Program rewritten to match the goal & Phase~1 provenance, freeze (V3) & 58 \\
+Goal restated via invented helpers & Phase~0 library specifications & 35 \\
+Proof rests on an assumption & V1 constructs, V5 audit & 8 \\
+\midrule
+\multicolumn{2}{l}{\emph{(also) unjustified \texttt{requires} present}} & 57 \\
+\bottomrule
+\end{tabular}
+\end{table}

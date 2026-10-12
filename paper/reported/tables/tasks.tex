@@ -1,0 +1,14 @@
+\begin{table}[t]\centering\small
+\caption{\daf{}, the reference backend, on each task and its own population. Verification and refutation run at 5 attempts $\times$ 10 proof rounds. The pipeline row is composed from the two arms above --- refutation first, verification on what it leaves open --- so every row is the same backend. ``wrong'' counts verdicts contradicting the label.}
+\label{tab:tasks}
+\begin{tabular}{lrrrrrr}
+\toprule
+task & population & issued & wrong & prec.\ (\%) & rec.\ (\%) & $F_1$\\
+\midrule
+verification ($P \models S$) & 103 & 77 & 5 & 93.5 & 69.9 & 0.80\\
+refutation ($P \not\models S$) & 103 & 53 & 6 & 88.7 & 45.6 & 0.60\\
+\midrule
+pipeline (refute, then verify) & 206 & 128 & 10 & 92.2 & 57.3 & 0.71\\
+\bottomrule
+\end{tabular}
+\end{table}

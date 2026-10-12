@@ -1,0 +1,17 @@
+\begin{table}[t]\centering\footnotesize
+\caption{Comparison of different LLMs for the proof-based tasks. \emph{proved} is over the 103 correct programs, \emph{refuted} over the 103 buggy ones, \emph{bad} counts claims contradicting the label, \emph{prec} is precision over claims, and \emph{F1} combines that precision with recall over the 103, counting an abstention as a wrong answer would count. \emph{type} and \emph{audit} split the entries that never reached the proof step: code that failed the type checker, and code that resolved but failed the artifact checks. Rows are ordered by decreasing verification \emph{F1}. A row marked $^{\dagger}$ was stopped before finishing: its refutation half is scored over the 203 entries that completed, not 206. The 3 that did not finish are the ones the model spent longest on.}
+\label{tab:weakmodel}
+\begin{tabular}{lrrrrrrrrrr}
+\toprule
+& \multicolumn{4}{c}{verification} & \multicolumn{4}{c}{refutation} & \multicolumn{2}{c}{no proof attempted} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}\cmidrule(lr){10-11}
+& proved & \emph{bad} & \emph{prec} & \emph{F1} & refuted & \emph{bad} & \emph{prec} & \emph{F1} & \emph{type} & \emph{audit} \\
+\midrule
+\texttt{gpt-5.6-sol} & 72/103 (70\%) & 5 & 94\% & 0.80 & 47/103 (46\%) & 6 & 89\% & 0.60 & 1 & 9 \\
+\texttt{gpt-5-mini} & 56/103 (54\%) & 38 & 60\% & 0.57 & 34/103 (33\%) & 17 & 67\% & 0.44 & 72 & 20 \\
+\texttt{claude-sonnet-4.6}$^{\dagger}$ & 41/103 (40\%) & 12 & 77\% & 0.53 & 39/101 (39\%) & 2 & 95\% & 0.55 & 0 & 159 \\
+\texttt{claude-haiku-4.5} & 11/103 (11\%) & 2 & 85\% & 0.19 & 7/103 (7\%) & 0 & 100\% & 0.13 & 92 & 257 \\
+\bottomrule
+\end{tabular}
+
+\end{table}

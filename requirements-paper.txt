@@ -1,0 +1,2 @@
+# Version recorded by nfv/shared/copilot_client.py in the pinned paper source.
+github-copilot-sdk==1.0.4
