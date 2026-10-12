@@ -7,7 +7,7 @@ This repository contains two components:
   configuration, instructions for running experiments, and table reproduction.
 - **GitHub Agentic Workflow integration (prototype implementation):** a
   refutation-only audit of intended properties in closed pull requests.
-  See [workflow/README.md](workflow/README.md) for setup, model configuration,
+  See the [nested workflow README](https://github.com/microsoft/neuro-formal-verification/blob/aw/refutation-workflow/workflow/README.md) for setup, model configuration,
   supported languages, and examples. Development is on the
   `aw/refutation-workflow` branch, separately from the artifact on `dev`.
 
