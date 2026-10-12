@@ -327,11 +327,6 @@
       "source_sha256": "285f716972504d84dfe2f1dc38f547d401a5422e58d1217ce1df89a13202a767"
     },
     {
-      "source": "nfv/paper/nfv_arxiv/PAPER_MAINTENANCE.md",
-      "destination": "paper/provenance/PAPER_MAINTENANCE.md",
-      "source_sha256": "430c5df4df6c1b642851e7019986c838d3d94afe800bcdaac4a0ec6800f39a84"
-    },
-    {
       "source": "nfv/data/subsets/pilot10.json",
       "destination": "nfv/data/subsets/pilot10.json",
       "source_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf"

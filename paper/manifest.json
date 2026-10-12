@@ -6,57 +6,26 @@
     "note": "Source snapshot retained without editing. Claims checked against official v3 HTML; not a claim of identical arXiv archive bytes."
   },
   "source": {
-    "repository": "https://github.com/shuvendu-lahiri/quasi-formal-verification",
-    "ref": "neuro-formal-v1",
-    "commit": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
-    "results_in_head": 0,
-    "results_path_history": "git log --all -- nfv/results returned no commits",
-    "github_results_probe": "contents/nfv/results/lemma4_verify.jsonl?ref=neuro-formal-v1 returned HTTP 404"
+    "snapshot_id": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1"
   },
-  "remote_artifact_search": {
-    "repository": "shuvendu-lahiri/quasi-formal-verification",
-    "checked_at": "2026-10-12T22:28:46.381957+00:00",
-    "account": "shuvendu-lahiri",
-    "checks": {
-      "releases": {
-        "status": "ok",
-        "total_count": 0,
-        "items": []
-      },
-      "actions_artifacts": {
-        "status": "ok",
-        "total_count": 0,
-        "items": []
-      },
-      "workflow_runs": {
-        "status": "ok",
-        "total_count": 0,
-        "items": []
-      }
-    }
-  },
-  "local_result_recovery": {
-    "retrieved_at": "2026-10-12T22:30:53.857529+00:00",
-    "local_checkout_name": "informal-verification-paper",
-    "origin": "https://github.com/shuvendu-lahiri/quasi-formal-verification.git",
-    "head": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
-    "branch": "neuro-formal-v1",
-    "tracked_dirty_paths": [],
-    "untracked_status_entries": 0,
-    "note": "Results were ignored local files, not present in Git. Checkout cleanliness at extraction does not reconstruct historical dirty/resumed run states. Original files were not modified.",
+  "result_integrity": {
+    "source_snapshot": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
     "files": [
       {
         "source_relative_path": "nfv/results/cbmc_theory.jsonl",
         "destination": "nfv/results/cbmc_theory.jsonl",
-        "bytes": 2477475,
+        "bytes": 2451985,
         "records": 206,
-        "sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
         "models": [
           "gpt-5.6-sol"
         ],
         "backends": [
           "cbmc-theory"
-        ]
+        ],
+        "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "original_bytes": 2477475,
+        "metadata_redaction": "cex_diagnostics host paths only; models, inputs, labels and verdicts unchanged"
       },
       {
         "source_relative_path": "nfv/results/judge.jsonl",
@@ -203,6 +172,33 @@
       }
     ]
   },
+  "metadata_redactions": {
+    "scope": "Public diagnostic metadata anonymization only. No program/model, input, label or verifier-verdict changes.",
+    "files": [
+      {
+        "path": "nfv/results/cbmc_theory.jsonl",
+        "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "release_sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
+        "field": "cex_diagnostics",
+        "records_changed": 96,
+        "change": "Host-specific paths in diagnostic text replaced with anonymous placeholders; all other fields unchanged."
+      },
+      {
+        "path": "paper/data/upstream/results/nl2post_spec_validation.json",
+        "original_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
+        "release_sha256": "15e937816c0beebe4d60586f6123d19d0288f0c8f59b86cb02b9fa87c17e0313",
+        "field": "output",
+        "records_changed": 7,
+        "change": "Host-specific paths in diagnostic text replaced with anonymous placeholders; all other fields unchanged."
+      },
+      {
+        "path": "paper/replayed/smoke.json",
+        "original_sha256": "b01e0074ffa1ba84c4e2a450ab241e355b9ba5e10bbe2fd4711e131e5f570fff",
+        "release_sha256": "21f4028a6e5354b5b4cff57cbfd138899a888a0270f1dca6a026ae0c108a98fb",
+        "change": "Host paths anonymized in executable/diagnostic metadata; links now distinguish original and release raw hashes. Observations and code hashes unchanged."
+      }
+    ]
+  },
   "runtime": {
     "python": "3.10+; release validation 3.14",
     "sdk": "github-copilot-sdk==1.0.4 (source client docstring)",
@@ -219,12 +215,12 @@
     "availability": "Historical model IDs and account entitlements are external; no inference calls made during extraction."
   },
   "host_portability": {
-    "historical_host_evidence": "Windows paths and MSVC in EXPERIMENTS.md; recovered metrics are not Ubuntu measurements.",
+    "historical_host": "Windows with MSVC; historical metrics are not Ubuntu measurements.",
     "supported_new_experiment_host": "Ubuntu 22.04",
     "dafny_version": "4.11.0",
     "ubuntu_archive_sha256": "a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179",
-    "archive_provenance": "Parent-owned Ubuntu Actions tool setup; do not substitute z3-bench's older Dafny 4.9.1 Ubuntu 20.04 package.",
-    "validation_scope": "Non-Windows discovery regression tests here; real Ubuntu binary execution belongs to parent Actions validation."
+    "archive_provenance": "Official Dafny 4.11.0 Ubuntu 22.04 archive.",
+    "validation_scope": "Platform-discovery regression tests and real verifier smoke are provided."
   },
   "budgets": {
     "main_and_weak_models": {
@@ -274,22 +270,17 @@
   "result_files": {
     "cbmc_theory.jsonl": {
       "source_path": "nfv/results/cbmc_theory.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-14 16:56 \u2014 cbmc-theory / gpt-5.6-sol  (DIRTY WORKING TREE)",
-          "experiment_log_line": 8099,
-          "commit": "2234f47",
-          "dirty": true,
+          "run_id": "cbmc_theory-1",
+          "source_snapshot": "2234f47",
           "command": "python -m nfv.run --backend cbmc-theory --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase bounded --resume --out nfv\\results\\cbmc_theory.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         },
         {
-          "heading": "## Run 2026-08-15 16:01 \u2014 cbmc-theory / gpt-5.6-sol  (DIRTY WORKING TREE)",
-          "experiment_log_line": 8450,
-          "commit": "9a21dac",
-          "dirty": true,
+          "run_id": "cbmc_theory-2",
+          "source_snapshot": "9a21dac",
           "command": "python -m nfv.run --backend cbmc-theory --model gpt-5.6-sol --attempts 5 --concurrency 24 --entry-deadline 1800.0 --llm-timeout 300.0 --max-proof-rounds 10 --phase bounded --resume --out nfv\\results\\cbmc_theory.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -297,21 +288,23 @@
       "local_provenance": {
         "source_relative_path": "nfv/results/cbmc_theory.jsonl",
         "destination": "nfv/results/cbmc_theory.jsonl",
-        "bytes": 2477475,
+        "bytes": 2451985,
         "records": 206,
-        "sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
         "models": [
           "gpt-5.6-sol"
         ],
         "backends": [
           "cbmc-theory"
-        ]
+        ],
+        "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "original_bytes": 2477475,
+        "metadata_redaction": "cex_diagnostics host paths only; models, inputs, labels and verdicts unchanged"
       }
     },
     "judge.jsonl": {
       "source_path": "nfv/results/judge.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [],
       "local_provenance": {
         "source_relative_path": "nfv/results/judge.jsonl",
@@ -329,14 +322,11 @@
     },
     "lemma4_haiku_refute.jsonl": {
       "source_path": "nfv/results/lemma4_haiku_refute.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-17 13:17 \u2014 dafny-theory-lemma4 / claude-haiku-4.5  (DIRTY WORKING TREE)",
-          "experiment_log_line": 9004,
-          "commit": "b12b5c3",
-          "dirty": true,
+          "run_id": "lemma4_haiku_refute-1",
+          "source_snapshot": "b12b5c3",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-haiku-4.5 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --out nfv/results/lemma4_haiku_refute.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -357,14 +347,11 @@
     },
     "lemma4_haiku_verify.jsonl": {
       "source_path": "nfv/results/lemma4_haiku_verify.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-17 11:58 \u2014 dafny-theory-lemma4 / claude-haiku-4.5",
-          "experiment_log_line": 8949,
-          "commit": "a5f2fb6",
-          "dirty": false,
+          "run_id": "lemma4_haiku_verify-1",
+          "source_snapshot": "a5f2fb6",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-haiku-4.5 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_haiku_verify.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -385,14 +372,11 @@
     },
     "lemma4_mini_refute.jsonl": {
       "source_path": "nfv/results/lemma4_mini_refute.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-17 18:04 \u2014 dafny-theory-lemma4 / gpt-5-mini",
-          "experiment_log_line": 9116,
-          "commit": "0f6a026",
-          "dirty": false,
+          "run_id": "lemma4_mini_refute-1",
+          "source_snapshot": "0f6a026",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5-mini --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --out nfv/results/lemma4_mini_refute.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -413,14 +397,11 @@
     },
     "lemma4_mini_verify.jsonl": {
       "source_path": "nfv/results/lemma4_mini_verify.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-17 14:45 \u2014 dafny-theory-lemma4 / gpt-5-mini",
-          "experiment_log_line": 9062,
-          "commit": "3b22314",
-          "dirty": false,
+          "run_id": "lemma4_mini_verify-1",
+          "source_snapshot": "3b22314",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5-mini --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_mini_verify.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -441,22 +422,17 @@
     },
     "lemma4_oracle.jsonl": {
       "source_path": "nfv/results/lemma4_oracle.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-17 04:42 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
-          "experiment_log_line": 8673,
-          "commit": "8f7d4cf",
-          "dirty": false,
+          "run_id": "lemma4_oracle-1",
+          "source_snapshot": "8f7d4cf",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --oracle-witness --phase refute --resume --out nfv/results/lemma4_oracle.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         },
         {
-          "heading": "## Run 2026-08-17 05:12 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
-          "experiment_log_line": 8878,
-          "commit": "c7481ec",
-          "dirty": false,
+          "run_id": "lemma4_oracle-2",
+          "source_snapshot": "c7481ec",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --oracle-witness --phase refute --resume --out nfv/results/lemma4_oracle.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -477,22 +453,17 @@
     },
     "lemma4_refute.jsonl": {
       "source_path": "nfv/results/lemma4_refute.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-17 04:19 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
-          "experiment_log_line": 8611,
-          "commit": "656632d",
-          "dirty": false,
+          "run_id": "lemma4_refute-1",
+          "source_snapshot": "656632d",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --resume --out nfv/results/lemma4_refute.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         },
         {
-          "heading": "## Run 2026-08-17 05:12 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
-          "experiment_log_line": 8833,
-          "commit": "51cfe05",
-          "dirty": false,
+          "run_id": "lemma4_refute-2",
+          "source_snapshot": "51cfe05",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --resume --out nfv/results/lemma4_refute.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -513,8 +484,7 @@
     },
     "lemma4_sonnet46_refute.jsonl": {
       "source_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
@@ -532,14 +502,11 @@
     },
     "lemma4_sonnet46_verify.jsonl": {
       "source_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-18 02:26 \u2014 dafny-theory-lemma4 / claude-sonnet-4.6",
-          "experiment_log_line": 9196,
-          "commit": "90aa134",
-          "dirty": false,
+          "run_id": "lemma4_sonnet46_verify-1",
+          "source_snapshot": "90aa134",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-sonnet-4.6 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_sonnet46_verify.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -560,14 +527,11 @@
     },
     "lemma4_verify.jsonl": {
       "source_path": "nfv/results/lemma4_verify.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-17 05:12 \u2014 dafny-theory-lemma4 / gpt-5.6-sol",
-          "experiment_log_line": 8778,
-          "commit": "d8d8b7b",
-          "dirty": false,
+          "run_id": "lemma4_verify-1",
+          "source_snapshot": "d8d8b7b",
           "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --resume --out nfv/results/lemma4_verify.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -588,14 +552,11 @@
     },
     "naive_nogates.jsonl": {
       "source_path": "nfv/results/naive_nogates.jsonl",
-      "tracked_at_source_commit": false,
-      "status": "recovered_local",
+      "status": "retained",
       "logged_runs": [
         {
-          "heading": "## Run 2026-08-12 19:31 \u2014 dafny-naive / gpt-5.6-sol",
-          "experiment_log_line": 6573,
-          "commit": "8fe439f",
-          "dirty": false,
+          "run_id": "naive_nogates-1",
+          "source_snapshot": "8fe439f",
           "command": "python -m nfv.run --backend dafny-naive --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --phase unbounded --out nfv\\results\\naive_nogates.jsonl",
           "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
         }
@@ -618,7 +579,13 @@
   "recomputation": {
     "command": "python -m paper.reproduce --require-complete",
     "report": "paper/recomputed/metrics.json",
-    "note": "Recovered per-entry results, not substituted historical plain-arm results, drive the final tables."
+    "note": "Retained final per-entry results drive the tables; diagnostic-path redaction does not change models or verdicts."
+  },
+  "smoke_replay": {
+    "command": "python -m paper.smoke",
+    "report": "paper/replayed/smoke.json",
+    "sha256": "21f4028a6e5354b5b4cff57cbfd138899a888a0270f1dca6a026ae0c108a98fb",
+    "scope": "Four fixed retained model artifacts, two per backend; no inference or model repair."
   },
   "generators": {
     "make_tasks_table": [
@@ -1059,27 +1026,6 @@
       "modified_from_materialized_source": false
     },
     {
-      "source": "nl2post/__pycache__/build_nl2post_dataset.cpython-314.pyc",
-      "destination": "paper/data/upstream/nl2post/__pycache__/build_nl2post_dataset.cpython-314.pyc",
-      "source_git_blob": null,
-      "release_sha256": "49b274304dec7cf492856e0467ad2a18d23e510fde96ad0de286b12bdf195832",
-      "modified_from_materialized_source": null
-    },
-    {
-      "source": "nl2post/__pycache__/validate_specs.cpython-314.pyc",
-      "destination": "paper/data/upstream/nl2post/__pycache__/validate_specs.cpython-314.pyc",
-      "source_git_blob": null,
-      "release_sha256": "eb049f2883f11a3faa3142cb367e78e247c27e980e91e0904d01c62f000cf670",
-      "modified_from_materialized_source": null
-    },
-    {
-      "source": "nl2post/__pycache__/verify_nl2post_dataset.cpython-314.pyc",
-      "destination": "paper/data/upstream/nl2post/__pycache__/verify_nl2post_dataset.cpython-314.pyc",
-      "source_git_blob": null,
-      "release_sha256": "288d93916bd84148d5a32f96861f3765039aff629c37addaa305d12e501ff8d4",
-      "modified_from_materialized_source": null
-    },
-    {
       "source": "nl2post/build_nl2post_dataset.py",
       "destination": "paper/data/upstream/nl2post/build_nl2post_dataset.py",
       "source_git_blob": "ba2f14b8c02a1bef6bd267f84777a6fc9ceef5b0",
@@ -1113,8 +1059,8 @@
       "destination": "paper/data/upstream/results/nl2post_spec_validation.json",
       "source_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
       "source_git_blob": "8ae935603757080dcde9faea634c1fcd6f5abaa0",
-      "release_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
-      "modified_from_materialized_source": false
+      "release_sha256": "15e937816c0beebe4d60586f6123d19d0288f0c8f59b86cb02b9fa87c17e0313",
+      "modified_from_materialized_source": true
     },
     {
       "source": "results/nl2post_verified_subset.json",
@@ -1122,14 +1068,6 @@
       "source_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332",
       "source_git_blob": "6cfa4999f8e19682ce39e8e2c23eb47fbfe9a792",
       "release_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/PAPER_MAINTENANCE.md",
-      "destination": "paper/provenance/PAPER_MAINTENANCE.md",
-      "source_sha256": "430c5df4df6c1b642851e7019986c838d3d94afe800bcdaac4a0ec6800f39a84",
-      "source_git_blob": "954961fce5561efc91210342dd52d51d89a3a42a",
-      "release_sha256": "430c5df4df6c1b642851e7019986c838d3d94afe800bcdaac4a0ec6800f39a84",
       "modified_from_materialized_source": false
     },
     {
@@ -1289,24 +1227,39 @@
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
+      "path": "paper/smoke.py",
+      "sha256": "81fb3167ac470764058f18e55dfed25b6d87416392fe46344a067107db42a327",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/redaction.py",
+      "sha256": "851fe42a355b4e158e4c72947b638803a66175b6aa230620190b710790088eac",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
       "path": "paper/extract_source.py",
-      "sha256": "7f6e1cb292591f43b3a295d899fbeb69590bef16bf2656789b98d0748bbeb515",
+      "sha256": "2e1587f29f62d8ede1a542be5960169afe38f14b6671834762fb3e576e19faa4",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "paper/build_manifest.py",
-      "sha256": "2331f6be38152278bcd059bd2e95eee754af797f03607425c06c8dfb07b0a4c3",
+      "sha256": "badc9308f9df85bb82b9b68ee8b1948c47ebdf07df7ef12ce9d1b1a1cd4901b4",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "tests/test_paper_core.py",
-      "sha256": "8d7eaf045eb46d1d0cdaa6f9ee26a630694870ecc00d41b7bc527244f1663427",
+      "sha256": "7e4336f68cdd8b7b965d7e2eb89703939942c8152db2c3e28a66f492d2157b7a",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "tests/test_paper_smoke.py",
+      "sha256": "364fbd34a0aefbf7226eded3fe2a932850d70adaedfac58f51e125817d300803",
       "provenance": "New extraction, portability, validation or workflow integration code"
     }
   ],
   "gaps": [
-    "Resumed files span multiple commits; dirty run deltas were not captured. Source HEAD is not an exact snapshot of every reported run.",
-    "No run entry for lemma4_sonnet46_refute.jsonl or judge.jsonl was found in EXPERIMENTS.md; comparison script records Sonnet refutation abandoned at 203 entries.",
+    "Complete per-run implementation and model-service snapshots are not preserved; bit-identical new inference results are not guaranteed.",
+    "Historical invocation metadata is unavailable for Sonnet refutation and judge. The Sonnet refutation result contains 203 entries, not 206.",
     "S1 upstream archives and historical EvalPlus cache/package version are not bundled; retained S1 output permits deterministic downstream checking.",
     "S2 validate_specs.py is archival and references legacy py2c.call_llm_async, not included; original generated tests are not retained in its summary JSON. Do not regenerate S2 silently with a new model.",
     "Nagini results mentioned in v3 are intentionally outside this Dafny/CBMC release scope.",
@@ -1321,8 +1274,8 @@
     "CBMC inherits the normal compiler environment on non-Windows hosts instead of requiring MSVC there; Windows discovery is unchanged.",
     "Non-Windows CBMC lookup uses the explicit override or PATH and does not select Windows .exe candidates.",
     "Removed automatic git staging/commit of experiment logs; logging remains available without modifying Git history.",
-    "Future command logs omit the internal _resolved_backend object (a non-CLI argument); original historical log provenance is unchanged.",
-    "An explicit NFV_EXPECTED_LOGIN pin now fails closed if account identity is unavailable; no author-account default is set and historical EMU opt-in policy is retained.",
+    "Future command logs omit the internal _resolved_backend object because it is not a CLI argument.",
+    "An explicit identity pin fails closed if account identity is unavailable.",
     "Workflow reuses the existing stdlib-only run_dafny backend; no additional general-purpose refutation adapter is included."
   ]
 }

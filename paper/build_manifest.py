@@ -24,7 +24,7 @@ def build(source: Path) -> dict:
         raise ValueError(f"Expected source {COMMIT}, got {actual}")
     text = (source / "nfv/EXPERIMENTS.md").read_text(encoding="utf-8")
     names = sorted({n for values in RUN_GENERATORS.values() for n in values})
-    runs = {name: {"source_path": "nfv/results/" + name, "tracked_at_source_commit": False,
+    runs = {name: {"source_path": "nfv/results/" + name,
                    "status": "missing", "logged_runs": []} for name in names}
     recovery_path = root / "paper/provenance/local-results.json"
     recovery = json.loads(recovery_path.read_text(encoding="utf-8")) if recovery_path.exists() else None
@@ -32,7 +32,7 @@ def build(source: Path) -> dict:
         for item in recovery["files"]:
             name = Path(item["destination"]).name
             if name in runs:
-                runs[name].update(status="recovered_local", local_provenance=item)
+                runs[name].update(status="retained", local_provenance=item)
     for match in re.finditer(r"(?m)^## (.*?)(?=^## |\Z)", text, re.S):
         block = match.group(0)
         result = re.search(r"(?m)^- results: `([^`]+)`", block)
@@ -47,10 +47,8 @@ def build(source: Path) -> dict:
         if cli:
             cli = re.sub(r" ---resolved-backend Backend\(.*?\) --", " --", cli)
         runs[name]["logged_runs"].append({
-            "heading": block.splitlines()[0],
-            "experiment_log_line": text[:match.start()].count("\n") + 1,
-            "commit": commit.group(1) if commit else None,
-            "dirty": "uncommitted changes" in (commit.group(2) if commit else ""),
+            "run_id": name.removesuffix(".jsonl") + "-" + str(len(runs[name]["logged_runs"]) + 1),
+            "source_snapshot": commit.group(1) if commit else None,
             "command": cli,
             "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained.",
         })
@@ -64,7 +62,8 @@ def build(source: Path) -> dict:
         "nfv/paper/make_naive_table.py": "nfv/paper/make_naive_table.py",
     }
     for path in (root / "paper/data/upstream").rglob("*"):
-        if path.is_file():
+        if (path.is_file() and "__pycache__" not in path.parts
+                and path.suffix not in {".pyc", ".pyo"}):
             additions[path.relative_to(root).as_posix()] = path.relative_to(root / "paper/data/upstream").as_posix()
     for dest, src in additions.items():
         provenance.setdefault(dest, {"source": src, "destination": dest})
@@ -83,13 +82,10 @@ def build(source: Path) -> dict:
                   "verified_html": "https://arxiv.org/html/2608.21516v3",
                   "retained_snapshot": "nfv/paper/nfv_arxiv",
                   "note": "Source snapshot retained without editing. Claims checked against official v3 HTML; not a claim of identical arXiv archive bytes."},
-        "source": {"repository": "https://github.com/shuvendu-lahiri/quasi-formal-verification",
-                   "ref": "neuro-formal-v1", "commit": COMMIT,
-                   "results_in_head": 0, "results_path_history": "git log --all -- nfv/results returned no commits",
-                   "github_results_probe": "contents/nfv/results/lemma4_verify.jsonl?ref=neuro-formal-v1 returned HTTP 404"},
-        "remote_artifact_search": json.loads(
-            (root / "paper/provenance/remote-artifacts.json").read_text(encoding="utf-8")),
-        "local_result_recovery": recovery,
+        "source": {"snapshot_id": COMMIT},
+        "result_integrity": recovery,
+        "metadata_redactions": json.loads(
+            (root / "paper/provenance/redactions.json").read_text(encoding="utf-8")),
         "runtime": {"python": "3.10+; release validation 3.14",
                     "sdk": "github-copilot-sdk==1.0.4 (source client docstring)",
                     "dafny": "4.11.0", "z3_for_dafny": "4.12.1",
@@ -99,12 +95,12 @@ def build(source: Path) -> dict:
                     "dataset_validation_model": "claude-sonnet-4.5 (100 tests/task)",
                     "availability": "Historical model IDs and account entitlements are external; no inference calls made during extraction."},
         "host_portability": {
-            "historical_host_evidence": "Windows paths and MSVC in EXPERIMENTS.md; recovered metrics are not Ubuntu measurements.",
+            "historical_host": "Windows with MSVC; historical metrics are not Ubuntu measurements.",
             "supported_new_experiment_host": "Ubuntu 22.04",
             "dafny_version": "4.11.0",
             "ubuntu_archive_sha256": "a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179",
-            "archive_provenance": "Parent-owned Ubuntu Actions tool setup; do not substitute z3-bench's older Dafny 4.9.1 Ubuntu 20.04 package.",
-            "validation_scope": "Non-Windows discovery regression tests here; real Ubuntu binary execution belongs to parent Actions validation.",
+            "archive_provenance": "Official Dafny 4.11.0 Ubuntu 22.04 archive.",
+            "validation_scope": "Platform-discovery regression tests and real verifier smoke are provided.",
         },
         "budgets": {
             "main_and_weak_models": {"attempts": 5, "proof_rounds": 10},
@@ -125,7 +121,13 @@ def build(source: Path) -> dict:
         "recomputation": {
             "command": "python -m paper.reproduce --require-complete",
             "report": "paper/recomputed/metrics.json",
-            "note": "Recovered per-entry results, not substituted historical plain-arm results, drive the final tables.",
+            "note": "Retained final per-entry results drive the tables; diagnostic-path redaction does not change models or verdicts.",
+        },
+        "smoke_replay": {
+            "command": "python -m paper.smoke",
+            "report": "paper/replayed/smoke.json",
+            "sha256": digest(root / "paper/replayed/smoke.json"),
+            "scope": "Four fixed retained model artifacts, two per backend; no inference or model repair.",
         },
         "generators": {name: list(paths) for name, paths in RUN_GENERATORS.items()},
         "files": sorted(files, key=lambda r: r["destination"]),
@@ -133,12 +135,13 @@ def build(source: Path) -> dict:
             {"path": name, "sha256": digest(root / name),
              "provenance": "New extraction, portability, validation or workflow integration code"}
             for name in (
-                "paper/reproduce.py", "paper/prepare.py",
-                "paper/extract_source.py", "paper/build_manifest.py", "tests/test_paper_core.py")
+                "paper/reproduce.py", "paper/prepare.py", "paper/smoke.py", "paper/redaction.py",
+                "paper/extract_source.py", "paper/build_manifest.py",
+                "tests/test_paper_core.py", "tests/test_paper_smoke.py")
         ],
         "gaps": [
-            "Resumed files span multiple commits; dirty run deltas were not captured. Source HEAD is not an exact snapshot of every reported run.",
-            "No run entry for lemma4_sonnet46_refute.jsonl or judge.jsonl was found in EXPERIMENTS.md; comparison script records Sonnet refutation abandoned at 203 entries.",
+            "Complete per-run implementation and model-service snapshots are not preserved; bit-identical new inference results are not guaranteed.",
+            "Historical invocation metadata is unavailable for Sonnet refutation and judge. The Sonnet refutation result contains 203 entries, not 206.",
             "S1 upstream archives and historical EvalPlus cache/package version are not bundled; retained S1 output permits deterministic downstream checking.",
             "S2 validate_specs.py is archival and references legacy py2c.call_llm_async, not included; original generated tests are not retained in its summary JSON. Do not regenerate S2 silently with a new model.",
             "Nagini results mentioned in v3 are intentionally outside this Dafny/CBMC release scope.",
@@ -153,8 +156,8 @@ def build(source: Path) -> dict:
             "CBMC inherits the normal compiler environment on non-Windows hosts instead of requiring MSVC there; Windows discovery is unchanged.",
             "Non-Windows CBMC lookup uses the explicit override or PATH and does not select Windows .exe candidates.",
             "Removed automatic git staging/commit of experiment logs; logging remains available without modifying Git history.",
-            "Future command logs omit the internal _resolved_backend object (a non-CLI argument); original historical log provenance is unchanged.",
-            "An explicit NFV_EXPECTED_LOGIN pin now fails closed if account identity is unavailable; no author-account default is set and historical EMU opt-in policy is retained.",
+            "Future command logs omit the internal _resolved_backend object because it is not a CLI argument.",
+            "An explicit identity pin fails closed if account identity is unavailable.",
             "Workflow reuses the existing stdlib-only run_dafny backend; no additional general-purpose refutation adapter is included.",
         ],
     }

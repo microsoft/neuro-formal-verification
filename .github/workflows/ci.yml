@@ -51,5 +51,7 @@ jobs:
           python -m unittest discover -s tests -v
       - name: Reproduce all scoped paper metrics without inference
         run: python -m paper.reproduce --require-complete
+      - name: Replay saved Dafny and CBMC verdicts without inference
+        run: python -m paper.smoke --timeout 60
       - name: Build distributable packages
         run: python -m pip wheel --no-deps . --wheel-dir dist

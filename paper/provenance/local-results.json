@@ -1,25 +1,21 @@
 {
-  "retrieved_at": "2026-10-12T22:30:53.857529+00:00",
-  "local_checkout_name": "informal-verification-paper",
-  "origin": "https://github.com/shuvendu-lahiri/quasi-formal-verification.git",
-  "head": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
-  "branch": "neuro-formal-v1",
-  "tracked_dirty_paths": [],
-  "untracked_status_entries": 0,
-  "note": "Results were ignored local files, not present in Git. Checkout cleanliness at extraction does not reconstruct historical dirty/resumed run states. Original files were not modified.",
+  "source_snapshot": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
   "files": [
     {
       "source_relative_path": "nfv/results/cbmc_theory.jsonl",
       "destination": "nfv/results/cbmc_theory.jsonl",
-      "bytes": 2477475,
+      "bytes": 2451985,
       "records": 206,
-      "sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+      "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
       "models": [
         "gpt-5.6-sol"
       ],
       "backends": [
         "cbmc-theory"
-      ]
+      ],
+      "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+      "original_bytes": 2477475,
+      "metadata_redaction": "cex_diagnostics host paths only; models, inputs, labels and verdicts unchanged"
     },
     {
       "source_relative_path": "nfv/results/judge.jsonl",

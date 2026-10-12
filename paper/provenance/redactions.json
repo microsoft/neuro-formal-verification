@@ -1,0 +1,27 @@
+{
+  "scope": "Public diagnostic metadata anonymization only. No program/model, input, label or verifier-verdict changes.",
+  "files": [
+    {
+      "path": "nfv/results/cbmc_theory.jsonl",
+      "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+      "release_sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
+      "field": "cex_diagnostics",
+      "records_changed": 96,
+      "change": "Host-specific paths in diagnostic text replaced with anonymous placeholders; all other fields unchanged."
+    },
+    {
+      "path": "paper/data/upstream/results/nl2post_spec_validation.json",
+      "original_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
+      "release_sha256": "15e937816c0beebe4d60586f6123d19d0288f0c8f59b86cb02b9fa87c17e0313",
+      "field": "output",
+      "records_changed": 7,
+      "change": "Host-specific paths in diagnostic text replaced with anonymous placeholders; all other fields unchanged."
+    },
+    {
+      "path": "paper/replayed/smoke.json",
+      "original_sha256": "b01e0074ffa1ba84c4e2a450ab241e355b9ba5e10bbe2fd4711e131e5f570fff",
+      "release_sha256": "21f4028a6e5354b5b4cff57cbfd138899a888a0270f1dca6a026ae0c108a98fb",
+      "change": "Host paths anonymized in executable/diagnostic metadata; links now distinguish original and release raw hashes. Observations and code hashes unchanged."
+    }
+  ]
+}

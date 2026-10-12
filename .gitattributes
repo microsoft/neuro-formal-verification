@@ -9,5 +9,6 @@
 nfv/results/*.jsonl -text
 nfv/data/*.json -text
 nfv/data/**/*.json -text
+paper/data/** -text
 
 .github/workflows/*.lock.yml linguist-generated=true

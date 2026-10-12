@@ -1,4 +1,4 @@
-"""Extract the paper's dependency closure from the pinned private source checkout.
+"""Extract the paper's dependency closure from a pinned source snapshot.
 
 This is a maintainer utility, not a benchmark prerequisite. It copies original
 source slices without rewriting prompts or executable statements.
@@ -152,7 +152,6 @@ def extract(source: Path, destination: Path) -> None:
             copy(path.relative_to(source).as_posix(),
                  "paper/reported/" + path.relative_to(source / "nfv/paper/nfv_arxiv").as_posix())
     copy("nfv/paper/nfv_arxiv/figs/northstar.pdf", "paper/reported/figs/northstar.pdf")
-    copy("nfv/paper/nfv_arxiv/PAPER_MAINTENANCE.md", "paper/provenance/PAPER_MAINTENANCE.md")
     for path in (source / "nfv/data/subsets").glob("pilot10.json"):
         copy(path.relative_to(source).as_posix(), path.relative_to(source).as_posix())
     # Keep only the registered variants needed by the final paper and their bases.

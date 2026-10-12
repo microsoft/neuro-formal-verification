@@ -226,7 +226,7 @@
       "task_id": "HumanEval/55",
       "entry_point": "fib",
       "status": "runtime_error",
-      "output": "Traceback (most recent call last):\n  File \"C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmpn7_woou5.py\", line 82, in <module>\n    test_fib()\n    ~~~~~~~~^^\n  File \"C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmpn7_woou5.py\", line 59, in test_fib\n    assert len(test_cases) == 100, f\"Expected 100 test cases, got {len(test_cases)}\"\n           ^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Expected 100 test cases, got 115"
+      "output": "Traceback (most recent call last):\n  File \"<host-path>/tmpn7_woou5.py\", line 82, in <module>\n    test_fib()\n    ~~~~~~~~^^\n  File \"<host-path>/tmpn7_woou5.py\", line 59, in test_fib\n    assert len(test_cases) == 100, f\"Expected 100 test cases, got {len(test_cases)}\"\n           ^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Expected 100 test cases, got 115"
     },
     {
       "task_id": "HumanEval/57",
@@ -253,7 +253,7 @@
       "task_id": "HumanEval/63",
       "entry_point": "fibfib",
       "status": "runtime_error",
-      "output": "Traceback (most recent call last):\n  File \"C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmp7y4rr96a.py\", line 89, in <module>\n    test_fibfib()\n    ~~~~~~~~~~~^^\n  File \"C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmp7y4rr96a.py\", line 66, in test_fibfib\n    assert len(test_inputs) == 100, f\"Expected 100 test inputs, got {len(test_inputs)}\"\n           ^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Expected 100 test inputs, got 97"
+      "output": "Traceback (most recent call last):\n  File \"<host-path>/tmp7y4rr96a.py\", line 89, in <module>\n    test_fibfib()\n    ~~~~~~~~~~~^^\n  File \"<host-path>/tmp7y4rr96a.py\", line 66, in test_fibfib\n    assert len(test_inputs) == 100, f\"Expected 100 test inputs, got {len(test_inputs)}\"\n           ^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Expected 100 test inputs, got 97"
     },
     {
       "task_id": "HumanEval/64",
@@ -379,7 +379,7 @@
       "task_id": "HumanEval/95",
       "entry_point": "check_dict_case",
       "status": "runtime_error",
-      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmprm0bzpa5.py on line 141, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmprm0bzpa5.py on line 141, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
     },
     {
       "task_id": "HumanEval/96",
@@ -479,7 +479,7 @@
       "task_id": "HumanEval/119",
       "entry_point": "match_parens",
       "status": "runtime_error",
-      "output": "File \"C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmpn150_991.py\", line 95\n    [))))', '(((('],\n     ^\nSyntaxError: closing parenthesis ')' does not match opening parenthesis '['"
+      "output": "File \"<host-path>/tmpn150_991.py\", line 95\n    [))))', '(((('],\n     ^\nSyntaxError: closing parenthesis ')' does not match opening parenthesis '['"
     },
     {
       "task_id": "HumanEval/120",
@@ -609,7 +609,7 @@
       "task_id": "HumanEval/154",
       "entry_point": "cycpattern_check",
       "status": "runtime_error",
-      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmp5xboyf9c.py on line 141, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmp5xboyf9c.py on line 141, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
     },
     {
       "task_id": "HumanEval/155",
@@ -679,7 +679,7 @@
       "task_id": "HumanEval/158",
       "entry_point": "find_max",
       "status": "runtime_error",
-      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmp6laz61pc.py on line 151, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmp6laz61pc.py on line 151, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
     },
     {
       "task_id": "HumanEval/59",
@@ -761,7 +761,7 @@
       "task_id": "HumanEval/27",
       "entry_point": "flip_case",
       "status": "runtime_error",
-      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file C:\\Users\\Shuvendu\\AppData\\Local\\Temp\\tmp4q2i57r0.py on line 69, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmp4q2i57r0.py on line 69, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
     },
     {
       "task_id": "HumanEval/130",

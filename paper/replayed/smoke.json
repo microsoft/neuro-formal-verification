@@ -1,0 +1,215 @@
+{
+  "created_at": "2026-10-12T23:12:13.513129+00:00",
+  "host": {
+    "platform": "Windows-11-10.0.26300-SP0",
+    "machine": "AMD64",
+    "python": "3.14.0"
+  },
+  "scope": "Exact retained formal artifacts only: no translation, repair, witness search, or inference.",
+  "limitation": "Dafny refutation replays its already-negated final model; original admission gates are validated from the immutable record, not re-executed. This does not re-attest source/model correspondence. CBMC bounded success remains abstain. Historical CBMC version is not pinned.",
+  "selection": "all",
+  "toolchain": {
+    "dafny": {
+      "executable": "<host-path>/dafny.EXE",
+      "version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+    },
+    "z3": {
+      "executable": "<host-path>/z3.exe",
+      "version": "Z3 version 4.12.1 - 64 bit"
+    },
+    "cbmc": {
+      "executable": "<host-path>/cbmc.exe",
+      "version": "6.9.0 (cbmc-6.9.0)"
+    }
+  },
+  "backend_source_sha256": {
+    "nfv/backends/dafny.py": "c0c662ce454212dce9d459c27bd40c09b3042ecd80ea4ad506385f24b9b1a2e7",
+    "nfv/backends/cbmc.py": "d56758ee4bdf2eb0d789d1c68cf77f84779eef49eb32af81bc464e090c3d7162",
+    "nfv/backends/_scratch.py": "2a83e9823bd724b6d14927ebd9a19aae9f08825dafd9b6590d67c436e1f7b5a1",
+    "nfv/shared/config.py": "8f38bdb157099d9aeafc960a6493e8fcf35a277662e756fe9344ca1997f1053d"
+  },
+  "cases": [
+    {
+      "name": "dafny-reference-proof",
+      "result_file": "nfv/results/lemma4_verify.jsonl",
+      "entry_id": "HumanEval_157__r1__reference",
+      "backend": "dafny",
+      "artifact_field": "final_dafny",
+      "expected_outcome": "verified",
+      "expected_prediction": "correct",
+      "matched": true,
+      "discrepancies": [],
+      "result_file_sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
+      "result_line": 13,
+      "result_line_sha256": "72e2b6090951caf26d0abc50528fd6c4a37eec2cf6a5227184654c5a965b9c95",
+      "artifact_utf8_sha256": "14d7d7f43e0bc50eda8c5389063b7502a09d204af8c138f0bb403fafd89a2be9",
+      "artifact_utf8_bytes": 1619,
+      "expected_outcome_evidence": "attempt_log.proved=true; raw record does not contain the Dafny process exit code",
+      "recorded": {
+        "prediction": "correct",
+        "label": "correct",
+        "phase": "unbounded",
+        "reason": "verified (unbounded proof)",
+        "bounded_outcome": null,
+        "bounded_exit": null
+      },
+      "invocation": {
+        "mode": "unbounded",
+        "timeout_seconds": 60.0
+      },
+      "submitted_source_sha256": "14d7d7f43e0bc50eda8c5389063b7502a09d204af8c138f0bb403fafd89a2be9",
+      "observed": {
+        "outcome": "verified",
+        "exit_code": 0,
+        "duration_s": 1.7,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [],
+        "stdout": "\nDafny program verifier finished with 3 verified, 0 errors\n",
+        "stderr": ""
+      },
+      "artifact_prediction": "correct"
+    },
+    {
+      "name": "dafny-mutant-negation",
+      "result_file": "nfv/results/lemma4_refute.jsonl",
+      "entry_id": "HumanEval_97__r0__mutant",
+      "backend": "dafny",
+      "artifact_field": "final_dafny",
+      "expected_outcome": "verified",
+      "expected_prediction": "incorrect",
+      "matched": true,
+      "discrepancies": [],
+      "result_file_sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
+      "result_line": 5,
+      "result_line_sha256": "7b89595dd221164abbaca76a0bff88cf4ff48e2fa8ce16252929a9c11f0cc849",
+      "artifact_utf8_sha256": "2645b2d5c90cc431eb4afd03a1c4aeec99f9f035b2d74b97d5bfe74ead053cd8",
+      "artifact_utf8_bytes": 1127,
+      "expected_outcome_evidence": "attempt_log.outcome=proved and accepted refutation gates; no raw Dafny process exit code",
+      "recorded": {
+        "prediction": "incorrect",
+        "label": "incorrect",
+        "phase": "refuting",
+        "reason": "verified counterexample (unbounded refutation)",
+        "bounded_outcome": null,
+        "bounded_exit": null
+      },
+      "invocation": {
+        "mode": "unbounded",
+        "timeout_seconds": 60.0
+      },
+      "submitted_source_sha256": "2645b2d5c90cc431eb4afd03a1c4aeec99f9f035b2d74b97d5bfe74ead053cd8",
+      "observed": {
+        "outcome": "verified",
+        "exit_code": 0,
+        "duration_s": 3.037,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [],
+        "stdout": "\nDafny program verifier finished with 2 verified, 0 errors\n",
+        "stderr": ""
+      },
+      "artifact_prediction": "incorrect"
+    },
+    {
+      "name": "cbmc-reference-bounded-clean",
+      "result_file": "nfv/results/cbmc_theory.jsonl",
+      "entry_id": "HumanEval_53__r0__reference",
+      "backend": "cbmc",
+      "artifact_field": "model_dafny",
+      "expected_outcome": "verified",
+      "expected_prediction": "abstain",
+      "matched": true,
+      "discrepancies": [],
+      "result_file_sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
+      "result_line": 11,
+      "result_line_sha256": "ff91413e1ba3d852f9074e463df407aa2624a6b6932c11820937a356d6b2e09b",
+      "artifact_utf8_sha256": "af38a7b01db6d15f689c2749edeb3ac8980f8eda2408a8e227ba6f2d13e86c7b",
+      "artifact_utf8_bytes": 878,
+      "expected_outcome_evidence": "explicit bounded_outcome and bounded_exit fields",
+      "recorded": {
+        "prediction": "abstain",
+        "label": "correct",
+        "phase": "bounded",
+        "reason": "no violating execution found within the unwinding bound",
+        "bounded_outcome": "verified",
+        "bounded_exit": 0
+      },
+      "invocation": {
+        "mode": "bounded",
+        "timeout_seconds": 60.0,
+        "unroll": 10
+      },
+      "prelude_sha256": "f003ccfca25d1afc0fd63826b33b91ff9ea0311704d9b548115d6e191b5ee4cc",
+      "submitted_source_sha256": "5b1644dde3ee530392df2e059b72b6b1b68283bd5c925b01e584421c93cf40ff",
+      "observed": {
+        "outcome": "verified",
+        "exit_code": 0,
+        "duration_s": 0.473,
+        "mode": "bounded",
+        "unroll": 10,
+        "errors": [],
+        "failed_goal": [],
+        "failed_unwind": [],
+        "failed_builtin": [],
+        "stdout": "CBMC version 6.9.0 (cbmc-6.9.0) 64-bit x86_64 windows\nType-checking model\nGenerating GOTO Program\nAdding CPROVER library (x86_64)\nRemoval of function pointers and virtual functions\nGeneric Property Instrumentation\nStarting Bounded Model Checking\nPassing problem to propositional reduction\nconverting SSA\nRunning propositional reduction\nSAT checker: instance is UNSATISFIABLE\n\n** Results:\n<host-path>/model.c function add\n[add.overflow.1] line 30 arithmetic overflow on signed + in x + y: SUCCESS\n\n<host-path>/model.c function add_post\n[add_post.overflow.1] line 42 arithmetic overflow on signed + in x + y: SUCCESS\n\n<host-path>/model.c function main\n[main.assertion.1] line 54 nfv-goal: SUCCESS\n\n** 0 of 3 failed (1 iterations)\nVERIFICATION SUCCESSFUL\nmodel.c\n",
+        "stderr": ""
+      },
+      "artifact_prediction": "abstain",
+      "original_result_file_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+      "original_result_line_sha256": "ff91413e1ba3d852f9074e463df407aa2624a6b6932c11820937a356d6b2e09b"
+    },
+    {
+      "name": "cbmc-mutant-counterexample",
+      "result_file": "nfv/results/cbmc_theory.jsonl",
+      "entry_id": "HumanEval_53__r0__mutant",
+      "backend": "cbmc",
+      "artifact_field": "model_dafny",
+      "expected_outcome": "failed",
+      "expected_prediction": "incorrect",
+      "matched": true,
+      "discrepancies": [],
+      "result_file_sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
+      "result_line": 15,
+      "result_line_sha256": "5443e55d02c6588a0bbcb0270c6def737e78ea11405540188fddf4410b961845",
+      "artifact_utf8_sha256": "5bec1e71c6d62169b55bd3dc669c8d5d7f9a86368464f8652bdd0c3848e45d9e",
+      "artifact_utf8_bytes": 815,
+      "expected_outcome_evidence": "explicit bounded_outcome and bounded_exit fields",
+      "recorded": {
+        "prediction": "incorrect",
+        "label": "incorrect",
+        "phase": "bounded",
+        "reason": "counterexample in bounded phase",
+        "bounded_outcome": "failed",
+        "bounded_exit": 10
+      },
+      "invocation": {
+        "mode": "bounded",
+        "timeout_seconds": 60.0,
+        "unroll": 10
+      },
+      "prelude_sha256": "f003ccfca25d1afc0fd63826b33b91ff9ea0311704d9b548115d6e191b5ee4cc",
+      "submitted_source_sha256": "8af6da69733abfc652fecd84066c0845541a1d5c4b15cc261a5952ee064d92d4",
+      "observed": {
+        "outcome": "failed",
+        "exit_code": 10,
+        "duration_s": 0.126,
+        "mode": "bounded",
+        "unroll": 10,
+        "errors": [],
+        "failed_goal": [
+          "main.assertion.1"
+        ],
+        "failed_unwind": [],
+        "failed_builtin": [],
+        "stdout": "CBMC version 6.9.0 (cbmc-6.9.0) 64-bit x86_64 windows\nType-checking model\nGenerating GOTO Program\nAdding CPROVER library (x86_64)\nRemoval of function pointers and virtual functions\nGeneric Property Instrumentation\nStarting Bounded Model Checking\nPassing problem to propositional reduction\nconverting SSA\nRunning propositional reduction\nSAT checker: instance is SATISFIABLE\nBuilding error trace\nRunning propositional reduction\nSAT checker: instance is UNSATISFIABLE\n\n** Results:\n<host-path>/model.c function add\n[add.overflow.1] line 30 arithmetic overflow on signed - in x - y: SUCCESS\n\n<host-path>/model.c function add_post\n[add_post.overflow.1] line 40 arithmetic overflow on signed + in x + y: SUCCESS\n\n<host-path>/model.c function main\n[main.assertion.1] line 51 nfv-goal: FAILURE\n\nTrace for main.assertion.1:\n\nState 17 file <host-path>/model.c function nfv_int line 7 thread 0\n----------------------------------------------------\n  return_value_nondet_long=-512 (11111111 11111111 11111110 00000000)\n\nState 18 file <host-path>/model.c function nfv_int line 7 thread 0\n----------------------------------------------------\n  x=-512 (11111111 11111111 11111110 00000000)\n\nAssumption:\n  file <host-path>/model.c line 8 function nfv_int\n  x >= -1000l && x <= 1000l\n\nState 20 file <host-path>/model.c function nfv_int line 9 thread 0\n----------------------------------------------------\n  goto_symex$$return_value$$nfv_int=-512 (11111111 11111111 11111110 00000000)\n\nState 22 file <host-path>/model.c function main line 45 thread 0\n----------------------------------------------------\n  return_value_nfv_int=-512 (11111111 11111111 11111110 00000000)\n\nState 23 file <host-path>/model.c function main line 45 thread 0\n----------------------------------------------------\n  x=-512 (11111111 11111111 11111110 00000000)\n\nState 30 file <host-path>/model.c function nfv_int line 7 thread 0\n----------------------------------------------------\n  return_value_nondet_long=968 (00000000 00000000 00000011 11001000)\n\nState 31 file <host-path>/model.c function nfv_int line 7 thread 0\n----------------------------------------------------\n  x=968 (00000000 00000000 00000011 11001000)\n\nAssumption:\n  file <host-path>/model.c line 8 function nfv_int\n  x >= -1000l && x <= 1000l\n\nState 33 file <host-path>/model.c function nfv_int line 9 thread 0\n----------------------------------------------------\n  goto_symex$$return_value$$nfv_int=968 (00000000 00000000 00000011 11001000)\n\nState 35 file <host-path>/model.c function main line 47 thread 0\n----------------------------------------------------\n  return_value_nfv_int$0=968 (00000000 00000000 00000011 11001000)\n\nState 36 file <host-path>/model.c function main line 47 thread 0\n----------------------------------------------------\n  y=968 (00000000 00000000 00000011 11001000)\n\nState 40 file <host-path>/model.c function main line 49 thread 0\n----------------------------------------------------\n  x=-512 (11111111 11111111 11111110 00000000)\n\nState 41 file <host-path>/model.c function main line 49 thread 0\n----------------------------------------------------\n  y=968 (00000000 00000000 00000011 11001000)\n\nState 42 file <host-path>/model.c function add_pre line 35 thread 0\n----------------------------------------------------\n  goto_symex$$return_value$$add_pre=1 (00000000 00000000 00000000 00000001)\n\nState 44 file <host-path>/model.c function main line 49 thread 0\n----------------------------------------------------\n  return_value_add_pre=1 (00000000 00000000 00000000 00000001)\n\nState 48 file <host-path>/model.c function main line 51 thread 0\n----------------------------------------------------\n  x=-512 (11111111 11111111 11111110 00000000)\n\nState 49 file <host-path>/model.c function main line 51 thread 0\n----------------------------------------------------\n  y=968 (00000000 00000000 00000011 11001000)\n\nState 51 file <host-path>/model.c function add line 30 thread 0\n----------------------------------------------------\n  goto_symex$$return_value$$add=-1480 (11111111 11111111 11111010 00111000)\n\nState 53 file <host-path>/model.c function main line 51 thread 0\n----------------------------------------------------\n  return_value_add=-1480 (11111111 11111111 11111010 00111000)\n\nState 57 file <host-path>/model.c function main line 51 thread 0\n----------------------------------------------------\n  x=-512 (11111111 11111111 11111110 00000000)\n\nState 58 file <host-path>/model.c function main line 51 thread 0\n----------------------------------------------------\n  y=968 (00000000 00000000 00000011 11001000)\n\nState 59 file <host-path>/model.c function main line 51 thread 0\n----------------------------------------------------\n  return_value=-1480 (11111111 11111111 11111010 00111000)\n\nState 61 file <host-path>/model.c function add_post line 40 thread 0\n----------------------------------------------------\n  goto_symex$$return_value$$add_post=0 (00000000 00000000 00000000 00000000)\n\nState 63 file <host-path>/model.c function main line 51 thread 0\n----------------------------------------------------\n  return_value_add_post=0 (00000000 00000000 00000000 00000000)\n\nViolated property:\n  file <host-path>/model.c function main line 51 thread 0\n  nfv-goal\n  return_value_add_post != 0\n\n\n\n** 1 of 3 failed (2 iterations)\nVERIFICATION FAILED\nmodel.c\n",
+        "stderr": ""
+      },
+      "artifact_prediction": "incorrect",
+      "original_result_file_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+      "original_result_line_sha256": "71dd1e3caa71a9e9fb7907883993d130dc1cd5e1d3763ed57f35d4e0a9606954"
+    }
+  ],
+  "all_matched": true,
+  "metadata_redaction": "Host-specific paths anonymized; original verifier observations and model hashes unchanged."
+}

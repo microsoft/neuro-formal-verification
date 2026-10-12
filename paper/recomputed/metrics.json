@@ -113,7 +113,7 @@
   "blocked": {},
   "run_metrics": {
     "cbmc_theory.jsonl": {
-      "sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+      "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
       "records": 206,
       "claims": 72,
       "correct_claims": 65,

@@ -15,7 +15,7 @@ the derived dataset or replace repository-owner/legal review.
 
 Original license texts are in `licenses`. Root license discovery does not
 establish that every upstream third-party/generated component has an
-independent permission grant. The source checkout does not record the original
+independent permission grant. The acquisition metadata does not record the original
 upstream commit, EvalPlus package version or downloaded cache digest. Confirm
 any additional dataset-specific conditions before publishing; no new
 repository license should erase the upstream notices.
@@ -31,8 +31,9 @@ Git tree are, respectively:
 * `002c8ef12ba190ae2544b1b7f04c57ac859b03cb` (12,196,391 bytes)
 * `2a70e3e950ee22fe9d7a393f0dbde9918d706f24` (23,637,386 bytes)
 
-The source paths are recoverable from the pinned source repository; missing
-archive inputs are not missing final evaluation records.
+The retained selected predecessors support deterministic downstream checks.
+Repeating the original acquisition also requires the upstream inputs and
+historical package versions.
 
 ## Frozen derivation
 

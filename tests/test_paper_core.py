@@ -231,7 +231,8 @@ class AnalysisTests(unittest.TestCase):
     def test_recovered_raw_hashes_match_local_provenance(self):
         from paper.reproduce import sha256
         provenance = json.loads(Path("paper/provenance/local-results.json").read_text(encoding="utf-8"))
-        self.assertEqual(provenance["tracked_dirty_paths"], [])
+        self.assertEqual(len(provenance["source_snapshot"]), 40)
+        self.assertEqual(set(provenance), {"source_snapshot", "files"})
         self.assertEqual(len(provenance["files"]), 12)
         for record in provenance["files"]:
             self.assertEqual(sha256(Path(record["destination"])), record["sha256"])
