@@ -1,6 +1,6 @@
 # Neuro-Formal Verification
 
-Release preparation for [Neuro-Formal Verification: Agentic Language-Agnostic
+Code and datasets for [Neuro-Formal Verification: Agentic Language-Agnostic
 Formal Program Reasoning](https://arxiv.org/abs/2608.21516v3).
 
 This repository has two components:
@@ -10,6 +10,25 @@ This repository has two components:
 - **GitHub integration (in development):** a refutation-only workflow that turns statements in
   closed pull requests into at most ten source-grounded properties and reports
   accepted model refutations in developer-readable Discussions.
+
+## Dataset and main entry point
+
+**The dataset is [`nfv/data/nl2post_safe.json`](nfv/data/nl2post_safe.json):**
+206 examples, consisting of **103 labeled `correct` and 103 labeled `incorrect`**.
+The examples are in the JSON object's `entries` array. Each entry includes
+`code`, `postcondition`, `docstring`, `task_id`, and `label`.
+
+**The experiment runner is [`nfv/run.py`](nfv/run.py)**. Invoke it as a module
+from the repository root:
+
+```sh
+python -m nfv.run --help
+```
+
+Use `--data nfv/data/nl2post_safe.json` to explicitly select the dataset.
+The [artifact guide](paper/README.md) supplies the complete commands and frozen
+budgets for the main Dafny and CBMC runs. To reproduce metrics from the retained
+results without new inference, run `python -m paper.reproduce --require-complete`.
 
 ## Layout
 
@@ -63,18 +82,15 @@ locally; the retained experiment records do not establish its historical version
 
 ## Retained paper evidence
 
-All twelve final result files were recovered from the original author's local
-checkout, preserved byte-for-byte, and recorded with SHA-256 provenance.
+The retained result files include SHA-256 checksums for integrity verification.
 Offline reproduction regenerates twenty tables; all fifteen that have submitted
 counterparts match their numeric values. In particular, it recovers **118 correct
 claims out of 128 combined Dafny claims** and **65 correct claims out of 72 CBMC
 claims**. These are correctness counts for reported claims, not counts of
 universally safe programs.
 
-The [manifest](paper/manifest.json) distinguishes frozen raw evidence from
-source adaptations and historical dirty/resumed runs. Reproducing the retained
-metrics is supported; reproducing every historical model interaction bit-for-bit
-is not claimed.
+Reproducing the retained metrics is supported; reproducing every model
+interaction bit-for-bit is not claimed.
 
 ## Reproducibility and model access
 
@@ -87,20 +103,3 @@ Historical results are distinct from newly generated results: the same model
 name and budget do not guarantee identical behavior from an evolving service.
 Preserve dataset hashes, code revisions, tool versions, model identifiers,
 budgets, raw outcomes, and usage for any rerun.
-
-## Release status
-
-This is release preparation, not a declaration that public redistribution or
-paper reproduction has been approved. Before changing repository visibility:
-
-- Resolve all missing evidence and provenance qualifications documented by the
-  artifact, or state their limits explicitly.
-- Obtain the repository owner's license decision and confirm redistribution
-  rights and attribution for imported datasets, code, and example evidence.
-- Review retained logs for credentials, account identifiers, and private data.
-- Complete the documented local checks and an authorized, bounded integration
-  run with the intended billing identity.
-
-Changing visibility, publishing external Discussions, and resuming unrelated
-audit campaigns are separate operations; installing the source does none of
-them.
