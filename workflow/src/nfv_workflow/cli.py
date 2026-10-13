@@ -25,6 +25,18 @@ def save(path, value):
     path.write_text(json.dumps(value, indent=2), encoding="utf-8")
 
 
+def write_sources(bundle, directory):
+    root = Path(directory).resolve()
+    for path, record in bundle.get("sources", {}).items():
+        target = (root / path).resolve()
+        if root not in target.parents:
+            raise Abstain(f"Unsafe source path: {path}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        # Leading blank lines keep viewer line numbers equal to repository line numbers.
+        padding = "\n" * (record.get("line_start", 1) - 1)
+        target.write_text(padding + record["text"], encoding="utf-8")
+
+
 async def propose(bundle, model, intent_only=False):
     from nfv.shared.copilot_client import CopilotChat
 
@@ -75,6 +87,7 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--side", choices=("head", "base"), default="head",
                    help="base: pre-merge snapshot anchored on removed lines (before/after analysis; not publishable)")
+    p.add_argument("--sources-dir", help="Also write captured sources as plain files with repository line numbers")
     p = commands.add_parser("reanchor", help="Map head-side properties onto a base-side bundle's removed lines")
     p.add_argument("--bundle", required=True)
     p.add_argument("--properties", required=True)
@@ -120,7 +133,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "collect":
-            save(args.out, collect(load(args.event), GitHub(), side=args.side))
+            bundle = collect(load(args.event), GitHub(), side=args.side)
+            save(args.out, bundle)
+            if args.sources_dir:
+                write_sources(bundle, args.sources_dir)
         elif args.command == "reanchor":
             result = reanchor(load(args.properties), load(args.bundle))
             save(args.out, result["properties"])

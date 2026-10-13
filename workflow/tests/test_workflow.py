@@ -11,7 +11,7 @@ import uuid
 from unittest.mock import patch
 
 from nfv_workflow.check import Dafny, accepted, check
-from nfv_workflow.cli import submission
+from nfv_workflow.cli import submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
@@ -81,6 +81,17 @@ class ScratchTest(unittest.TestCase):
             self.directory.parent.rmdir()
         except OSError:
             pass
+
+
+class SourceFilesTests(ScratchTest):
+    def test_writes_sources_with_repository_line_numbers(self):
+        write_sources({"sources": {"src/a.c": {"text": "x\ny", "line_start": 3}}}, self.directory)
+        self.assertEqual((self.directory / "src" / "a.c").read_text(encoding="utf-8").splitlines(),
+                         ["", "", "x", "y"])
+
+    def test_rejects_paths_outside_directory(self):
+        with self.assertRaises(Abstain):
+            write_sources({"sources": {"../a.c": {"text": "x"}}}, self.directory)
 
 
 class IdentityTests(unittest.TestCase):

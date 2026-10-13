@@ -240,7 +240,8 @@ available to that credential. For GitHub Actions, configure `NFV_MODEL` and the
 `COPILOT_GITHUB_TOKEN` secret as described above.
 
 ```powershell
-# Read-only collection of a real merged-PR event payload.
+# Read-only collection of a real merged-PR event payload. Optional --sources-dir
+# also writes the captured sources as plain files with repository line numbers.
 nfv-workflow collect --event event.json --out .nfv-work\bundle.json
 
 # Explicitly billable extraction and general refutation; replace placeholders.
