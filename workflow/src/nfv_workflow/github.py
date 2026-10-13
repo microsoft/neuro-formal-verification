@@ -82,27 +82,7 @@ class GitHub:
         return raw.decode("utf-8")
 
 
-OPEN_ACTIONS = ("opened", "synchronize", "reopened", "ready_for_review", "review")
-
-
-def pull_request_event(event, api):
-    """Resolve a slash-command event (comment, or gh-aw centralized dispatch) to its PR."""
-    if "pull_request" in event:
-        return event
-    issue = event.get("issue") or {}
-    if issue.get("pull_request") is not None:
-        number = issue["number"]
-    else:
-        try:
-            context = json.loads((event.get("inputs") or {}).get("aw_context") or "{}")
-        except json.JSONDecodeError:
-            context = {}
-        if context.get("item_type") != "pull_request" or not str(context.get("item_number", "")).isdigit():
-            raise Abstain("Event is not attached to a pull request")
-        number = context["item_number"]
-    repo = repository(event["repository"]["full_name"])
-    pr = api.request(f"repos/{repo}/pulls/{int(number)}")
-    return {"action": "review", "repository": event["repository"], "pull_request": pr}
+OPEN_ACTIONS = ("opened", "synchronize", "reopened", "ready_for_review")
 
 
 def identity(event):

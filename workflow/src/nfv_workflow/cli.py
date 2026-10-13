@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from .check import check
-from .github import Abstain, GitHub, collect, pull_request_event, reanchor
+from .github import Abstain, GitHub, collect, reanchor
 from .publish import LABEL, publication_allowed, publish
 
 
@@ -165,8 +165,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "collect":
-            api = GitHub()
-            bundle = collect(pull_request_event(load(args.event), api), api, side=args.side)
+            bundle = collect(load(args.event), GitHub(), side=args.side)
             save(args.out, bundle)
             if args.sources_dir:
                 write_sources(bundle, args.sources_dir)
@@ -193,8 +192,7 @@ def main(argv=None):
         elif args.command == "evaluate":
             output = Path(args.out)
             output.mkdir(parents=True, exist_ok=True)
-            api = GitHub()
-            bundle = collect(pull_request_event(load(args.event), api), api)
+            bundle = collect(load(args.event), GitHub())
             proposals = submission(args.submission)
             save(output / "bundle.json", bundle)
             save(output / "proposals.json", proposals)

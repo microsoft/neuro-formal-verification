@@ -1,7 +1,7 @@
 # NFV PR reviewer
 
 This is a prototype implementation of a GitHub Agentic Workflow that reviews a
-pull request when it is opened or updated (or on `/nfv`), extracts up to **ten intended properties** from the
+pull request when it is opened or updated, extracts up to **ten intended properties** from the
 PR description, PR conversation comments, and commit messages (not review
 comments or reviews), then translates the code
 into the language of a **verifier backend** to look for conditional model
@@ -19,7 +19,7 @@ and branches, into the verifier's language.
 * Each property gets up to **6 syntax/type repairs** and **10 annotation-only
   repairs** of the negative check.
 * The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
-  `ready_for_review`) and on a `/nfv` PR comment. Drafts are skipped.
+  `ready_for_review`). Drafts are skipped.
 
 ## What a finding means
 
@@ -184,10 +184,9 @@ path does not require the model client.
 3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
    fine-grained token with read-only *Contents* access to
    `microsoft/neuro-formal-verification`.
-4. Copy `templates\nfv-pr-review.md` to `.github\workflows\`, run `gh aw compile`,
-   and commit the Markdown, its lock, and the generated `agentic_commands.yml`
-   (the centralized `/nfv` router). The checked-in template locks are compiled
-   with **gh aw v0.88.7**.
+4. Copy `templates\nfv-pr-review.md` to `.github\workflows\`, run
+   `gh aw compile nfv-pr-review`, and commit the Markdown and its lock. The
+   checked-in template lock is compiled with **gh aw v0.88.7**.
 
 Everything runs in the agent job; there is no custom safe-output job. Before
 the agent starts, trusted steps check out the pinned release, install it, download

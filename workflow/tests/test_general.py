@@ -343,8 +343,7 @@ class GeneralTests(unittest.TestCase):
             self.assertEqual((limits.syntax_rounds, limits.proof_rounds), (6, 10))
             self.assertEqual(model, "fake-model")
             return {"findings": [], "errors": []}
-        with patch.object(cli, "collect", return_value=bundle), patch.object(cli, "run_general", side_effect=fake_run), \
-                patch.object(cli, "pull_request_event", side_effect=lambda event, api: event):
+        with patch.object(cli, "collect", return_value=bundle), patch.object(cli, "run_general", side_effect=fake_run):
             self.assertEqual(cli.main(["evaluate", "--event", str(event), "--submission", str(submitted),
                                        "--out", str(self.directory / "out"), "--model", "fake-model"]), 0)
 

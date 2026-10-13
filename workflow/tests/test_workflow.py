@@ -13,7 +13,7 @@ from unittest.mock import patch
 from nfv_workflow.check import Dafny, accepted, check
 from nfv_workflow.cli import audit, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
-                                 pull_request_event, reanchor, removed_lines, sha, source_path)
+                                 reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
 from nfv_workflow.publish import marker, publication_allowed, publish, render, review
 from nfv_workflow.source_binding import bind_source, Parser
@@ -128,24 +128,6 @@ class IdentityTests(unittest.TestCase):
         ident = identity(data)
         self.assertEqual((ident["merged"], ident["merge_sha"], ident["source_sha"]),
                          (False, None, "a" * 40))
-
-    def test_slash_command_events_resolve_to_the_pr(self):
-        pr = dict(event(False)["pull_request"], state="open")
-        class API:
-            def request(self, path):
-                self.path = path
-                return pr
-        repo = {"full_name": "owner/project"}
-        for payload in ({"issue": {"number": 7, "pull_request": {}}, "repository": repo},
-                        {"inputs": {"aw_context": json.dumps(
-                            {"item_type": "pull_request", "item_number": "7"})}, "repository": repo}):
-            api = API()
-            resolved = pull_request_event(payload, api)
-            self.assertEqual(api.path, "repos/owner/project/pulls/7")
-            self.assertEqual(identity(resolved)["number"], 7)
-        with self.assertRaises(Abstain):
-            pull_request_event({"inputs": {"aw_context": json.dumps(
-                {"item_type": "issue", "item_number": "7"})}, "repository": repo}, API())
 
     def test_mutable_ref_rejected(self):
         with self.assertRaises(Abstain):
@@ -812,16 +794,14 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("prototype", source)
         self.assertNotIn("Prototyp:", source)
 
-    def test_reviewer_triggers_on_ready_prs_and_slash_command(self):
+    def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", source)
-        self.assertIn("strategy: centralized", source)
-        self.assertIn("github.event.pull_request.draft == false", source)
-        self.assertIn("  workflow_dispatch:", lock)
+        self.assertIn("if: github.event.pull_request.draft == false", source)
+        self.assertNotIn("slash_command", source)
         self.assertNotIn("pull_request_target", lock)
         self.assertNotIn("roles: all", source)
-        router = (self.template / "agentic_commands.yml").read_text(encoding="utf-8")
-        self.assertIn('"nfv":[{"workflow":"nfv-pr-review"', router)
+        self.assertFalse((self.template / "agentic_commands.yml").exists())
 
     def test_evaluation_runs_in_the_agent_job_without_custom_safe_jobs(self):
         source, lock = self.source(), self.lock()
