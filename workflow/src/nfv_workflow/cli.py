@@ -5,6 +5,7 @@ import asyncio
 import importlib.resources
 import json
 import os
+import sys
 from pathlib import Path
 
 from .check import check
@@ -69,8 +70,31 @@ async def run_general(bundle, properties, output, model, limits):
             raise Abstain("Actions general inference requires a dedicated COPILOT_GITHUB_TOKEN")
         os.environ.pop("GH_TOKEN", None)
         os.environ.pop("GITHUB_TOKEN", None)
+        if os.environ.get("GITHUB_AW") == "true":
+            awf_byok_environment()
     async with CopilotChat(model=model, concurrency=1) as chat:
         return await run(bundle, properties, output, chat, limits)
+
+
+AWF_PLACEHOLDER_KEY = "dummy-byok-key-for-offline-mode"
+
+
+def awf_byok_environment():
+    """Point the nested Copilot CLI at the AWF API proxy in offline BYOK mode.
+
+    The AWF entrypoint unsets the (placeholder) provider key from the agent's
+    shell; the proxy injects the real credential, so a placeholder suffices.
+    """
+    env = os.environ
+    print("[nfv] Copilot env present: " + ", ".join(sorted(k for k in env if k.startswith("COPILOT_"))),
+          file=sys.stderr, flush=True)
+    base = env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL")
+    if not base:
+        return
+    env["COPILOT_PROVIDER_BASE_URL"] = base
+    env.setdefault("COPILOT_PROVIDER_API_KEY", AWF_PLACEHOLDER_KEY)
+    env.setdefault("COPILOT_PROVIDER_WIRE_API", "responses")
+    env.setdefault("COPILOT_OFFLINE", "true")
 
 
 def submission(path):
