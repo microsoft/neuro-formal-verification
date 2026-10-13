@@ -197,13 +197,16 @@ path does not require the model client.
      `microsoft/neuro-formal-verification`, containing these files.
    * `NFV_DISCUSSION_CATEGORY`: existing category name.
    * `NFV_MODEL`: explicitly approved model ID for translation/repair.
-3. Configure an approved **`COPILOT_GITHUB_TOKEN`** secret. The outer AW agent
+3. Configure an approved **`COPILOT_GITHUB_TOKEN`** secret: a fine-grained token
+   owned by a Copilot-licensed user with *Copilot Requests: Read*. gh-aw rejects
+   OAuth (`gho_`) tokens. The outer AW agent
    uses normal AW authentication; the separate NFV translation/repair client
    needs this dedicated Copilot credential. Org-billed AW inference by itself
    does not automatically authenticate the separate SDK sessions.
 4. Copy `templates\nfv-merged-pr.md` to
    `.github\workflows\nfv-merged-pr.md`, run `gh aw compile nfv-merged-pr`, and
    review/commit both Markdown and generated lock through your normal process.
+   `pull_request_target` runs the copy on the **default branch**.
    The checked-in template lock is compiled with **gh aw v0.88.7**.
 5. Ensure the target token can read the chosen NFV revision. Until that repository
    is public, set a **`NFV_RELEASE_TOKEN`** secret: a fine-grained token with
