@@ -1,0 +1,101 @@
+[
+  {
+    "stage": "translation",
+    "response": "{\n  \"entry_point\": \"WorkflowEntry\",\n  \"model\": \"// src: src/sat/smt/sls_solver.cpp:55 | bool solver::get_best_phase(sat::bool_var v) {\\nmethod WorkflowEntry(bestPhases: seq<bool>, v: int) returns (result: bool)\\n// synth: model a valid 32-bit unsigned SAT variable index\\n  requires 0 <= v <= 4294967295 && v < |bestPhases|\\n// synth: intended property\\n  ensures bestPhases[v] == false ==> result == false\\n// synth: method body\\n{\\n// src: src/sat/smt/sls_solver.cpp:56 | return false;\\n  result := false;\\n// synth: method body\\n}\",\n  \"original_ensures\": [\n    \"bestPhases[v] == false ==> result == false\"\n  ],\n  \"source_span\": [\n    56,\n    56\n  ],\n  \"witness\": {\n    \"bestPhases\": [\n      false\n    ],\n    \"v\": 0\n  },\n  \"assumptions\": [\n    {\n      \"clause\": \"0 <= v <= 4294967295 && v < |bestPhases|\",\n      \"description\": \"v encodes a valid C++ unsigned SAT variable index represented in the phase sequence.\",\n      \"origin\": \"inferred\",\n      \"optional\": false\n    }\n  ],\n  \"environment\": [],\n  \"required_context\": [\n    \"src/sat/smt/sls_solver.cpp\",\n    \"src/sat/smt/sls_solver.h\",\n    \"src/sat/sat_solver.h\"\n  ],\n  \"correspondence\": \"Source correspondence is not established. The SAT solver object, virtual dispatch, storage, references, and lifetime behavior are abstracted into the bestPhases sequence. The modeled adapter preserves the captured unconditional false return. No source execution or source-to-model proof is claimed.\",\n  \"explanation\": \"For bestPhases=[false] and v=0, the premise is true, but the modeled method also returns false. Thus this candidate does not make the modeled expectation fail; the refutation check should reject it.\",\n  \"source_notes\": [\n    {\n      \"path\": \"src/sat/smt/sls_solver.cpp\",\n      \"line\": 56,\n      \"note\": \"The captured adapter ignores the represented underlying phase and returns false unconditionally.\"\n    }\n  ]\n}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 159756,
+    "output_tokens": 2001,
+    "api_calls": 1,
+    "nano_aiu": 83879700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 65,
+    "api_calls": 1,
+    "nano_aiu": 80304700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 75,
+    "api_calls": 1,
+    "nano_aiu": 80324700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 52,
+    "api_calls": 1,
+    "nano_aiu": 80278700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 53,
+    "api_calls": 1,
+    "nano_aiu": 80280700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 43,
+    "api_calls": 1,
+    "nano_aiu": 80260700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 62,
+    "api_calls": 1,
+    "nano_aiu": 80298700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 46,
+    "api_calls": 1,
+    "nano_aiu": 80266700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 85,
+    "api_calls": 1,
+    "nano_aiu": 80344700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 96,
+    "api_calls": 1,
+    "nano_aiu": 80366700000.0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "input_tokens": 160350,
+    "output_tokens": 110,
+    "api_calls": 1,
+    "nano_aiu": 80394700000.0
+  }
+]

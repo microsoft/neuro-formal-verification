@@ -1,0 +1,52 @@
+{
+  "schema": 2,
+  "mode": "general-model-refutation",
+  "identity": {
+    "repository": "Z3Prover/z3",
+    "number": 10961,
+    "base_sha": "d799f787d6fc9c16eb4a3ebbe63e6593e9b23a98",
+    "head_sha": "b31bd75d31d5f326d342fb29588637b81db6333a",
+    "source_sha": "b31bd75d31d5f326d342fb29588637b81db6333a",
+    "source_repository": "Z3Prover/z3",
+    "head_repository": "Z3Prover/z3",
+    "merged": true,
+    "merge_sha": "7694e5c5564372242b15061ec72537fa93cc9e2a",
+    "source_kind": "pull-request-head",
+    "closed_at": "2026-09-29T16:35:51Z"
+  },
+  "limits": {
+    "syntax_rounds": 6,
+    "proof_rounds": 10,
+    "verifier_timeout": 60,
+    "model_timeout": 240,
+    "entry_seconds": 1800
+  },
+  "findings": [],
+  "abstentions": [
+    {
+      "id": "8135df5d3cb1c9000099",
+      "reason": "Abstain: The captured adapter directly returns ctx.s().get_best_phase(v), whose captured inline body reads the same best-phase entry. A faithful model provides no concrete input that falsifies the intended equality, so the required refutation witness cannot be supplied without fabricating behavior."
+    },
+    {
+      "id": "68eb9368ebe36c2d5c30",
+      "reason": "Abstain: The intended property depends on the semantics of default_best_phase(S_pre, v), but no such declaration or implementation is captured. The available source only shows the adapter forwarding to sat::solver::get_best_phase and that getter using m_best_phase.get(b, false); it does not establish how an unset phase relates to the claimed underlying default."
+    },
+    {
+      "id": "180fd9c59ded2ade86b5",
+      "reason": "Abstain: No concrete witness can violate the modeled property: for a valid variable whose stored best phase is false, the captured adapter directly returns that stored false value."
+    },
+    {
+      "id": "e888770583af5b79e2cb",
+      "reason": "Abstain: Negative check failed after 10 proof repairs"
+    },
+    {
+      "id": "59004d1306df9751aad9",
+      "reason": "Abstain: The captured context omits the body of sat::solver::set_extension and the solver-wiring implementation needed to determine that ctx.s() aliases the SAT solver whose flag is observed. Modeling that reference relationship would fabricate missing C++ aliasing semantics."
+    },
+    {
+      "id": "a2d6104b7ebeccc40374",
+      "reason": "Abstain: Fabricated source provenance excerpt"
+    }
+  ],
+  "errors": []
+}

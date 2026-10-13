@@ -1,0 +1,68 @@
+[
+  {
+    "stage": "translation",
+    "response": "{\n  \"entry_point\": \"Target\",\n  \"model\": \"// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\\nclass SatState\\n// synth: class body\\n{\\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\\n  var hasNewBestPhase: bool\\n// synth: class body\\n}\\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\\nmethod SatSetFlag(s: SatState, b: bool)\\n// synth: heap update contract\\n  modifies s\\n// synth: method body\\n{\\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\\n  s.hasNewBestPhase := b;\\n// synth: method body\\n}\\n// src: src/sat/smt/sls_solver.cpp:52 | ctx.s().set_has_new_best_phase(b);\\nmethod AdapterApplyFlag(s: SatState, b: bool)\\n// synth: forwarded heap update contract\\n  modifies s\\n// synth: method body\\n{\\n// src: src/sat/smt/sls_solver.cpp:52 | ctx.s().set_has_new_best_phase(b);\\n  SatSetFlag(s, b);\\n// synth: method body\\n}\\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\\nfunction sat_set_has_new_best_phase(S_pre: bool, b: bool): bool\\n// synth: function body\\n{\\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\\n  b\\n// synth: function body\\n}\\n// src: src/sat/smt/sls_solver.cpp:52 | ctx.s().set_has_new_best_phase(b);\\nmethod Target(S_pre: bool, b: bool) returns (result: bool)\\n// synth: original intended property\\n  ensures result == sat_set_has_new_best_phase(S_pre, b)\\n// synth: entry body\\n{\\n// src: src/sat/smt/sls_solver.cpp:52 | ctx.s().set_has_new_best_phase(b);\\n  var sat := new SatState;\\n// src: src/sat/smt/sls_solver.cpp:52 | ctx.s().set_has_new_best_phase(b);\\n  sat.hasNewBestPhase := S_pre;\\n// src: src/sat/smt/sls_solver.cpp:52 | ctx.s().set_has_new_best_phase(b);\\n  AdapterApplyFlag(sat, b);\\n// src: src/sat/smt/sls_solver.cpp:52 | ctx.s().set_has_new_best_phase(b);\\n  result := sat.hasNewBestPhase;\\n// synth: entry body\\n}\",\n  \"original_ensures\": [\n    \"result == sat_set_has_new_best_phase(S_pre, b)\"\n  ],\n  \"source_span\": [\n    52,\n    52\n  ],\n  \"witness\": {\n    \"S_pre\": true,\n    \"b\": false\n  },\n  \"assumptions\": [],\n  \"environment\": [\n    {\n      \"name\": \"SatSetFlag\",\n      \"description\": \"Models the captured SAT setter as a direct update of its Boolean new-best-phase field.\",\n      \"kind\": \"source-derived\",\n      \"source\": {\n        \"path\": \"src/sat/sat_solver.h\",\n        \"lines\": [\n          385\n        ]\n      }\n    },\n    {\n      \"name\": \"AdapterApplyFlag\",\n      \"description\": \"Models the SLS adapter call as forwarding to the same SAT-state object.\",\n      \"kind\": \"source-derived\",\n      \"source\": {\n        \"path\": \"src/sat/smt/sls_solver.cpp\",\n        \"lines\": [\n          52\n        ]\n      }\n    },\n    {\n      \"name\": \"sat_set_has_new_best_phase\",\n      \"description\": \"Pure post-state projection for the captured SAT Boolean setter.\",\n      \"kind\": \"source-derived\",\n      \"source\": {\n        \"path\": \"src/sat/sat_solver.h\",\n        \"lines\": [\n          385\n        ]\n      }\n    }\n  ],\n  \"required_context\": [\n    \"src/sat/smt/sls_solver.cpp\",\n    \"src/sat/sat_solver.h\"\n  ],\n  \"correspondence\": \"Source correspondence is not established. The model represents the relevant SAT heap state by one Boolean field and installs the ctx.s() alias by passing the same SatState reference. It omits construction, lifetimes, concurrency, exceptions, unrelated solver fields, and all behavior outside the captured setter path.\",\n  \"explanation\": \"The witness changes the flag from true to false. If forwarding were lost, the result would remain true while the expected SAT post-state is false. In this modeled body the forwarding call is present, so the witness is a refutation candidate rather than a guaranteed failure.\",\n  \"source_notes\": [\n    {\n      \"path\": \"src/sat/smt/sls_solver.cpp\",\n      \"line\": 52,\n      \"note\": \"The ctx.s() reference chain is overlaid as an explicit shared SatState reference.\"\n    },\n    {\n      \"path\": \"src/sat/sat_solver.h\",\n      \"line\": 385,\n      \"note\": \"The inline Boolean assignment is represented without the SAT solver's unrelated state.\"\n    }\n  ]\n}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  },
+  {
+    "stage": "proof-repair",
+    "response": "{\"annotations\":[]}",
+    "model": "gpt-5.6-sol",
+    "api_calls": 0
+  }
+]

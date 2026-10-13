@@ -1,0 +1,13 @@
+{
+  "outcome": "failed",
+  "exit_code": 4,
+  "duration_s": 1.302,
+  "mode": "unbounded",
+  "unroll": null,
+  "errors": [
+    "examples/z3-10961/evidence/base/e888770583af5b79e2cb/reach-initial/model.dfy(40,0): Error: a postcondition could not be proved on this return path"
+  ],
+  "stdout": "examples/z3-10961/evidence/base/e888770583af5b79e2cb/reach-initial/model.dfy(40,0): Error: a postcondition could not be proved on this return path\n   |\n40 | {\n   | ^\n\nexamples/z3-10961/evidence/base/e888770583af5b79e2cb/reach-initial/model.dfy(39,10): Related location: this is the postcondition that could not be proved\n   |\n39 |   ensures false\n   |           ^^^^^\n\n\nDafny program verifier finished with 0 verified, 1 error\n",
+  "stderr": "",
+  "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+}

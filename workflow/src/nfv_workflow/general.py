@@ -158,12 +158,23 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
         return json_answer(response.text)
 
     context = {
-        "identity": bundle["identity"], "claim": claim, "sources": bundle["sources"],
+        "identity": bundle["identity"], "claim": claim, "sources": {},
         "language_semantics": LANGUAGE_GUIDES[claim["language"]],
         "declarations_and_preconditions": bundle.get("declarations_and_preconditions", []),
         "callee_names": bundle.get("callee_names", []),
-        "context_omissions": bundle.get("context_omissions", []),
+        "context_omissions": list(bundle.get("context_omissions", [])),
     }
+    # The claim file always comes first; other sources keep the collector's nearest-first order
+    # and are dropped (and disclosed) once the per-property budget would be exceeded.
+    size = len(json.dumps(context))
+    for path in [claim["path"]] + [p for p in bundle["sources"] if p != claim["path"]]:
+        record = bundle["sources"][path]
+        cost = len(json.dumps({path: record})) + 2
+        if path != claim["path"] and size + cost > 560000:
+            context["context_omissions"].append(f"{path}: omitted by per-property context budget")
+            continue
+        context["sources"][path] = record
+        size += cost
     encoded_context = json.dumps(context)
     if len(encoded_context) > 600000:
         raise Abstain("Captured context exceeds the per-property model context budget")

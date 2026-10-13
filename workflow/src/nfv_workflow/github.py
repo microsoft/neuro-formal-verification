@@ -116,8 +116,65 @@ def added_lines(patch):
     return lines
 
 
-def collect(event, api):
+def change_blocks(patch):
+    """Pair each contiguous run of removed/added lines as (old_lines, new_lines)."""
+    blocks, old, new, removed, added = [], None, None, [], []
+    def flush():
+        if removed or added:
+            blocks.append((list(removed), list(added)))
+        removed.clear()
+        added.clear()
+    for line in (patch or "").splitlines():
+        match = re.match(r"@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@", line)
+        if match:
+            flush()
+            old, new = int(match[1]), int(match[2])
+        elif old is not None:
+            if line.startswith("-"):
+                removed.append(old)
+                old += 1
+            elif line.startswith("+"):
+                added.append(new)
+                new += 1
+            elif line.startswith(" "):
+                flush()
+                old += 1
+                new += 1
+    flush()
+    return blocks
+
+
+def removed_lines(patch):
+    return [n for old, _ in change_blocks(patch) for n in old]
+
+
+def reanchor(properties, base_bundle):
+    """Move head-side claim lines to the removed lines of the same change blocks."""
+    mapping = base_bundle.get("head_to_base")
+    if base_bundle["identity"].get("source_kind") != "pull-request-base" or mapping is None:
+        raise Abstain("Re-anchoring requires a base-side bundle")
+    moved, dropped = [], []
+    for item in properties:
+        target = mapping.get(item.get("path"), {})
+        lines = sorted({n for x in item.get("lines", []) for n in target.get("lines", {}).get(str(x), [])})
+        if lines:
+            moved.append(dict(item, path=target["path"], lines=lines,
+                              head_path=item.get("path"), head_lines=item.get("lines")))
+        else:
+            dropped.append(dict(item, reason="claim lines are pure additions with no base counterpart"))
+    return {"properties": moved, "dropped": dropped}
+
+
+def collect(event, api, side="head"):
+    if side not in ("head", "base"):
+        raise Abstain("Collection side must be head or base")
+    # Base snapshots reuse the head snapshot's context order so before/after runs see the
+    # same surrounding files and differ only in the changed code.
+    preferred = {p: i for i, p in enumerate(collect(event, api)["sources"])} if side == "base" else {}
     ident = identity(event)
+    if side == "base":
+        # Pre-merge snapshot of the same PR, anchored on removed lines; never publishable.
+        ident = dict(ident, source_sha=ident["base_sha"], source_kind="pull-request-base")
     repo, number = ident["repository"], ident["number"]
     prefix = f"repos/{repo}"
     latest = api.request(f"{prefix}/pulls/{number}")
@@ -151,11 +208,16 @@ def collect(event, api):
         raise Abstain("Source tree truncated")
     blobs = {x["path"]: x for x in tree["tree"]
              if x["type"] == "blob" and x.get("mode") in ("100644", "100755")}
-    sources, changed, omissions = {}, {}, []
+    sources, changed, omissions, head_to_base = {}, {}, [], {}
     captured_bytes = 0
     for file in files:
         path = source_path(file["filename"])
-        if file["status"] == "removed":
+        if side == "base":
+            if file["status"] == "added":
+                omissions.append(f"{path}: added; no base implementation")
+                continue
+            path = source_path(file.get("previous_filename") or file["filename"])
+        elif file["status"] == "removed":
             omissions.append(f"{path}: deleted; no head implementation")
             continue
         if path not in blobs:
@@ -166,10 +228,13 @@ def collect(event, api):
         except (Abstain, UnicodeError) as exc:
             omissions.append(f"{path}: {exc}")
             continue
-        lines = added_lines(file.get("patch"))
+        lines = (removed_lines if side == "base" else added_lines)(file.get("patch"))
         if not lines:
-            omissions.append(f"{path}: no available added-line anchors")
+            omissions.append(f"{path}: no available {'removed' if side == 'base' else 'added'}-line anchors")
             continue
+        if side == "base":
+            head_to_base[source_path(file["filename"])] = {"path": path, "lines": {
+                str(n): old for old, new in change_blocks(file.get("patch")) if old for n in new}}
         if captured_bytes + len(text.encode("utf-8")) > 6_000_000:
             omissions.append(f"{path}: source context byte budget exhausted")
             continue
@@ -211,15 +276,46 @@ def collect(event, api):
                 for ext in extensions))
         return found
 
+    # Fetch nearest context first: files named after identifiers on changed lines,
+    # then direct includes/neighbours, then their dependencies (name breaks ties).
+    depth = {}
+    def relate(paths, level):
+        for p in paths:
+            # Implementations rank one step behind their declaring headers.
+            lvl = level + 1 if level and p.endswith((".c", ".cc", ".cpp", ".cxx")) else level
+            if p not in depth or lvl < depth[p]:
+                depth[p] = lvl
+            related.add(p)
+    words = set()
+    for path, record in sources.items():
+        text_lines = record["text"].splitlines()
+        for n in changed.get(path, []):
+            if 0 < n <= len(text_lines):
+                words.update(w for w in re.findall(r"[A-Za-z_]\w{3,}", text_lines[n - 1]))
+    words -= {"return", "false", "true", "void", "const", "auto", "bool", "char", "else",
+              "while", "break", "self", "this", "null", "None", "static", "struct", "class",
+              "unsigned", "signed", "public", "private", "inline", "override", "virtual"}
+    families = [(".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp"), (".java",), (".cs",), (".go",),
+                (".py",), (".js", ".jsx", ".mjs", ".ts", ".tsx"), (".rs",)]
+    wanted = tuple(ext for family in families for ext in family
+                   if any(path.endswith(family) for path in changed))
+    relate((p for p in blobs if p.endswith(wanted or ("\0",))
+            and p.rsplit("/", 1)[-1].rsplit(".", 1)[0] in words), 0)
     for path, record in list(sources.items()):
         directory = path.rpartition("/")[0]
-        related.update(dependencies(path, record["text"]))
+        relate(dependencies(path, record["text"]), 1)
         stem = path.rsplit(".", 1)[0]
-        related.update(p for p in blobs if p == stem + ".h"
-                       or (p.rpartition("/")[0] == directory and p.endswith(".h")))
+        relate((p for p in blobs if p == stem + ".h"), 1)
+        relate((p for p in blobs if p.rpartition("/")[0] == directory and p.endswith(".h")), 3)
+    anchors = [p.split("/")[:-1] for p in changed]
+    def proximity(p):
+        parts = p.split("/")[:-1]
+        return max((len(posixpath.commonprefix([parts, a])) for a in anchors), default=0)
+    related.update(p for p in preferred if p in blobs)
     visited = set(sources)
-    for _ in range(40):
-        pending = sorted(related - visited)
+    for _ in range(80):
+        pending = sorted(related - visited, key=lambda p: (
+            preferred.get(p, len(preferred)), depth.get(p, 99), -proximity(p), p))
         if not pending:
             break
         path = pending[0]
@@ -232,7 +328,7 @@ def collect(event, api):
             sources[path] = {"text": text,
                              "blob_sha": blobs[path]["sha"]}
             captured_bytes += len(text.encode("utf-8"))
-            related.update(dependencies(path, text))
+            relate(dependencies(path, text), depth.get(path, 98) + 1)
         except (Abstain, UnicodeError):
             omissions.append(f"{path}: context unavailable")
     if len(related - sources.keys()) > 0:
@@ -248,7 +344,10 @@ def collect(event, api):
     if (latest["head"]["sha"], latest["base"]["sha"], latest["state"], latest.get("merged")) != (
             ident["head_sha"], ident["base_sha"], "closed", True):
         raise Abstain("PR changed during collection")
-    return {"schema": 1, "identity": ident, "signals": signals, "changed": changed,
-            "sources": sources, "declarations_and_preconditions": declarations[:500],
-            "callee_names": sorted(calls)[:500], "context_omissions": omissions,
-            "source_inventory": sorted(blobs), "source_inventory_complete": True}
+    bundle = {"schema": 1, "identity": ident, "signals": signals, "changed": changed,
+              "sources": sources, "declarations_and_preconditions": declarations[:500],
+              "callee_names": sorted(calls)[:500], "context_omissions": omissions,
+              "source_inventory": sorted(blobs), "source_inventory_complete": True}
+    if side == "base":
+        bundle["head_to_base"] = head_to_base
+    return bundle

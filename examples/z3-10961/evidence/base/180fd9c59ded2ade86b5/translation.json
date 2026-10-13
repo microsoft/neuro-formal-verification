@@ -1,0 +1,40 @@
+{
+  "entry_point": "WorkflowEntry",
+  "model": "// src: src/sat/smt/sls_solver.cpp:55 | bool solver::get_best_phase(sat::bool_var v) {\nmethod WorkflowEntry(bestPhases: seq<bool>, v: int) returns (result: bool)\n// synth: model a valid 32-bit unsigned SAT variable index\n  requires 0 <= v <= 4294967295 && v < |bestPhases|\n// synth: intended property\n  ensures bestPhases[v] == false ==> result == false\n// synth: method body\n{\n// src: src/sat/smt/sls_solver.cpp:56 | return false;\n  result := false;\n// synth: method body\n}",
+  "original_ensures": [
+    "bestPhases[v] == false ==> result == false"
+  ],
+  "source_span": [
+    56,
+    56
+  ],
+  "witness": {
+    "bestPhases": [
+      false
+    ],
+    "v": 0
+  },
+  "assumptions": [
+    {
+      "clause": "0 <= v <= 4294967295 && v < |bestPhases|",
+      "description": "v encodes a valid C++ unsigned SAT variable index represented in the phase sequence.",
+      "origin": "inferred",
+      "optional": false
+    }
+  ],
+  "environment": [],
+  "required_context": [
+    "src/sat/smt/sls_solver.cpp",
+    "src/sat/smt/sls_solver.h",
+    "src/sat/sat_solver.h"
+  ],
+  "correspondence": "Source correspondence is not established. The SAT solver object, virtual dispatch, storage, references, and lifetime behavior are abstracted into the bestPhases sequence. The modeled adapter preserves the captured unconditional false return. No source execution or source-to-model proof is claimed.",
+  "explanation": "For bestPhases=[false] and v=0, the premise is true, but the modeled method also returns false. Thus this candidate does not make the modeled expectation fail; the refutation check should reject it.",
+  "source_notes": [
+    {
+      "path": "src/sat/smt/sls_solver.cpp",
+      "line": 56,
+      "note": "The captured adapter ignores the represented underlying phase and returns false unconditionally."
+    }
+  ]
+}

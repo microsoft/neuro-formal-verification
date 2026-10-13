@@ -1,0 +1,414 @@
+{
+  "schema": 2,
+  "mode": "general-model-refutation",
+  "identity": {
+    "repository": "Z3Prover/z3",
+    "number": 10961,
+    "base_sha": "d799f787d6fc9c16eb4a3ebbe63e6593e9b23a98",
+    "head_sha": "b31bd75d31d5f326d342fb29588637b81db6333a",
+    "source_sha": "d799f787d6fc9c16eb4a3ebbe63e6593e9b23a98",
+    "source_repository": "Z3Prover/z3",
+    "head_repository": "Z3Prover/z3",
+    "merged": true,
+    "merge_sha": "7694e5c5564372242b15061ec72537fa93cc9e2a",
+    "source_kind": "pull-request-base",
+    "closed_at": "2026-09-29T16:35:51Z"
+  },
+  "limits": {
+    "syntax_rounds": 6,
+    "proof_rounds": 10,
+    "verifier_timeout": 60,
+    "model_timeout": 240,
+    "entry_seconds": 1800
+  },
+  "findings": [
+    {
+      "kind": "conditional-model-refutation",
+      "candidate": {
+        "path": "src/sat/smt/sls_solver.cpp",
+        "lines": [
+          56
+        ],
+        "signal_id": "comment:5894795366",
+        "quote": "result == best_phase_value(S_pre, v)",
+        "property": "For a valid Boolean variable, the SLS adapter returns the underlying SAT solver's best-phase value.",
+        "language": "cpp",
+        "id": "8135df5d3cb1c9000099"
+      },
+      "translation": {
+        "entry_point": "WorkflowEntry",
+        "model": "// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\nfunction best_phase_value(S_pre: seq<bool>, v: int): bool\n// synth: valid Boolean-variable index\n  requires 0 <= v < |S_pre|\n// synth: function body\n{\n// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\n  S_pre[v]\n// synth: function body\n}\n\n// src: src/sat/smt/sls_solver.cpp:55 | bool solver::get_best_phase(sat::bool_var v) {\nmethod WorkflowEntry(S_pre: seq<bool>, v: int) returns (result: bool)\n// synth: intended property applies to valid Boolean variables\n  requires 0 <= v < |S_pre|\n// synth: original intended property\n  ensures result == best_phase_value(S_pre, v)\n// synth: method body\n{\n// src: src/sat/smt/sls_solver.cpp:56 | return false;\n  result := false;\n// synth: method body\n}",
+        "original_ensures": [
+          "result == best_phase_value(S_pre, v)"
+        ],
+        "source_span": [
+          55,
+          56
+        ],
+        "witness": {
+          "S_pre": [
+            true
+          ],
+          "v": 0
+        },
+        "assumptions": [
+          {
+            "clause": "0 <= v < |S_pre|",
+            "description": "The Boolean variable indexes an existing best-phase entry.",
+            "origin": "inferred",
+            "optional": false
+          }
+        ],
+        "environment": [
+          {
+            "name": "best_phase_value",
+            "description": "Models the underlying SAT solver's best-phase lookup as indexing a sequence of Boolean phase values.",
+            "kind": "source-derived",
+            "source": {
+              "path": "src/sat/sat_solver.h",
+              "lines": [
+                382
+              ]
+            }
+          }
+        ],
+        "required_context": [
+          "src/sat/smt/sls_solver.cpp",
+          "src/sat/sat_solver.h"
+        ],
+        "correspondence": "Source correspondence is not established. The SAT solver object and m_best_phase storage are abstracted as the sequence S_pre; allocation, aliasing, lifetimes, concurrency, and behavior for invalid variables are not modeled.",
+        "explanation": "For variable 0, the modeled underlying best phase is true, while the adapter body returns false, so the modeled expectation does not hold for this input.",
+        "source_notes": [
+          {
+            "path": "src/sat/smt/sls_solver.cpp",
+            "line": 56,
+            "note": "The adapter result is modeled as the literal false returned by the captured body."
+          },
+          {
+            "path": "src/sat/sat_solver.h",
+            "line": 382,
+            "note": "The internal best-phase vector is represented by the input sequence S_pre."
+          }
+        ]
+      },
+      "frozen_negative_model": "// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\nfunction best_phase_value(S_pre: seq<bool>, v: int): bool\n// synth: valid Boolean-variable index\n  requires 0 <= v < |S_pre|\n// synth: function body\n{\n// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\n  S_pre[v]\n// synth: function body\n}\n\n// src: src/sat/smt/sls_solver.cpp:55 | bool solver::get_best_phase(sat::bool_var v) {\nmethod WorkflowEntry(S_pre: seq<bool>, v: int) returns (result: bool)\n// synth: intended property applies to valid Boolean variables\n  requires 0 <= v < |S_pre|\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((result == best_phase_value(S_pre, v)))\n// synth: method body\n// synth: refutation witness\n  requires S_pre == [true]\n  requires v == 0\n{\n// src: src/sat/smt/sls_solver.cpp:56 | return false;\n  result := false;\n// synth: method body\n}",
+      "checked_model": "// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\nfunction best_phase_value(S_pre: seq<bool>, v: int): bool\n// synth: valid Boolean-variable index\n  requires 0 <= v < |S_pre|\n// synth: function body\n{\n// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\n  S_pre[v]\n// synth: function body\n}\n\n// src: src/sat/smt/sls_solver.cpp:55 | bool solver::get_best_phase(sat::bool_var v) {\nmethod WorkflowEntry(S_pre: seq<bool>, v: int) returns (result: bool)\n// synth: intended property applies to valid Boolean variables\n  requires 0 <= v < |S_pre|\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((result == best_phase_value(S_pre, v)))\n// synth: method body\n// synth: refutation witness\n  requires S_pre == [true]\n  requires v == 0\n{\n// src: src/sat/smt/sls_solver.cpp:56 | return false;\n  result := false;\n// synth: method body\n}\n",
+      "annotation_plan": [],
+      "retained_assumptions": [
+        0
+      ],
+      "minimization": [],
+      "dafny": "// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\nfunction best_phase_value(S_pre: seq<bool>, v: int): bool\n// synth: valid Boolean-variable index\n  requires 0 <= v < |S_pre|\n// synth: function body\n{\n// src: src/sat/sat_solver.h:382 | bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }\n  S_pre[v]\n// synth: function body\n}\n\n// src: src/sat/smt/sls_solver.cpp:55 | bool solver::get_best_phase(sat::bool_var v) {\nmethod WorkflowEntry(S_pre: seq<bool>, v: int) returns (result: bool)\n// synth: intended property applies to valid Boolean variables\n  requires 0 <= v < |S_pre|\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((result == best_phase_value(S_pre, v)))\n// synth: method body\n// synth: refutation witness\n  requires S_pre == [true]\n  requires v == 0\n{\n// src: src/sat/smt/sls_solver.cpp:56 | return false;\n  result := false;\n// synth: method body\n}\n\nmethod NfvWitnessCheck()\n{\n  var S_pre: seq<bool> := [true];\n  var v: int := 0;\n  var NfvResult0 := WorkflowEntry(S_pre, v);\n}\n",
+      "dafny_sha256": "7de9ff09d33a2ddcfc6c78b0668f2627f4affcefa5e7348d2129d6cfd70c6401",
+      "evidence": "8135df5d3cb1c9000099/final/model.dfy",
+      "result": {
+        "outcome": "verified",
+        "exit_code": 0,
+        "duration_s": 1.582,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [],
+        "stdout": "\nDafny program verifier finished with 4 verified, 0 errors\n",
+        "stderr": "",
+        "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+      },
+      "reachability_result": {
+        "outcome": "failed",
+        "exit_code": 4,
+        "duration_s": 1.459,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [
+          "examples/z3-10961/evidence/base/8135df5d3cb1c9000099/reach-final/model.dfy(38,0): Error: a postcondition could not be proved on this return path"
+        ],
+        "stdout": "examples/z3-10961/evidence/base/8135df5d3cb1c9000099/reach-final/model.dfy(38,0): Error: a postcondition could not be proved on this return path\n   |\n38 | {\n   | ^\n\nexamples/z3-10961/evidence/base/8135df5d3cb1c9000099/reach-final/model.dfy(37,10): Related location: this is the postcondition that could not be proved\n   |\n37 |   ensures false\n   |           ^^^^^\n\n\nDafny program verifier finished with 0 verified, 1 error\n",
+        "stderr": "",
+        "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+      },
+      "gates": {
+        "integrity": true,
+        "goal": true,
+        "source_freeze": true,
+        "conditions": true,
+        "source_freeze_hash": "9782b2d567141c0b",
+        "computation_sha256": "586c477f48221145c924afb090f270f5045d0d2e0fb9b9efdf0fa052c793445f",
+        "witness_consistency": true,
+        "reachability": true,
+        "source_correspondence": "not established"
+      },
+      "source_map": [
+        {
+          "model_line": 2,
+          "path": "src/sat/sat_solver.h",
+          "line": 382,
+          "source": "bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }",
+          "model": "function best_phase_value(S_pre: seq<bool>, v: int): bool"
+        },
+        {
+          "model_line": 8,
+          "path": "src/sat/sat_solver.h",
+          "line": 382,
+          "source": "bool get_best_phase(bool_var b) { return m_best_phase.get(b, false); }",
+          "model": "S_pre[v]"
+        },
+        {
+          "model_line": 13,
+          "path": "src/sat/smt/sls_solver.cpp",
+          "line": 55,
+          "source": "bool solver::get_best_phase(sat::bool_var v) {",
+          "model": "method WorkflowEntry(S_pre: seq<bool>, v: int) returns (result: bool)"
+        },
+        {
+          "model_line": 21,
+          "path": "src/sat/smt/sls_solver.cpp",
+          "line": 56,
+          "source": "return false;",
+          "model": "result := false;"
+        }
+      ],
+      "counters": {
+        "translation_calls": 1,
+        "syntax_repairs": 0,
+        "proof_repairs": 0
+      },
+      "limits": {
+        "syntax_rounds": 6,
+        "proof_rounds": 10,
+        "verifier_timeout": 60,
+        "model_timeout": 240,
+        "entry_seconds": 1800
+      },
+      "typecheck_log": [
+        {
+          "outcome": "verified",
+          "exit_code": 0,
+          "duration_s": 0.637,
+          "mode": "typecheck",
+          "unroll": null,
+          "errors": [],
+          "stdout": "\nDafny program verifier did not attempt verification\n",
+          "stderr": "",
+          "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+        }
+      ],
+      "proof_log": [
+        {
+          "outcome": "verified",
+          "exit_code": 0,
+          "duration_s": 1.558,
+          "mode": "unbounded",
+          "unroll": null,
+          "errors": [],
+          "stdout": "\nDafny program verifier finished with 4 verified, 0 errors\n",
+          "stderr": "",
+          "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+        }
+      ]
+    },
+    {
+      "kind": "conditional-model-refutation",
+      "candidate": {
+        "path": "src/sat/smt/sls_solver.cpp",
+        "lines": [
+          52
+        ],
+        "signal_id": "comment:5894795366",
+        "quote": "result == sat_set_has_new_best_phase(S_pre, b)",
+        "property": "Setting the new-best-phase flag through the SLS adapter applies the same update to the underlying SAT solver.",
+        "language": "cpp",
+        "id": "e888770583af5b79e2cb"
+      },
+      "translation": {
+        "entry_point": "WorkflowEntry",
+        "model": "// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nfunction sat_set_has_new_best_phase(S_pre: bool, b: bool): bool\n// synth: open expected-update helper\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nb\n// synth: close expected-update helper\n}\n// src: src/sat/smt/sls_solver.cpp:51 | void solver::set_has_new_best_phase(bool b) {\nmethod WorkflowEntry(S_pre: bool, b: bool, singleThread: bool) returns (result: bool)\n// synth: select the captured non-SINGLE_THREAD implementation\nrequires !singleThread\n// synth: original intended property\nensures result == sat_set_has_new_best_phase(S_pre, b)\n// synth: open entry body\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nvar underlyingFlag := S_pre;\n// src: src/sat/smt/sls_solver.cpp:52 | \nresult := underlyingFlag;\n// src: src/sat/smt/sls_solver.cpp:53 | }\n// synth: close entry body\n}",
+        "original_ensures": [
+          "result == sat_set_has_new_best_phase(S_pre, b)"
+        ],
+        "source_span": [
+          51,
+          53
+        ],
+        "witness": {
+          "S_pre": false,
+          "b": true,
+          "singleThread": false
+        },
+        "assumptions": [
+          {
+            "clause": "!singleThread",
+            "description": "The captured implementation is the branch compiled when SINGLE_THREAD is not defined.",
+            "origin": "inferred",
+            "optional": false
+          }
+        ],
+        "environment": [
+          {
+            "name": "sat_set_has_new_best_phase",
+            "description": "Models the SAT solver setter as replacing its Boolean new-best-phase flag with the supplied value.",
+            "kind": "source-derived",
+            "source": {
+              "path": "src/sat/sat_solver.h",
+              "lines": [
+                385
+              ]
+            }
+          }
+        ],
+        "required_context": [
+          "src/sat/smt/sls_solver.cpp",
+          "src/sat/smt/sls_solver.h",
+          "src/sat/sat_solver.h"
+        ],
+        "correspondence": "Source correspondence is not established. The model reduces the underlying SAT solver and SLS adapter objects to one Boolean flag, treats S_pre as its initial value, and omits allocation, references, virtual dispatch, lifetimes, concurrency, exceptions, and unrelated solver state. It models only the non-SINGLE_THREAD body captured at lines 51-53.",
+        "explanation": "With the flag initially false and b set to true, the modeled empty adapter body leaves the underlying flag false. The modeled SAT setter would change it to true, so the expected equality does not hold.",
+        "source_notes": [
+          {
+            "path": "src/sat/smt/sls_solver.cpp",
+            "line": 52,
+            "note": "The captured adapter body contains no update; the model therefore carries the exposed underlying flag through unchanged."
+          },
+          {
+            "path": "src/sat/sat_solver.h",
+            "line": 385,
+            "note": "The SAT setter is represented as direct replacement of the Boolean flag."
+          }
+        ]
+      },
+      "frozen_negative_model": "// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nfunction sat_set_has_new_best_phase(S_pre: bool, b: bool): bool\n// synth: open expected-update helper\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nb\n// synth: close expected-update helper\n}\n// src: src/sat/smt/sls_solver.cpp:51 | void solver::set_has_new_best_phase(bool b) {\nmethod WorkflowEntry(S_pre: bool, b: bool, singleThread: bool) returns (result: bool)\n// synth: select the captured non-SINGLE_THREAD implementation\nrequires !singleThread\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((result == sat_set_has_new_best_phase(S_pre, b)))\n// synth: open entry body\n// synth: refutation witness\n  requires S_pre == false\n  requires b == true\n  requires singleThread == false\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nvar underlyingFlag := S_pre;\n// src: src/sat/smt/sls_solver.cpp:52 | \nresult := underlyingFlag;\n// src: src/sat/smt/sls_solver.cpp:53 | }\n// synth: close entry body\n}",
+      "checked_model": "// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nfunction sat_set_has_new_best_phase(S_pre: bool, b: bool): bool\n// synth: open expected-update helper\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nb\n// synth: close expected-update helper\n}\n// src: src/sat/smt/sls_solver.cpp:51 | void solver::set_has_new_best_phase(bool b) {\nmethod WorkflowEntry(S_pre: bool, b: bool, singleThread: bool) returns (result: bool)\n// synth: select the captured non-SINGLE_THREAD implementation\nrequires !singleThread\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((result == sat_set_has_new_best_phase(S_pre, b)))\n// synth: open entry body\n// synth: refutation witness\n  requires S_pre == false\n  requires b == true\n  requires singleThread == false\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nvar underlyingFlag := S_pre;\n// src: src/sat/smt/sls_solver.cpp:52 | \nresult := underlyingFlag;\n// src: src/sat/smt/sls_solver.cpp:53 | }\n// synth: close entry body\n}\n",
+      "annotation_plan": [],
+      "retained_assumptions": [
+        0
+      ],
+      "minimization": [],
+      "dafny": "// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nfunction sat_set_has_new_best_phase(S_pre: bool, b: bool): bool\n// synth: open expected-update helper\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nb\n// synth: close expected-update helper\n}\n// src: src/sat/smt/sls_solver.cpp:51 | void solver::set_has_new_best_phase(bool b) {\nmethod WorkflowEntry(S_pre: bool, b: bool, singleThread: bool) returns (result: bool)\n// synth: select the captured non-SINGLE_THREAD implementation\nrequires !singleThread\n// synth: refutation goal: negation of the translated postcondition\n  ensures !((result == sat_set_has_new_best_phase(S_pre, b)))\n// synth: open entry body\n// synth: refutation witness\n  requires S_pre == false\n  requires b == true\n  requires singleThread == false\n{\n// src: src/sat/sat_solver.h:385 | void set_has_new_best_phase(bool b) { m_new_best_phase = b; }\nvar underlyingFlag := S_pre;\n// src: src/sat/smt/sls_solver.cpp:52 | \nresult := underlyingFlag;\n// src: src/sat/smt/sls_solver.cpp:53 | }\n// synth: close entry body\n}\n\nmethod NfvWitnessCheck()\n{\n  var S_pre: bool := false;\n  var b: bool := true;\n  var singleThread: bool := false;\n  var NfvResult0 := WorkflowEntry(S_pre, b, singleThread);\n}\n",
+      "dafny_sha256": "10ceec09bfa68d0252ecea69237b822a8362f20a14cb7024d267050e17155f21",
+      "evidence": "e888770583af5b79e2cb/final/model.dfy",
+      "result": {
+        "outcome": "verified",
+        "exit_code": 0,
+        "duration_s": 1.523,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [],
+        "stdout": "\nDafny program verifier finished with 2 verified, 0 errors\n",
+        "stderr": "",
+        "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+      },
+      "reachability_result": {
+        "outcome": "failed",
+        "exit_code": 4,
+        "duration_s": 1.669,
+        "mode": "unbounded",
+        "unroll": null,
+        "errors": [
+          "examples/z3-10961/evidence/base/e888770583af5b79e2cb/reach-final/model.dfy(40,0): Error: a postcondition could not be proved on this return path"
+        ],
+        "stdout": "examples/z3-10961/evidence/base/e888770583af5b79e2cb/reach-final/model.dfy(40,0): Error: a postcondition could not be proved on this return path\n   |\n40 | {\n   | ^\n\nexamples/z3-10961/evidence/base/e888770583af5b79e2cb/reach-final/model.dfy(39,10): Related location: this is the postcondition that could not be proved\n   |\n39 |   ensures false\n   |           ^^^^^\n\n\nDafny program verifier finished with 0 verified, 1 error\n",
+        "stderr": "",
+        "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+      },
+      "gates": {
+        "integrity": true,
+        "goal": true,
+        "source_freeze": true,
+        "conditions": true,
+        "source_freeze_hash": "db97b6838998c313",
+        "computation_sha256": "76161cbb27b72724fe09e104e4b695276664565a6be94fcc4f757017c0bbb062",
+        "witness_consistency": true,
+        "reachability": true,
+        "source_correspondence": "not established"
+      },
+      "source_map": [
+        {
+          "model_line": 2,
+          "path": "src/sat/sat_solver.h",
+          "line": 385,
+          "source": "void set_has_new_best_phase(bool b) { m_new_best_phase = b; }",
+          "model": "function sat_set_has_new_best_phase(S_pre: bool, b: bool): bool"
+        },
+        {
+          "model_line": 6,
+          "path": "src/sat/sat_solver.h",
+          "line": 385,
+          "source": "void set_has_new_best_phase(bool b) { m_new_best_phase = b; }",
+          "model": "b"
+        },
+        {
+          "model_line": 10,
+          "path": "src/sat/smt/sls_solver.cpp",
+          "line": 51,
+          "source": "void solver::set_has_new_best_phase(bool b) {",
+          "model": "method WorkflowEntry(S_pre: bool, b: bool, singleThread: bool) returns (result: bool)"
+        },
+        {
+          "model_line": 18,
+          "path": "src/sat/sat_solver.h",
+          "line": 385,
+          "source": "void set_has_new_best_phase(bool b) { m_new_best_phase = b; }",
+          "model": "var underlyingFlag := S_pre;"
+        },
+        {
+          "model_line": 20,
+          "path": "src/sat/smt/sls_solver.cpp",
+          "line": 52,
+          "source": "",
+          "model": "result := underlyingFlag;"
+        }
+      ],
+      "counters": {
+        "translation_calls": 1,
+        "syntax_repairs": 0,
+        "proof_repairs": 0
+      },
+      "limits": {
+        "syntax_rounds": 6,
+        "proof_rounds": 10,
+        "verifier_timeout": 60,
+        "model_timeout": 240,
+        "entry_seconds": 1800
+      },
+      "typecheck_log": [
+        {
+          "outcome": "verified",
+          "exit_code": 0,
+          "duration_s": 0.651,
+          "mode": "typecheck",
+          "unroll": null,
+          "errors": [],
+          "stdout": "\nDafny program verifier did not attempt verification\n",
+          "stderr": "",
+          "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+        }
+      ],
+      "proof_log": [
+        {
+          "outcome": "verified",
+          "exit_code": 0,
+          "duration_s": 1.324,
+          "mode": "unbounded",
+          "unroll": null,
+          "errors": [],
+          "stdout": "\nDafny program verifier finished with 2 verified, 0 errors\n",
+          "stderr": "",
+          "verifier_version": "4.11.0+fcb2042d6d043a2634f0854338c08feeaaaf4ae2"
+        }
+      ]
+    }
+  ],
+  "abstentions": [
+    {
+      "id": "68eb9368ebe36c2d5c30",
+      "reason": "Abstain: The captured context omits src/ast/sls/sls_smt_plugin.h, which defines the SLS context and the referenced default_best_phase behavior. Without it, the intended comparison and unset-phase semantics cannot be modeled faithfully."
+    },
+    {
+      "id": "180fd9c59ded2ade86b5",
+      "reason": "Abstain: Negative check failed after 10 proof repairs"
+    },
+    {
+      "id": "59004d1306df9751aad9",
+      "reason": "Abstain: Original property goal was altered"
+    }
+  ],
+  "errors": []
+}

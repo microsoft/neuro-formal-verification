@@ -123,6 +123,21 @@ class GeneralTests(unittest.TestCase):
     def test_doubled_defaults(self):
         self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
 
+    def test_context_budget_keeps_claim_and_nearest_files(self):
+        bundle, claim, _ = fixture()
+        sources = {claim["path"]: bundle["sources"][claim["path"]],
+                   "near.h": {"text": "int near;\n"},
+                   "far.h": {"text": "x" * 700000}}
+        bundle["sources"] = {"near.h": sources["near.h"], "far.h": sources["far.h"],
+                             claim["path"]: sources[claim["path"]]}
+        chat = Chat([{"abstain": "stop after inspecting the prompt"}])
+        report = self.execute(bundle, claim, chat)
+        prompt = chat.prompts[0]
+        self.assertLess(len(prompt), 600100)
+        self.assertIn('"near.h"', prompt)
+        self.assertIn("far.h: omitted by per-property context budget", prompt)
+        self.assertIn("stop after inspecting", report["abstentions"][0]["reason"])
+
     def test_reachability_probe_ignores_braces_in_provenance_comments(self):
         model = ("method Target(x: int) returns (r: int)\n  ensures r == x\n{\n"
                  "// src: f.cpp:2 | if (x > 0) {\n  r := x;\n}\n")

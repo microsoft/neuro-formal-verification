@@ -88,7 +88,11 @@ permits recreation.
 1. **Collect as data.** Read regular Git blobs by immutable SHA and verify their
    Git blob hashes. Gather changed code, nearby declarations, precondition/assert
    lines, callee names, quoted includes/companions, and bounded same-language
-   sibling/import context. Record omissions and a complete regular-file inventory.
+   sibling/import context. Context is fetched nearest-first: files named after
+   identifiers on changed lines, then direct includes and imports, then their
+   dependencies, with headers ahead of implementations and same-directory neighbours
+   last. Each property's prompt keeps this order and drops (and discloses) the
+   farthest files when over budget. Record omissions and a complete regular-file inventory.
    PR source is never checked out for execution, compiled, imported, or tested.
 2. **Extract intention, not suspicion.** Exact comment/review/commit quotes and
    changed-line anchors are mandatory. Deduplicate and select at most ten
@@ -242,6 +246,17 @@ nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\propertie
 Never commit credentials or local environment files. Model access and billing
 follow the configured credential's permissions and service policy.
 
+Before/after analysis of the same merged PR (for example a bug fix) snapshots the
+pre-merge base with the head's context files, anchors on removed lines, and moves
+head-side claims to the removed lines of the same diff block. Base-side bundles are never
+publishable:
+
+```powershell
+nfv-workflow collect --side base --event event.json --out .nfv-work\bundle-base.json
+nfv-workflow reanchor --bundle .nfv-work\bundle-base.json --properties .nfv-work\properties.json --out .nfv-work\properties-base.json
+nfv-workflow run --bundle .nfv-work\bundle-base.json --properties .nfv-work\properties-base.json --model $env:NFV_MODEL --out .nfv-work\evidence-base
+```
+
 `evaluate` is the trusted AW entrypoint: fresh collection plus general execution.
 Its defaults are `--mode general --syntax-rounds 6 --proof-rounds 10`.
 `--verifier-timeout` defaults to 60 seconds. Each model request defaults to
@@ -302,8 +317,12 @@ NL formalization, external caller preconditions, or linker behavior.
   Z3 PR #11123 with a handwritten translation and real Dafny checks. It yields
   one conditional model refutation: padding is skipped for length bounds above
   65,536. A live read-only collection on unmerged PR #11007 is rejected.
+* [Z3 before/after example](../examples/z3-10961/README.md) is a **live** model run
+  (nothing handwritten) on fix PR #10961, which fixed an earlier NFV-found bug. It
+  yields two refutations on the pre-fix base and none on the fixed head. The replay
+  feeds back the recorded model responses and reruns every gate and Dafny check.
 * Source collection: up to 300 changed files, 200 KB per blob, 6 MB source,
-  40 context files, and 500 commentary signals/1 MB. Per-signal truncation and
+  80 context files, and 500 commentary signals/1 MB. Per-signal truncation and
   source omissions are recorded. Deleted-only files and missing diff anchors
   cannot yield a finding. Context gathering is lexical/bounded, not a complete
   language server or build-system resolver.

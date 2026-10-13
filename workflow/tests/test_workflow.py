@@ -12,7 +12,8 @@ from unittest.mock import patch
 
 from nfv_workflow.check import Dafny, accepted, check
 from nfv_workflow.cli import submission
-from nfv_workflow.github import Abstain, GitHub, added_lines, collect, identity, sha, source_path
+from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
+                                 reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
 from nfv_workflow.publish import marker, publication_allowed, publish, render
 from nfv_workflow.source_binding import bind_source, Parser
@@ -559,6 +560,61 @@ class CollectionTests(unittest.TestCase):
         self.assertIn("src/helper.cpp", result["sources"])
         self.assertIn("src/helper.h", result["sources"])
         self.assertTrue(result["source_inventory_complete"])
+
+    def test_base_side_snapshot_anchors_removed_lines_and_reanchors(self):
+        api = self.api()
+        trees = []
+        original = api.request
+        def request(path):
+            if "/git/trees/" in path:
+                trees.append(path)
+            return original(path)
+        api.request = request
+        base = collect(event(), api, side="base")
+        ident = base["identity"]
+        self.assertEqual((ident["source_kind"], ident["source_sha"]),
+                         ("pull-request-base", ident["base_sha"]))
+        self.assertIn(ident["base_sha"], trees[-1])
+        self.assertEqual(base["changed"], {"src/f.cpp": [1]})
+        props = [{"path": "src/f.cpp", "lines": [1], "property": "p"}]
+        moved = reanchor(props, base)
+        self.assertEqual(moved["properties"][0]["lines"], [1])
+        self.assertEqual(moved["properties"][0]["head_lines"], [1])
+        with self.assertRaises(Abstain):
+            reanchor(props, collect(event(), self.api()))
+        from nfv_workflow.publish import render
+        with self.assertRaises(Abstain):
+            render({"identity": ident, "findings": [{}]}, {"identity": ident},
+                   "https://github.com/owner/project/actions/runs/1")
+
+    def test_change_blocks_pair_removed_and_added_runs(self):
+        patch = "@@ -10,4 +10,5 @@\n a\n-b\n+B\n+B2\n c\n+new\n d"
+        self.assertEqual(change_blocks(patch), [([11], [11, 12]), ([], [14])])
+        self.assertEqual(removed_lines(patch), [11])
+        base = {"identity": {"source_kind": "pull-request-base"},
+                "head_to_base": {"f.c": {"path": "f.c", "lines": {"11": [11], "12": [11]}}}}
+        result = reanchor([{"path": "f.c", "lines": [12]}, {"path": "f.c", "lines": [14]}], base)
+        self.assertEqual([x["lines"] for x in result["properties"]], [[11]])
+        self.assertEqual(len(result["dropped"]), 1)
+
+    def test_context_prefers_direct_includes_over_alphabetical_neighbours(self):
+        api = self.api()
+        original_request, original_blob = api.request, api.blob
+        def request(path):
+            result = original_request(path)
+            if "/git/trees/" in path:
+                result["tree"].extend(
+                    [{"path": f"src/a{i:02}.h", "type": "blob", "mode": "100644", "sha": f"{i:040x}"}
+                     for i in range(1, 60)]
+                    + [{"path": "src/z/near.h", "type": "blob", "mode": "100644", "sha": "9" * 40}])
+            return result
+        def blob(repo, oid):
+            if oid == "d" * 40:
+                return '#include "z/near.h"\nint f() { return near(); }\n'
+            return "int x;\n"
+        api.request, api.blob = request, blob
+        result = collect(event(), api)
+        self.assertIn("src/z/near.h", result["sources"])
 
     def api(self):
         data = event()["pull_request"]

@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from .check import check
-from .github import Abstain, GitHub, collect
+from .github import Abstain, GitHub, collect, reanchor
 from .publish import LABEL, publication_allowed, publish
 
 
@@ -73,6 +73,12 @@ def main(argv=None):
     p = commands.add_parser("collect", help="Capture merged-PR event source and commentary using read-only API")
     p.add_argument("--event", required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--side", choices=("head", "base"), default="head",
+                   help="base: pre-merge snapshot anchored on removed lines (before/after analysis; not publishable)")
+    p = commands.add_parser("reanchor", help="Map head-side properties onto a base-side bundle's removed lines")
+    p.add_argument("--bundle", required=True)
+    p.add_argument("--properties", required=True)
+    p.add_argument("--out", required=True)
     p = commands.add_parser("propose", help="Optional strict scalar-expression proposals (billable)")
     p.add_argument("--bundle", required=True)
     p.add_argument("--model", required=True)
@@ -112,7 +118,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "collect":
-            save(args.out, collect(load(args.event), GitHub()))
+            save(args.out, collect(load(args.event), GitHub(), side=args.side))
+        elif args.command == "reanchor":
+            result = reanchor(load(args.properties), load(args.bundle))
+            save(args.out, result["properties"])
+            print(json.dumps({"properties": len(result["properties"]), "dropped": result["dropped"]}))
         elif args.command == "propose":
             save(args.out, asyncio.run(propose(load(args.bundle), args.model)))
         elif args.command == "extract":
