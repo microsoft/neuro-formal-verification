@@ -85,7 +85,9 @@ def validate_claim(candidate, bundle):
         raise Abstain("Property anchor missing from captured source")
     signal = next((x for x in bundle["signals"] if x["id"] == candidate["signal_id"]), None)
     quote = candidate["quote"]
-    if not signal or not isinstance(quote, str) or not quote.strip() or quote not in signal["text"]:
+    # Line wrapping in commit messages and PR bodies is not part of the claim.
+    if (not signal or not isinstance(quote, str) or not quote.strip()
+            or " ".join(quote.split()) not in " ".join(signal["text"].split())):
         raise Abstain("Property lacks an exact PR/commit evidence quote")
     if not isinstance(candidate.get("property"), str) or not candidate["property"].strip():
         raise Abstain("Missing intended property")

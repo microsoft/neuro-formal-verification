@@ -284,6 +284,11 @@ class SourceBindingTests(unittest.TestCase):
         with self.assertRaises(Abstain):
             select_candidates([obj], bundle())
 
+    def test_line_wrapped_quote_accepted(self):
+        data = bundle()
+        data["signals"][0]["text"] = "The return value\nequals the input."
+        self.assertEqual(len(select_candidates([candidate()], data)), 1)
+
     def test_environment_needs_captured_source(self):
         obj = candidate()
         obj["model"]["environment"] = [{"source": {"path": "missing.cpp", "lines": [1]}}]
@@ -743,9 +748,9 @@ class TemplateTests(unittest.TestCase):
         template = (workflow / "templates" / "nfv-merged-pr.md").read_text(encoding="utf-8")
         lock = (workflow / "templates" / "nfv-merged-pr.lock.yml").read_text(encoding="utf-8")
         self.assertIn("a prototype implementation", template)
-        self.assertIn('name: "Merged-PR conditional neuro-formal verification"\n', lock)
-        self.assertIn('run-name: "Merged-PR conditional neuro-formal verification"\n', lock)
-        self.assertIn('GH_AW_WORKFLOW_NAME: "Merged-PR conditional neuro-formal verification"', lock)
+        self.assertIn('name: "Merged-PR neuro-formal verification audit"\n', lock)
+        self.assertIn('run-name: "Merged-PR neuro-formal verification audit"\n', lock)
+        self.assertIn('GH_AW_WORKFLOW_NAME: "Merged-PR neuro-formal verification audit"', lock)
         self.assertIn("nfv-workflow evaluate", template)
         docs = [workflow / "README.md"]
         for document in docs:
