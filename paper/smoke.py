@@ -180,7 +180,7 @@ def main(argv=None) -> int:
     parser.add_argument("--output", type=Path, default=ROOT / ".nfv-work/paper-smoke.json")
     args = parser.parse_args(argv)
     output = args.output.resolve()
-    protected = (ROOT / "nfv", ROOT / "paper/reported", ROOT / "paper/provenance",
+    protected = (ROOT / "nfv", ROOT / "paper/data", ROOT / "paper/provenance",
                  ROOT / "paper/licenses")
     if (not output.is_relative_to(ROOT) or output == ROOT / "paper/manifest.json"
             or any(output.is_relative_to(path) for path in protected)):

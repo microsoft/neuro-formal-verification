@@ -27,73 +27,6 @@ CORE = [
     "data/killing_tests.py", "data/rebuild_dataset.py", "data/verify_no_leak.py",
     "data/nl2post_safe.json", "data/MANIFEST.md", "data/input_assumptions.json",
 ]
-ANALYSIS = [
-    "check_causes.py", "dataset_size.py", "make_cbmc_clean.py",
-    "make_cbmc_falsecex.py", "make_compare_tables.py",
-    "make_dataset_provenance.py", "make_judge_numbers.py",
-    "make_tasks_table.py", "make_tier_examples.py", "make_tier_table.py", "make_naive_table.py",
-]
-
-
-def extract_dataset_tables(source: Path, destination: Path) -> None:
-    original = source / "nfv/paper/make_tables.py"
-    lines = original.read_text(encoding="utf-8").splitlines(keepends=True)
-    tree = ast.parse("".join(lines))
-    wanted = {"esc", "write", "t_dataset", "t_specs"}
-    parts = ['"""Dataset-only generators extracted from make_tables.py."""\n']
-    for node in tree.body:
-        keep = isinstance(node, (ast.Import, ast.ImportFrom))
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            target = node.targets[0] if isinstance(node, ast.Assign) else node.target
-            keep = ast.unparse(target) in {"TIERS", "ROOT", "OUT"}
-        if isinstance(node, ast.FunctionDef):
-            keep = node.name in wanted
-        if keep:
-            parts.extend(lines[node.lineno - 1:node.end_lineno])
-            parts.append("\n")
-    parts.append('if __name__ == "__main__":\n    t_dataset()\n    t_specs()\n')
-    (destination / "nfv/paper/make_dataset_tables.py").write_text(
-        "".join(parts), encoding="utf-8", newline="\n")
-
-
-def extract_comparisons(source: Path, destination: Path) -> None:
-    original = source / "nfv/paper/make_compare_tables.py"
-    lines = original.read_text(encoding="utf-8").splitlines(keepends=True)
-    tree = ast.parse("".join(lines))
-    excluded = {"cbmc_exhausted", "cbmc_row", "model_macros", "ms_files",
-                "resolve_modelscale", "opus_macros", "main"}
-    parts = ['"""Final-paper model comparison and attribution generators."""\n']
-    for node in tree.body:
-        if isinstance(node, ast.Expr) or isinstance(node, ast.If):
-            continue
-        if isinstance(node, ast.FunctionDef) and node.name in excluded:
-            continue
-        if (isinstance(node, ast.Assign)
-                and ast.unparse(node.targets[0]) == "COMPARISONS"):
-            parts.append("COMPARISONS = {\n")
-            for key, value in zip(node.value.keys, node.value.values):
-                if key.value == "weakmodel":
-                    parts.extend(lines[key.lineno - 1:value.end_lineno])
-            parts.append("}\n")
-            continue
-        parts.extend(lines[node.lineno - 1:node.end_lineno])
-        parts.append("\n")
-    parts.append('''def main():
-    TABLES.mkdir(parents=True, exist_ok=True)
-    files, stale = resolve_weakmodel()
-    (TABLES / "weakmodel.tex").write_text(
-        build("weakmodel", COMPARISONS["weakmodel"]), encoding="utf-8")
-    weak_macros(files, stale)
-    analysis_macros()
-    return 0
-
-if __name__ == "__main__":
-    raise SystemExit(main())
-''')
-    (destination / "nfv/paper/make_compare_tables.py").write_text(
-        "".join(parts), encoding="utf-8", newline="\n")
-
-
 def extract(source: Path, destination: Path) -> None:
     records = []
 
@@ -143,15 +76,6 @@ def extract(source: Path, destination: Path) -> None:
                 drop.update(range(node.lineno - 1, node.end_lineno))
         target.write_text("".join(line for i, line in enumerate(lines) if i not in drop),
                           encoding="utf-8", newline="\n")
-    for name in ANALYSIS:
-        copy("nfv/paper/" + name, "nfv/paper/" + name)
-    extract_dataset_tables(source, destination)
-    extract_comparisons(source, destination)
-    for path in (source / "nfv/paper/nfv_arxiv").rglob("*"):
-        if path.is_file() and path.suffix == ".tex":
-            copy(path.relative_to(source).as_posix(),
-                 "paper/reported/" + path.relative_to(source / "nfv/paper/nfv_arxiv").as_posix())
-    copy("nfv/paper/nfv_arxiv/figs/northstar.pdf", "paper/reported/figs/northstar.pdf")
     for path in (source / "nfv/data/subsets").glob("pilot10.json"):
         copy(path.relative_to(source).as_posix(), path.relative_to(source).as_posix())
     # Keep only the registered variants needed by the final paper and their bases.

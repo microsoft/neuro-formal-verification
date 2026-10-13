@@ -76,21 +76,6 @@ equivalence; historical admission gates are not rerun. CBMC bounded success
 remains **abstain**. [Setup](SETUP.md#bounded-new-model-smoke) also provides a
 separately budgeted, one-entry **new model** smoke.
 
-## Secondary: reproduce recorded metrics and tables
-
-No model or verifier calls are needed:
-
-```powershell
-python -m paper.reproduce --require-complete
-python -m unittest discover -s tests -p "test_paper*.py" -v
-```
-
-This uses all 12 retained final raw files to generate 20 tables under
-`recomputed`, without changing `reported`. Main correct/issued claims:
-Dafny verification **72/77**, refutation **47/53**, CBMC **65/72**; the offline
-Dafny combination is **118/128**. The other retained runs reproduce the
-paper's oracle, naive, judge and model-comparison analyses.
-
 ## Notes
 
 These experiments accompany [arXiv:2608.21516v3](https://arxiv.org/abs/2608.21516v3);

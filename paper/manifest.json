@@ -2,8 +2,7 @@
   "paper": {
     "url": "https://arxiv.org/abs/2608.21516v3",
     "verified_html": "https://arxiv.org/html/2608.21516v3",
-    "retained_snapshot": "nfv/paper/nfv_arxiv",
-    "note": "Source snapshot retained without editing. Claims checked against official v3 HTML; not a claim of identical arXiv archive bytes."
+    "note": "Manuscript sources and table generators remain in the private research repository; reported claims below are can be recounted from nfv/results with python -m nfv.metrics."
   },
   "source": {
     "snapshot_id": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1"
@@ -253,7 +252,7 @@
       "claims": 128,
       "correct_claims": 118,
       "population": 206,
-      "rule": "make_tasks_table.py joins two independent arms; not run.py's newer combined mode"
+      "rule": "offline join of two independent arms (refutation first); not run.py's newer combined mode"
     },
     "cbmc": {
       "recall_percent_rounded": 63,
@@ -576,54 +575,11 @@
       }
     }
   },
-  "recomputation": {
-    "command": "python -m paper.reproduce --require-complete",
-    "report": "paper/recomputed/metrics.json",
-    "note": "Retained final per-entry results drive the tables; diagnostic-path redaction does not change models or verdicts."
-  },
   "smoke_replay": {
     "command": "python -m paper.smoke",
     "report": "paper/replayed/smoke.json",
     "sha256": "21f4028a6e5354b5b4cff57cbfd138899a888a0270f1dca6a026ae0c108a98fb",
     "scope": "Four fixed retained model artifacts, two per backend; no inference or model repair."
-  },
-  "generators": {
-    "make_tasks_table": [
-      "lemma4_verify.jsonl",
-      "lemma4_refute.jsonl",
-      "lemma4_oracle.jsonl"
-    ],
-    "make_tier_table": [
-      "lemma4_verify.jsonl",
-      "lemma4_refute.jsonl",
-      "lemma4_oracle.jsonl"
-    ],
-    "make_compare_tables": [
-      "lemma4_verify.jsonl",
-      "lemma4_refute.jsonl",
-      "lemma4_haiku_verify.jsonl",
-      "lemma4_haiku_refute.jsonl",
-      "lemma4_mini_verify.jsonl",
-      "lemma4_mini_refute.jsonl",
-      "lemma4_sonnet46_verify.jsonl",
-      "lemma4_sonnet46_refute.jsonl"
-    ],
-    "check_causes": [
-      "lemma4_verify.jsonl",
-      "lemma4_refute.jsonl"
-    ],
-    "make_cbmc_clean": [
-      "cbmc_theory.jsonl"
-    ],
-    "make_cbmc_falsecex": [
-      "cbmc_theory.jsonl"
-    ],
-    "make_judge_numbers": [
-      "judge.jsonl"
-    ],
-    "make_naive_table": [
-      "naive_nogates.jsonl"
-    ]
   },
   "files": [
     {
@@ -868,100 +824,6 @@
       "modified_from_materialized_source": false
     },
     {
-      "source": "nfv/paper/check_causes.py",
-      "destination": "nfv/paper/check_causes.py",
-      "source_sha256": "fb6e31e489791720d589d3b57acbbeffdc78b5d528687a5d50a01c782e5c6352",
-      "source_git_blob": "fc2cc4cbaa3ba8e616f87e944c67e8e43444169e",
-      "release_sha256": "fb6e31e489791720d589d3b57acbbeffdc78b5d528687a5d50a01c782e5c6352",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/dataset_size.py",
-      "destination": "nfv/paper/dataset_size.py",
-      "source_sha256": "6a17ba2851b4231c97ae83ff69f12256b8c40604841849828983aa1e5e7b201b",
-      "source_git_blob": "0386beaa855b82252a7e70466995565ba0c8c078",
-      "release_sha256": "6a17ba2851b4231c97ae83ff69f12256b8c40604841849828983aa1e5e7b201b",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/make_cbmc_clean.py",
-      "destination": "nfv/paper/make_cbmc_clean.py",
-      "source_sha256": "5b79faa3dcae0cc0e13e52b75b5fff5e8505ceb5cbb6542821bcb6bcc07b05d5",
-      "source_git_blob": "35909b30e4ade9ef602b6bb183ac4619b726d8b2",
-      "release_sha256": "5b79faa3dcae0cc0e13e52b75b5fff5e8505ceb5cbb6542821bcb6bcc07b05d5",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/make_cbmc_falsecex.py",
-      "destination": "nfv/paper/make_cbmc_falsecex.py",
-      "source_sha256": "9602c30f91062e2d5a7695ddd894c7ebee693b3cc33594c551ebfb86da9823ca",
-      "source_git_blob": "9dd54974794e6c36babe0a0769016d235627516e",
-      "release_sha256": "9602c30f91062e2d5a7695ddd894c7ebee693b3cc33594c551ebfb86da9823ca",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/make_compare_tables.py",
-      "destination": "nfv/paper/make_compare_tables.py",
-      "source_sha256": "e0eafc44313b7ce3ef23cf0b43d3c87e8d4b114f8b60c1d5066df9aa231c0b09",
-      "source_git_blob": "b26a10698fad134433613de81cafd1451a62edb6",
-      "release_sha256": "bc5931af60335397df86a9b75dc6b9112379d613450bfad49d26658e5646f8dd",
-      "modified_from_materialized_source": true
-    },
-    {
-      "source": "nfv/paper/make_dataset_provenance.py",
-      "destination": "nfv/paper/make_dataset_provenance.py",
-      "source_sha256": "f9cbd730efaf9c2e2c044359844eed02a94145230748f560b71b56b1fdc0ced5",
-      "source_git_blob": "f24f55ed09c69fe0d0abfb686d43de40e796fe84",
-      "release_sha256": "2b1ce67bfff6ac8f78ad5fe27d1c136e1880356905c348bd1daf166a91a58b86",
-      "modified_from_materialized_source": true
-    },
-    {
-      "source": "nfv/paper/make_tables.py",
-      "destination": "nfv/paper/make_dataset_tables.py",
-      "source_git_blob": "9165ae8dfdbb490e332db4547b923279a715d184",
-      "release_sha256": "4961a1661ae5904c2ad2b680fafc695e95e1782f9700fad76131b7bfb81e8069",
-      "modified_from_materialized_source": null
-    },
-    {
-      "source": "nfv/paper/make_judge_numbers.py",
-      "destination": "nfv/paper/make_judge_numbers.py",
-      "source_sha256": "40a1427e5bcbe72b97b40b156f6812701fc3b5da07235ef825ad7cbcde0320e3",
-      "source_git_blob": "d31038a5f7e0f076cccd6d68b224f6268cd13658",
-      "release_sha256": "40a1427e5bcbe72b97b40b156f6812701fc3b5da07235ef825ad7cbcde0320e3",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/make_naive_table.py",
-      "destination": "nfv/paper/make_naive_table.py",
-      "source_git_blob": "95b3d18dd1829375b20248a7faefc733be8b5a0c",
-      "release_sha256": "153ba0bfaa44424e69a4824b9e298af7ec8508f50f148f9b265d9c50b3a33eb2",
-      "modified_from_materialized_source": null
-    },
-    {
-      "source": "nfv/paper/make_tasks_table.py",
-      "destination": "nfv/paper/make_tasks_table.py",
-      "source_sha256": "b04197ec8ede221307cb4f906074e4bc0c4715a780c4bcd686ee4a6a50695051",
-      "source_git_blob": "ea8302bee178b76c8c99192e2bb0d3d71133ac59",
-      "release_sha256": "b04197ec8ede221307cb4f906074e4bc0c4715a780c4bcd686ee4a6a50695051",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/make_tier_examples.py",
-      "destination": "nfv/paper/make_tier_examples.py",
-      "source_sha256": "77e66845a3026d08a354c4b3b81903b9e41ffe514d5d5108bad57fc2fbba2d7c",
-      "source_git_blob": "54e070b57286c8de0c3de67c03d9bc98bd15ed5c",
-      "release_sha256": "77e66845a3026d08a354c4b3b81903b9e41ffe514d5d5108bad57fc2fbba2d7c",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/make_tier_table.py",
-      "destination": "nfv/paper/make_tier_table.py",
-      "source_sha256": "101f5e58a0bc30f988dee99d7fd0edbf82ed742b69b5f2a4155ccde38e061c67",
-      "source_git_blob": "79629e70b2fd27dbc39ac9b048e05050fb980c77",
-      "release_sha256": "101f5e58a0bc30f988dee99d7fd0edbf82ed742b69b5f2a4155ccde38e061c67",
-      "modified_from_materialized_source": false
-    },
-    {
       "source": "nfv/run.py",
       "destination": "nfv/run.py",
       "source_sha256": "009b543b070add04e80296dc7a2503ff0d24a5c59eaa4f3d2eaf32950e5cb226",
@@ -1069,158 +931,9 @@
       "source_git_blob": "6cfa4999f8e19682ce39e8e2c23eb47fbfe9a792",
       "release_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332",
       "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/figs/northstar.pdf",
-      "destination": "paper/reported/figs/northstar.pdf",
-      "source_sha256": "285f716972504d84dfe2f1dc38f547d401a5422e58d1217ce1df89a13202a767",
-      "source_git_blob": "0190146ec907061fe1bcd5ddbc5eb1ec46981525",
-      "release_sha256": "285f716972504d84dfe2f1dc38f547d401a5422e58d1217ce1df89a13202a767",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/northstar.tex",
-      "destination": "paper/reported/northstar.tex",
-      "source_sha256": "07e512044d71cb55836a2da26626b49f5dcc6ec4779daa1ce368a8400e510d40",
-      "source_git_blob": "7e06aa2ac7ba21b17e0b8e75cc78fdde49385ea1",
-      "release_sha256": "07e512044d71cb55836a2da26626b49f5dcc6ec4779daa1ce368a8400e510d40",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/paper.tex",
-      "destination": "paper/reported/paper.tex",
-      "source_sha256": "394470d96c63fe57096a67b7f68b860f5a1bd5f8a7efca49853ea69cc400bcbd",
-      "source_git_blob": "1d6eb9520e42125c72280ce705fb54d689d4f1b5",
-      "release_sha256": "394470d96c63fe57096a67b7f68b860f5a1bd5f8a7efca49853ea69cc400bcbd",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/analysis_numbers.tex",
-      "destination": "paper/reported/tables/analysis_numbers.tex",
-      "source_sha256": "a20a8e06ccdaa4008dd8525cd7e0874595663574cf6b630641cb79bed00e51d9",
-      "source_git_blob": "e7c3c463e907ab61bdfc247ca92733afdaaa7b12",
-      "release_sha256": "a20a8e06ccdaa4008dd8525cd7e0874595663574cf6b630641cb79bed00e51d9",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/causes.tex",
-      "destination": "paper/reported/tables/causes.tex",
-      "source_sha256": "0c43154316aac594339de8e24c54bc6266953a5a34209ccb944ed8a8d8f4a105",
-      "source_git_blob": "a6240ce03a6c8dac4671d563df852498ae85466e",
-      "release_sha256": "0c43154316aac594339de8e24c54bc6266953a5a34209ccb944ed8a8d8f4a105",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/causes_numbers.tex",
-      "destination": "paper/reported/tables/causes_numbers.tex",
-      "source_sha256": "bc96cbe7daa1e5bf4bab62e469c7236bbbb653d9a72c5c1e98569b028234872f",
-      "source_git_blob": "8d08c2340aed02c17a9b86a376fd10589a15a289",
-      "release_sha256": "bc96cbe7daa1e5bf4bab62e469c7236bbbb653d9a72c5c1e98569b028234872f",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/cbmc_clean.tex",
-      "destination": "paper/reported/tables/cbmc_clean.tex",
-      "source_sha256": "8c17dac0f1c9713b14c8890141ce23203c1ed5a151e91fec2bb4dcd44f17994e",
-      "source_git_blob": "08f28d7a263a0793bfc0e3d49e7f4e2325a5fbe8",
-      "release_sha256": "8c17dac0f1c9713b14c8890141ce23203c1ed5a151e91fec2bb4dcd44f17994e",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/cbmc_falsecex.tex",
-      "destination": "paper/reported/tables/cbmc_falsecex.tex",
-      "source_sha256": "bdaa3c7db32c06f14dc410a26da37fe579d7a9dfd09720d2b6063df0944de4a2",
-      "source_git_blob": "76e05f7087727f41e04165a982f0fc4636a9a75d",
-      "release_sha256": "bdaa3c7db32c06f14dc410a26da37fe579d7a9dfd09720d2b6063df0944de4a2",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/dataset.tex",
-      "destination": "paper/reported/tables/dataset.tex",
-      "source_sha256": "fb36962687460e9dfad1d93f604bbe75f1831a2cf44e7cdbaeef6dea3eddd4c8",
-      "source_git_blob": "4ebabfe0068b74c0c9fa86c0161df1d5dd084e9a",
-      "release_sha256": "fb36962687460e9dfad1d93f604bbe75f1831a2cf44e7cdbaeef6dea3eddd4c8",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/dataset_numbers.tex",
-      "destination": "paper/reported/tables/dataset_numbers.tex",
-      "source_sha256": "3d3575736685191dddc012a14e27fde8560b3e64d55f634b20973c71f85daf15",
-      "source_git_blob": "4b64601186fd607a228057213ae9c6f7ecb55f0e",
-      "release_sha256": "3d3575736685191dddc012a14e27fde8560b3e64d55f634b20973c71f85daf15",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/judge_numbers.tex",
-      "destination": "paper/reported/tables/judge_numbers.tex",
-      "source_sha256": "9932a2796280a1a5d8cdc9df1e69786a1285df8004f395f75d9fc79db00df6f5",
-      "source_git_blob": "c179b07f9de838a3d6de8746725db014f15340f2",
-      "release_sha256": "9932a2796280a1a5d8cdc9df1e69786a1285df8004f395f75d9fc79db00df6f5",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/pipeline_numbers.tex",
-      "destination": "paper/reported/tables/pipeline_numbers.tex",
-      "source_sha256": "d250b7d817dd9df0bdc616bcce2900419bd403f38e52692664ad5e587b70f2fd",
-      "source_git_blob": "48532e71269c9449076b4b3b52889a23c916b2eb",
-      "release_sha256": "d250b7d817dd9df0bdc616bcce2900419bd403f38e52692664ad5e587b70f2fd",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/size.tex",
-      "destination": "paper/reported/tables/size.tex",
-      "source_sha256": "e90aa2e5066701122029ed0a3362ce5e1a2e6bbeeac566b30fe2cb73cdfddc52",
-      "source_git_blob": "79c9696dd542dab897e13cadfcd954842212fbb3",
-      "release_sha256": "e90aa2e5066701122029ed0a3362ce5e1a2e6bbeeac566b30fe2cb73cdfddc52",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/specs.tex",
-      "destination": "paper/reported/tables/specs.tex",
-      "source_sha256": "8e1ec1c87158ce9c03d22e8488c5f712d0aa1e17750d87913d205798136f69f6",
-      "source_git_blob": "0df35d51f0207dca46cff1c5d2a39077273752fb",
-      "release_sha256": "8e1ec1c87158ce9c03d22e8488c5f712d0aa1e17750d87913d205798136f69f6",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/tasks.tex",
-      "destination": "paper/reported/tables/tasks.tex",
-      "source_sha256": "2203c73d0812220be8933adac044e09d11384f1e3cf6070de9cbcdd28a226456",
-      "source_git_blob": "d7eb3505b593767ec451046fcf19fe0c1a80fa7b",
-      "release_sha256": "2203c73d0812220be8933adac044e09d11384f1e3cf6070de9cbcdd28a226456",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/tierexamples.tex",
-      "destination": "paper/reported/tables/tierexamples.tex",
-      "source_sha256": "9dcfe0d8f3f9331c03b2860a484c92320e0c69610ae560ce406703172ef7df38",
-      "source_git_blob": "9696c73e0a0f94b97ccd81135225665df3a13c61",
-      "release_sha256": "9dcfe0d8f3f9331c03b2860a484c92320e0c69610ae560ce406703172ef7df38",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/tiersfinal.tex",
-      "destination": "paper/reported/tables/tiersfinal.tex",
-      "source_sha256": "e95df3e441890686d5fbeb36681970c500994281a671b40661b4cb2d06913c56",
-      "source_git_blob": "df255f2275be52be603a6b3325e3924fe74b9ab0",
-      "release_sha256": "e95df3e441890686d5fbeb36681970c500994281a671b40661b4cb2d06913c56",
-      "modified_from_materialized_source": false
-    },
-    {
-      "source": "nfv/paper/nfv_arxiv/tables/weakmodel.tex",
-      "destination": "paper/reported/tables/weakmodel.tex",
-      "source_sha256": "9c951f9c219c7b64b967301381d3d38b82baa54596e6ceb532f3d51fd4139f94",
-      "source_git_blob": "4d36a17444d9c73843a7033c1d4632d1641064ce",
-      "release_sha256": "9c951f9c219c7b64b967301381d3d38b82baa54596e6ceb532f3d51fd4139f94",
-      "modified_from_materialized_source": false
     }
   ],
   "release_authored_files": [
-    {
-      "path": "paper/reproduce.py",
-      "sha256": "e393aa37c00528c2c0a71fcc089d2191491f13b66de19c4bde4372acace01513",
-      "provenance": "New extraction, portability, validation or workflow integration code"
-    },
     {
       "path": "paper/prepare.py",
       "sha256": "b93eb018212068d96ddf67e9c23b80416e0f0060be6b4258db924c5cacb65c4c",
@@ -1228,7 +941,7 @@
     },
     {
       "path": "paper/smoke.py",
-      "sha256": "81fb3167ac470764058f18e55dfed25b6d87416392fe46344a067107db42a327",
+      "sha256": "314ec9756483fd95923104f7339a90972e71515456f17226faf727133ed9f520",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
@@ -1238,22 +951,22 @@
     },
     {
       "path": "paper/extract_source.py",
-      "sha256": "2e1587f29f62d8ede1a542be5960169afe38f14b6671834762fb3e576e19faa4",
+      "sha256": "126c7889bd7e6fb40396ce7b11795642d12811a6dd7647f6870b7c4272f5a934",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "paper/build_manifest.py",
-      "sha256": "badc9308f9df85bb82b9b68ee8b1948c47ebdf07df7ef12ce9d1b1a1cd4901b4",
+      "sha256": "744d6cd977d770ce684608f488263414344830db43ded4ee8b5068ac9930ffa9",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "tests/test_paper_core.py",
-      "sha256": "7e4336f68cdd8b7b965d7e2eb89703939942c8152db2c3e28a66f492d2157b7a",
+      "sha256": "8364843c581501f0ef323284d3cd56f6173fd1fb244fd3b80e67a15852e84954",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "tests/test_paper_smoke.py",
-      "sha256": "364fbd34a0aefbf7226eded3fe2a932850d70adaedfac58f51e125817d300803",
+      "sha256": "23ba5b454426e537e68a45aee07f3fa1d06f747e5ad73b1614f99ae1a9390851",
       "provenance": "New extraction, portability, validation or workflow integration code"
     }
   ],
@@ -1269,7 +982,7 @@
     "Restricted backend registry and removed unsupported backend imports/branches; retained exact relevant prompt literals.",
     "Removed the newer online combined mode, which was not the paper's offline join of two completed arms.",
     "Relocated dataset predecessors under paper/data/upstream; original frozen dataset bytes retained.",
-    "Source-comparison generator narrowed to final model/analysis tables; dataset-only generators extracted from historical multipurpose script.",
+    "LaTeX table generators, the manuscript snapshot and the table reproduction script are not released.",
     "Verifier scratch directories are repository-local instead of system temporary paths.",
     "CBMC inherits the normal compiler environment on non-Windows hosts instead of requiring MSVC there; Windows discovery is unchanged.",
     "Non-Windows CBMC lookup uses the explicit override or PATH and does not select Windows .exe candidates.",

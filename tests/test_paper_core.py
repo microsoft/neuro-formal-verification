@@ -1,5 +1,6 @@
 from contextlib import redirect_stdout
 from dataclasses import replace
+import hashlib
 import io
 import inspect
 import json
@@ -179,63 +180,15 @@ class DatasetTests(unittest.TestCase):
         self.assertEqual((metrics.total, metrics.tp, metrics.fp), (206, 49, 8))
 
 
-class AnalysisTests(unittest.TestCase):
-    def test_partial_result_is_not_completed_with_abstentions(self):
-        from paper.reproduce import validate_result
-        output = Path("tests") / ("partial-" + uuid.uuid4().hex)
-        output.mkdir()
-        try:
-            path = output / "lemma4_sonnet46_refute.jsonl"
-            path.write_text("{}\n", encoding="utf-8")
-            self.assertEqual(validate_result(path, []), "expected 203 original records, found 1")
-        finally:
-            shutil.rmtree(output)
-
-    def test_offline_tables_and_gaps_preserve_reported_files(self):
-        from paper.reproduce import reproduce, sha256
-        before = {p: sha256(p) for p in Path("paper/reported").rglob("*") if p.is_file()}
-        output = Path("tests") / ("analysis-" + uuid.uuid4().hex)
-        try:
-            with redirect_stdout(io.StringIO()):
-                report = reproduce(output)
-            self.assertEqual(report["dataset"]["entries"], 206)
-            self.assertEqual(len(report["generated"]), 20)
-            self.assertTrue(all(r["matches_reported_numeric_tokens"]
-                                for r in report["generated"].values()
-                                if r["matches_reported_numeric_tokens"] is not None))
-            self.assertTrue(report["full_result_reproduction"])
-            self.assertEqual(report["blocked"], {})
-            self.assertEqual((report["combined_metrics"]["correct_claims"],
-                              report["combined_metrics"]["claims"]), (118, 128))
-            self.assertEqual(len(report["run_metrics"]), 12)
-            self.assertEqual(report["run_metrics"]["cbmc_theory.jsonl"]["correct_claims"], 65)
-            self.assertEqual(report["historical_metrics"]["metrics"]["tp"], 49)
-            self.assertEqual(before, {p: sha256(p) for p in before})
-        finally:
-            shutil.rmtree(output, ignore_errors=True)
-
-    def test_missing_result_mode_remains_explicit(self):
-        from paper.reproduce import reproduce
-        output = Path("tests") / ("missing-" + uuid.uuid4().hex)
-        try:
-            with patch("paper.reproduce.RUN_GENERATORS",
-                       {"make_tasks_table": ("missing_for_test.jsonl",)}):
-                with redirect_stdout(io.StringIO()):
-                    report = reproduce(output)
-            self.assertFalse(report["full_result_reproduction"])
-            self.assertEqual(report["blocked"]["make_tasks_table"]["missing"],
-                             ["nfv/results/missing_for_test.jsonl"])
-        finally:
-            shutil.rmtree(output, ignore_errors=True)
-
+class RetainedResultTests(unittest.TestCase):
     def test_recovered_raw_hashes_match_local_provenance(self):
-        from paper.reproduce import sha256
         provenance = json.loads(Path("paper/provenance/local-results.json").read_text(encoding="utf-8"))
         self.assertEqual(len(provenance["source_snapshot"]), 40)
         self.assertEqual(set(provenance), {"source_snapshot", "files"})
         self.assertEqual(len(provenance["files"]), 12)
         for record in provenance["files"]:
-            self.assertEqual(sha256(Path(record["destination"])), record["sha256"])
+            self.assertEqual(hashlib.sha256(Path(record["destination"]).read_bytes()).hexdigest(),
+                             record["sha256"])
 
 
 if __name__ == "__main__":

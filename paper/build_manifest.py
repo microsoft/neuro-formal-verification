@@ -9,7 +9,6 @@ import re
 import subprocess
 
 from paper.extract_source import COMMIT
-from paper.reproduce import RUN_GENERATORS
 
 
 def digest(path):
@@ -23,7 +22,7 @@ def build(source: Path) -> dict:
     if actual != COMMIT:
         raise ValueError(f"Expected source {COMMIT}, got {actual}")
     text = (source / "nfv/EXPERIMENTS.md").read_text(encoding="utf-8")
-    names = sorted({n for values in RUN_GENERATORS.values() for n in values})
+    names = sorted(p.name for p in (root / "nfv/results").glob("*.jsonl"))
     runs = {name: {"source_path": "nfv/results/" + name,
                    "status": "missing", "logged_runs": []} for name in names}
     recovery_path = root / "paper/provenance/local-results.json"
@@ -57,10 +56,7 @@ def build(source: Path) -> dict:
     blobs = {line.split("\t", 1)[1]: line.split()[2] for line in tree.splitlines()}
     extraction = json.loads((root / "paper/provenance/extraction.json").read_text())
     provenance = {r["destination"]: r for r in extraction["files"]}
-    additions = {
-        "nfv/paper/make_dataset_tables.py": "nfv/paper/make_tables.py",
-        "nfv/paper/make_naive_table.py": "nfv/paper/make_naive_table.py",
-    }
+    additions = {}
     for path in (root / "paper/data/upstream").rglob("*"):
         if (path.is_file() and "__pycache__" not in path.parts
                 and path.suffix not in {".pyc", ".pyo"}):
@@ -80,8 +76,7 @@ def build(source: Path) -> dict:
     return {
         "paper": {"url": "https://arxiv.org/abs/2608.21516v3",
                   "verified_html": "https://arxiv.org/html/2608.21516v3",
-                  "retained_snapshot": "nfv/paper/nfv_arxiv",
-                  "note": "Source snapshot retained without editing. Claims checked against official v3 HTML; not a claim of identical arXiv archive bytes."},
+                  "note": "Manuscript sources and table generators remain in the private research repository; reported claims below can be recounted from nfv/results with python -m nfv.metrics."},
         "source": {"snapshot_id": COMMIT},
         "result_integrity": recovery,
         "metadata_redactions": json.loads(
@@ -112,30 +107,24 @@ def build(source: Path) -> dict:
             "dafny_verify": {"correct_claims": 72, "wrong_claims": 5, "class_population": 103},
             "dafny_refute": {"correct_claims": 47, "wrong_claims": 6, "class_population": 103},
             "combined": {"claims": 128, "correct_claims": 118, "population": 206,
-                         "rule": "make_tasks_table.py joins two independent arms; not run.py's newer combined mode"},
+                         "rule": "offline join of two independent arms (refutation first); not run.py's newer combined mode"},
             "cbmc": {"recall_percent_rounded": 63, "precision_percent_rounded": 90},
             "judge": {"precision_percent_rounded": 72},
             "unstaged": {"proved_percent_each_class_rounded": 98, "precision_percent": 50},
         },
         "result_files": runs,
-        "recomputation": {
-            "command": "python -m paper.reproduce --require-complete",
-            "report": "paper/recomputed/metrics.json",
-            "note": "Retained final per-entry results drive the tables; diagnostic-path redaction does not change models or verdicts.",
-        },
         "smoke_replay": {
             "command": "python -m paper.smoke",
             "report": "paper/replayed/smoke.json",
             "sha256": digest(root / "paper/replayed/smoke.json"),
             "scope": "Four fixed retained model artifacts, two per backend; no inference or model repair.",
         },
-        "generators": {name: list(paths) for name, paths in RUN_GENERATORS.items()},
         "files": sorted(files, key=lambda r: r["destination"]),
         "release_authored_files": [
             {"path": name, "sha256": digest(root / name),
              "provenance": "New extraction, portability, validation or workflow integration code"}
             for name in (
-                "paper/reproduce.py", "paper/prepare.py", "paper/smoke.py", "paper/redaction.py",
+                "paper/prepare.py", "paper/smoke.py", "paper/redaction.py",
                 "paper/extract_source.py", "paper/build_manifest.py",
                 "tests/test_paper_core.py", "tests/test_paper_smoke.py")
         ],
@@ -151,7 +140,7 @@ def build(source: Path) -> dict:
             "Restricted backend registry and removed unsupported backend imports/branches; retained exact relevant prompt literals.",
             "Removed the newer online combined mode, which was not the paper's offline join of two completed arms.",
             "Relocated dataset predecessors under paper/data/upstream; original frozen dataset bytes retained.",
-            "Source-comparison generator narrowed to final model/analysis tables; dataset-only generators extracted from historical multipurpose script.",
+            "LaTeX table generators, the manuscript snapshot and the table reproduction script are not released.",
             "Verifier scratch directories are repository-local instead of system temporary paths.",
             "CBMC inherits the normal compiler environment on non-Windows hosts instead of requiring MSVC there; Windows discovery is unchanged.",
             "Non-Windows CBMC lookup uses the explicit override or PATH and does not select Windows .exe candidates.",

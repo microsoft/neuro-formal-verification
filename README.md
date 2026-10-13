@@ -4,7 +4,7 @@ This repository contains two components:
 
 - **Paper artifact:** datasets, experiment scripts, and Dafny/CBMC backends.
   See [paper/README.md](paper/README.md) for the paper, dataset, model
-  configuration, instructions for running experiments, and table reproduction.
+  configuration, and instructions for running experiments.
 - **GitHub Agentic Workflow integration (prototype implementation):** a
   refutation-only audit of intended properties in merged pull requests.
   See [workflow/README.md](workflow/README.md) for setup, model configuration,
@@ -15,7 +15,7 @@ This repository contains two components:
 | Directory | Purpose |
 |---|---|
 | `nfv/` | Core implementation, backends, and experiment datasets |
-| `paper/` | Paper artifact documentation and reproduction utilities |
+| `paper/` | Paper artifact documentation and experiment utilities |
 | `tests/` | Core and artifact tests |
 | `workflow/` | Prototype GitHub Agentic Workflow integration |
 | `examples/` | Integration examples |
