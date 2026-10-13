@@ -1,6 +1,6 @@
 """Derive a named entry subset from a completed run, and record its provenance.
 
-A subset is stored as `nfv/data/subsets/<name>.json` and selected at run time
+A subset is stored as `paper/data/subsets/<name>.json` and selected at run time
 with `--subset <name>`. It is a list of `task_id`s plus enough provenance to
 say exactly how it was produced, so a subset can never become an unexplained
 list of identifiers.
@@ -11,8 +11,8 @@ refuted) is meaningless if one half of a pair is missing.
 
 Build the `core63` subset:
 
-    python -m nfv.data.build_subset core63 \
-        --from nfv/results/full_gpt56sol_boogie_both.jsonl
+    python -m paper.data.build_subset core63 \
+        --from paper/results/full_gpt56sol_boogie_both.jsonl
 """
 from __future__ import annotations
 

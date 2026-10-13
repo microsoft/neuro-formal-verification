@@ -2,7 +2,7 @@
 """
 Reproduce the benchmark from public sources, and verify the frozen copy.
 
-The benchmark shipped in this repository (`nfv/data/nl2post_safe.json`, 206
+The benchmark shipped in this repository (`paper/data/nl2post_safe.json`, 206
 entries = 103 reference/mutant pairs) is not authored here. It is a filtered,
 sanitized projection of two public artifacts. This script states that derivation
 as a sequence of executable stages so a reader can either re-run it or check that
@@ -14,9 +14,9 @@ Stages
       (310 entries / 155 pairs)   [nl2post/build_nl2post_dataset.py]
   S2  execution-verify every pair                       -> nl2post_verified_subset.json
       (232 entries / 116 pairs)   [nl2post/verify_nl2post_dataset.py, validate_specs.py]
-  S3  strip all natural language, drop degenerate pairs -> nfv/data/nl2post_safe.json
-      (206 entries / 103 pairs)   [nfv/data/build_safe.py]
-  S4  tier-stratified pilot draw                        -> nfv/data/subsets/pilot10.json
+  S3  strip all natural language, drop degenerate pairs -> paper/data/nl2post_safe.json
+      (206 entries / 103 pairs)   [paper/data/build_safe.py]
+  S4  tier-stratified pilot draw                        -> paper/data/subsets/pilot10.json
       (20 entries / 10 pairs)     [this script, --stage 4]
 
 S1 and S2 need the upstream zips (see --help output of `check`). S3 and S4 are
@@ -25,9 +25,9 @@ compared byte-for-byte against what is committed.
 
 Usage
 -----
-    python -m nfv.data.rebuild_dataset check        # verify frozen files (default)
-    python -m nfv.data.rebuild_dataset stages       # print the derivation
-    python -m nfv.data.rebuild_dataset pilot        # re-derive pilot10 from its seed
+    python -m paper.data.rebuild_dataset check        # verify frozen files (default)
+    python -m paper.data.rebuild_dataset stages       # print the derivation
+    python -m paper.data.rebuild_dataset pilot        # re-derive pilot10 from its seed
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA = ROOT / "nfv" / "data"
+DATA = ROOT / "paper" / "data"
 DATASET = DATA / "nl2post_safe.json"
 SUBSETS = DATA / "subsets"
 
@@ -48,8 +48,8 @@ SUBSETS = DATA / "subsets"
 STAGES = [
     ("S1", "nl2post/nl2post_dataset.json", 310, 155, "nl2post/build_nl2post_dataset.py"),
     ("S2", "results/nl2post_verified_subset.json", 232, 116, "nl2post/verify_nl2post_dataset.py"),
-    ("S3", "nfv/data/nl2post_safe.json", 206, 103, "nfv/data/build_safe.py"),
-    ("S4", "nfv/data/subsets/pilot10.json", 20, 10, "nfv/data/rebuild_dataset.py pilot"),
+    ("S3", "paper/data/nl2post_safe.json", 206, 103, "paper/data/build_safe.py"),
+    ("S4", "paper/data/subsets/pilot10.json", 20, 10, "paper/data/rebuild_dataset.py pilot"),
 ]
 
 UPSTREAM = [
@@ -160,7 +160,7 @@ def cmd_check(_args) -> int:
 
 def cmd_pilot(_args) -> int:
     """Re-derive pilot10 from its recorded seed and compare to the frozen file."""
-    from nfv.data.build_subset import _calls_used, library_tier
+    from paper.data.build_subset import _calls_used, library_tier
 
     frozen = json.loads((SUBSETS / "pilot10.json").read_text(encoding="utf-8"))
     tiers = {t: library_tier(c) for t, c in _calls_used().items()}

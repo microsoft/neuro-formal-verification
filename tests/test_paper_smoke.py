@@ -125,7 +125,7 @@ class PaperSmokeTests(unittest.TestCase):
             shutil.rmtree(output.parent, ignore_errors=True)
 
     def test_cli_cannot_overwrite_raw_or_provenance(self):
-        for output in ("nfv/results/lemma4_verify.jsonl", "paper/manifest.json",
+        for output in ("paper/results/lemma4_verify.jsonl", "paper/manifest.json",
                        "paper/data/upstream/a5r10_refute.jsonl"):
             with redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as error:

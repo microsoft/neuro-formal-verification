@@ -3,7 +3,7 @@
   "files": [
     {
       "source_relative_path": "nfv/results/cbmc_theory.jsonl",
-      "destination": "nfv/results/cbmc_theory.jsonl",
+      "destination": "paper/results/cbmc_theory.jsonl",
       "bytes": 2451985,
       "records": 206,
       "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
@@ -19,7 +19,7 @@
     },
     {
       "source_relative_path": "nfv/results/judge.jsonl",
-      "destination": "nfv/results/judge.jsonl",
+      "destination": "paper/results/judge.jsonl",
       "bytes": 177430,
       "records": 206,
       "sha256": "461d95817a29b53ce100917c7b7f0abf0bd47368d58504ef5d93731e30d8c38d",
@@ -32,7 +32,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_haiku_refute.jsonl",
-      "destination": "nfv/results/lemma4_haiku_refute.jsonl",
+      "destination": "paper/results/lemma4_haiku_refute.jsonl",
       "bytes": 549536,
       "records": 206,
       "sha256": "4e4e679cc839128e4a776a9eb7ca63f3135416bf8f5d149739e2b6bf45cdcad3",
@@ -45,7 +45,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_haiku_verify.jsonl",
-      "destination": "nfv/results/lemma4_haiku_verify.jsonl",
+      "destination": "paper/results/lemma4_haiku_verify.jsonl",
       "bytes": 782423,
       "records": 206,
       "sha256": "d7936b0958d8844fc7e8f403ec86516e10099a011ea6198bfe067149c4c49862",
@@ -58,7 +58,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_mini_refute.jsonl",
-      "destination": "nfv/results/lemma4_mini_refute.jsonl",
+      "destination": "paper/results/lemma4_mini_refute.jsonl",
       "bytes": 1217921,
       "records": 206,
       "sha256": "8defc75aeaab44110ee8eacc36fd8c95d91571b8a36f0330338b8ac367454000",
@@ -71,7 +71,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_mini_verify.jsonl",
-      "destination": "nfv/results/lemma4_mini_verify.jsonl",
+      "destination": "paper/results/lemma4_mini_verify.jsonl",
       "bytes": 1581296,
       "records": 206,
       "sha256": "d7e23f3620dd003a935868bbf91d2200152138667100892140ce39cb0bff999b",
@@ -84,7 +84,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_oracle.jsonl",
-      "destination": "nfv/results/lemma4_oracle.jsonl",
+      "destination": "paper/results/lemma4_oracle.jsonl",
       "bytes": 797188,
       "records": 103,
       "sha256": "b2dd2b56a1d74ca62a68ed97e827de2174a9dd89900083c0c91cbd6330b50f8d",
@@ -97,7 +97,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_refute.jsonl",
-      "destination": "nfv/results/lemma4_refute.jsonl",
+      "destination": "paper/results/lemma4_refute.jsonl",
       "bytes": 1564660,
       "records": 206,
       "sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
@@ -110,7 +110,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
-      "destination": "nfv/results/lemma4_sonnet46_refute.jsonl",
+      "destination": "paper/results/lemma4_sonnet46_refute.jsonl",
       "bytes": 772777,
       "records": 203,
       "sha256": "ed8485258c310eb4cd33611f5093c91a70778cc072c463090b14e82001ab6d27",
@@ -123,7 +123,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
-      "destination": "nfv/results/lemma4_sonnet46_verify.jsonl",
+      "destination": "paper/results/lemma4_sonnet46_verify.jsonl",
       "bytes": 1122774,
       "records": 206,
       "sha256": "8100a6b4405c6af4c63810d0c9b90067b835375de6d7abd90bfdf0a85de3d251",
@@ -136,7 +136,7 @@
     },
     {
       "source_relative_path": "nfv/results/lemma4_verify.jsonl",
-      "destination": "nfv/results/lemma4_verify.jsonl",
+      "destination": "paper/results/lemma4_verify.jsonl",
       "bytes": 2881974,
       "records": 206,
       "sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
@@ -149,7 +149,7 @@
     },
     {
       "source_relative_path": "nfv/results/naive_nogates.jsonl",
-      "destination": "nfv/results/naive_nogates.jsonl",
+      "destination": "paper/results/naive_nogates.jsonl",
       "bytes": 668458,
       "records": 206,
       "sha256": "4d8977d9a244ce3e61714d7f2d4a5bd71f95d137652ab03378082762a1a7e7ad",

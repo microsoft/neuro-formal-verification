@@ -84,15 +84,15 @@ mutant with deliberately reduced smoke budgets, not the full paper budgets:
 set -o pipefail
 : "${NFV_Z3_PATH:?Set the matching Z3 4.12.1 executable}"
 python -m paper.prepare
-mkdir -p nfv/new-results
-python -m nfv.run --data nfv/data/nl2post_safe.json \
+mkdir -p paper/new-results
+python -m nfv.run --data paper/data/nl2post_safe.json \
   --backend dafny-theory-lemma4 --model gpt-5.6-sol \
   --phase refute --only HumanEval/157 --label incorrect --limit 1 \
   --attempts 1 --max-refutation-attempts 1 --max-syntax-rounds 1 \
   --max-proof-rounds 1 --concurrency 1 --llm-timeout 120 \
   --verify-timeout 30 --verify-budget 30 \
-  --out nfv/new-results/ubuntu_smoke_refute.jsonl --no-log \
-  2>&1 | tee nfv/new-results/ubuntu_smoke_refute.log
+  --out paper/new-results/ubuntu_smoke_refute.jsonl --no-log \
+  2>&1 | tee paper/new-results/ubuntu_smoke_refute.log
 ```
 
 Choose fresh output/log paths. This permits at most five logical model requests;

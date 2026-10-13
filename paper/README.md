@@ -1,6 +1,6 @@
 # Run the paper experiments
 
-**Dataset: [`nfv/data/nl2post_safe.json`](../nfv/data/nl2post_safe.json)** — one
+**Dataset: [`paper/data/nl2post_safe.json`](data/nl2post_safe.json)** — one
 JSON object containing `entries`: **206 programs = 103 `correct` references +
 103 `incorrect` mutants** (103 pairs). Each entry has `entry_id`, `task_id`,
 `entry_point`, `label`, `code`, `postcondition`, `docstring`, and provenance
@@ -37,17 +37,17 @@ that model in a separate run; changing models affects comparability.
 
 **Dafny verification**
 ```powershell
-python -m nfv.run --data nfv/data/nl2post_safe.json --backend dafny-theory-lemma4 --model gpt-5.6-sol --phase unbounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --out nfv/new-results/lemma4_verify.jsonl --no-log
+python -m nfv.run --data paper/data/nl2post_safe.json --backend dafny-theory-lemma4 --model gpt-5.6-sol --phase unbounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --out paper/new-results/lemma4_verify.jsonl --no-log
 ```
 
 **Dafny refutation**
 ```powershell
-python -m nfv.run --data nfv/data/nl2post_safe.json --backend dafny-theory-lemma4 --model gpt-5.6-sol --phase refute --attempts 5 --max-proof-rounds 10 --concurrency 24 --out nfv/new-results/lemma4_refute.jsonl --no-log
+python -m nfv.run --data paper/data/nl2post_safe.json --backend dafny-theory-lemma4 --model gpt-5.6-sol --phase refute --attempts 5 --max-proof-rounds 10 --concurrency 24 --out paper/new-results/lemma4_refute.jsonl --no-log
 ```
 
 **CBMC bounded refutation**
 ```powershell
-python -m nfv.run --data nfv/data/nl2post_safe.json --backend cbmc-theory --model gpt-5.6-sol --phase bounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --llm-timeout 300 --entry-deadline 1800 --out nfv/new-results/cbmc_theory.jsonl --no-log
+python -m nfv.run --data paper/data/nl2post_safe.json --backend cbmc-theory --model gpt-5.6-sol --phase bounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --llm-timeout 300 --entry-deadline 1800 --out paper/new-results/cbmc_theory.jsonl --no-log
 ```
 
 Preserved defaults: three syntax-repair rounds, five refutation witness
@@ -57,7 +57,7 @@ and Dafny LLM timeout 600 seconds. CBMC uses its final logged resume settings:
 verifier timeout. No workflow/Iter1 doubled budgets are applied.
 
 Use **fresh output files**: the store appends. Never overwrite archived
-`nfv/results`; use `--resume` only for an identical new configuration.
+`paper/results`; use `--resume` only for an identical new configuration.
 
 ## 3. Quick smoke, separate from full experiments
 

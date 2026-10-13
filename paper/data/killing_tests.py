@@ -60,7 +60,7 @@ def attach(entries: list[dict]) -> tuple[list[dict], list[str]]:
 
 def _selftest() -> int:
     import sys
-    data = json.loads((ROOT / "nfv" / "data" / "nl2post_safe.json")
+    data = json.loads((ROOT / "paper" / "data" / "nl2post_safe.json")
                       .read_text(encoding="utf-8"))
     entries = data["entries"]
     mutants = [e for e in entries if e["label"] == "incorrect"]

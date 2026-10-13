@@ -43,7 +43,7 @@ historical package versions.
    the tracked validation summary retains 116 pairs/232 entries. Its
    generated test programs and legacy model adapter are not shipped.
    `verify_nl2post_dataset.py` records the distinguishing-input check.
-3. `nfv.data.build_safe` uniformly strips comments/docstrings/doctests from
+3. `paper.data.build_safe` uniformly strips comments/docstrings/doctests from
    code and assertion messages/comments from specifications, and drops 13
    type-assertion-only pairs, yielding **103 pairs/206 entries**. Prose
    documentation remains a separate shared input for goal-blind precondition

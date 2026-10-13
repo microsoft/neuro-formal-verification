@@ -21,8 +21,8 @@ Sanitization therefore strips comments, docstrings and doctests from the code,
 and reduces each postcondition to its bare `assert` expression.
 
 Usage:
-    python nfv/data/build_safe.py
-    python nfv/data/build_safe.py --check   # rebuild in-memory and diff, no writes
+    python -m paper.data.build_safe
+    python -m paper.data.build_safe --check   # rebuild in-memory and diff, no writes
 """
 
 from __future__ import annotations
@@ -40,8 +40,8 @@ import tokenize
 from collections import defaultdict
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-NFV_DIR = os.path.dirname(SCRIPT_DIR)
-REPO_DIR = os.path.dirname(NFV_DIR)
+REPO_DIR = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+NFV_DIR = os.path.join(REPO_DIR, "nfv")
 
 SOURCE_PATH = os.path.join(REPO_DIR, "paper", "data", "upstream", "results", "nl2post_verified_subset.json")
 OUTPUT_PATH = os.path.join(SCRIPT_DIR, "nl2post_safe.json")

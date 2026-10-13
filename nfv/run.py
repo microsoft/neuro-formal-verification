@@ -17,7 +17,7 @@ a previous attempt agreed with it.
 
 Usage:
     python -m nfv.run --backend dafny --model gpt-5.5 --concurrency 8
-    python -m nfv.run --backend dafny --limit 10 --out nfv/results/smoke.jsonl
+    python -m nfv.run --backend dafny --limit 10 --out paper/new-results/smoke.jsonl
 """
 
 from __future__ import annotations
@@ -36,14 +36,13 @@ from nfv.agent import (c_witness, invariant_agent, library_theory,
 from nfv.backends import dafny
 from nfv.backends.registry import BACKENDS as _BACKENDS
 from nfv.backends.registry import get as get_backend
-from nfv.data import killing_tests
 from nfv.metrics import ABSTAIN, CORRECT, INCORRECT, compute, render
 from nfv.shared.account import AccountError, detect_account
 from nfv.shared.copilot_client import CopilotChat, new_usage_scope
 from nfv.shared.store import Store
 
 ROOT = Path(__file__).resolve().parent
-DATA = ROOT / "data" / "nl2post_safe.json"
+DATA = ROOT.parent / "paper" / "data" / "nl2post_safe.json"
 WORK = ROOT / "work"
 
 
@@ -205,7 +204,7 @@ async def run_entry(
         return r
 
     if not source_path.exists():
-        rec["reason"] = "missing materialized source (run nfv/data/build_safe.py)"
+        rec["reason"] = "missing materialized source (run python -m paper.prepare)"
         rec["wall_s"] = time.time() - started
         return _finish(rec)
 
@@ -589,7 +588,7 @@ async def run_entry_refute(
         return r
 
     if not source_path.exists():
-        rec["reason"] = "missing materialized source (run nfv/data/build_safe.py)"
+        rec["reason"] = "missing materialized source (run python -m paper.prepare)"
         return _finish(rec)
 
     gated = _vacuity_gate(entry, args, rec)
@@ -1018,7 +1017,7 @@ async def main_async(args: argparse.Namespace) -> int:
     entries = payload["entries"] if isinstance(payload, dict) else payload
     subset_meta = None
     if args.subset:
-        from nfv.data.build_subset import load_subset
+        from paper.data.build_subset import load_subset
         subset_meta = load_subset(args.subset)
         keep = set(subset_meta["task_ids"])
         before = len(entries)
@@ -1043,6 +1042,7 @@ async def main_async(args: argparse.Namespace) -> int:
         # --label keeps the arm impossible to misconfigure.
         before = len(entries)
         entries = [e for e in entries if e.get("label") == "incorrect"]
+        from paper.data import killing_tests
         entries, missing = killing_tests.attach(entries)
         print(f"oracle witness: {len(entries)}/{before} mutants, "
               f"{len(missing)} without a killing test")
@@ -1123,7 +1123,7 @@ def main() -> int:
     ap.add_argument("--only", default="",
                     help="comma-separated task_id or entry_id substrings to run")
     ap.add_argument("--subset", default="",
-                    help="named subset from nfv/data/subsets/ (e.g. `core63`). "
+                    help="named subset from paper/data/subsets/ (e.g. `core63`). "
                          "Keeps only that subset's task_ids, always as complete "
                          "correct/incorrect pairs. The subset name and provenance "
                          "are printed and recorded in the EXPERIMENTS.md run log.")

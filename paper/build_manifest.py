@@ -22,7 +22,7 @@ def build(source: Path) -> dict:
     if actual != COMMIT:
         raise ValueError(f"Expected source {COMMIT}, got {actual}")
     text = (source / "nfv/EXPERIMENTS.md").read_text(encoding="utf-8")
-    names = sorted(p.name for p in (root / "nfv/results").glob("*.jsonl"))
+    names = sorted(p.name for p in (root / "paper/results").glob("*.jsonl"))
     runs = {name: {"source_path": "nfv/results/" + name,
                    "status": "missing", "logged_runs": []} for name in names}
     recovery_path = root / "paper/provenance/local-results.json"
@@ -76,7 +76,7 @@ def build(source: Path) -> dict:
     return {
         "paper": {"url": "https://arxiv.org/abs/2608.21516v3",
                   "verified_html": "https://arxiv.org/html/2608.21516v3",
-                  "note": "Manuscript sources and table generators remain in the private research repository; reported claims below can be recounted from nfv/results with python -m nfv.metrics."},
+                  "note": "Manuscript sources and table generators remain in the private research repository; reported claims below can be recounted from paper/results with python -m nfv.metrics."},
         "source": {"snapshot_id": COMMIT},
         "result_integrity": recovery,
         "metadata_redactions": json.loads(

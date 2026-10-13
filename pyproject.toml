@@ -19,7 +19,4 @@ include-package-data = false
 
 [tool.setuptools.packages.find]
 include = ["nfv", "nfv.*"]
-exclude = ["nfv.work", "nfv.work.*", "nfv.results", "nfv.results.*"]
-
-[tool.setuptools.package-data]
-nfv = ["data/*.json", "data/MANIFEST.md", "data/subsets/*.json"]
+exclude = ["nfv.work", "nfv.work.*"]

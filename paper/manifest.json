@@ -2,7 +2,7 @@
   "paper": {
     "url": "https://arxiv.org/abs/2608.21516v3",
     "verified_html": "https://arxiv.org/html/2608.21516v3",
-    "note": "Manuscript sources and table generators remain in the private research repository; reported claims below are can be recounted from nfv/results with python -m nfv.metrics."
+    "note": "Manuscript sources and table generators remain in the private research repository; reported claims below are can be recounted from paper/results with python -m nfv.metrics."
   },
   "source": {
     "snapshot_id": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1"
@@ -12,7 +12,7 @@
     "files": [
       {
         "source_relative_path": "nfv/results/cbmc_theory.jsonl",
-        "destination": "nfv/results/cbmc_theory.jsonl",
+        "destination": "paper/results/cbmc_theory.jsonl",
         "bytes": 2451985,
         "records": 206,
         "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
@@ -28,7 +28,7 @@
       },
       {
         "source_relative_path": "nfv/results/judge.jsonl",
-        "destination": "nfv/results/judge.jsonl",
+        "destination": "paper/results/judge.jsonl",
         "bytes": 177430,
         "records": 206,
         "sha256": "461d95817a29b53ce100917c7b7f0abf0bd47368d58504ef5d93731e30d8c38d",
@@ -41,7 +41,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_haiku_refute.jsonl",
-        "destination": "nfv/results/lemma4_haiku_refute.jsonl",
+        "destination": "paper/results/lemma4_haiku_refute.jsonl",
         "bytes": 549536,
         "records": 206,
         "sha256": "4e4e679cc839128e4a776a9eb7ca63f3135416bf8f5d149739e2b6bf45cdcad3",
@@ -54,7 +54,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_haiku_verify.jsonl",
-        "destination": "nfv/results/lemma4_haiku_verify.jsonl",
+        "destination": "paper/results/lemma4_haiku_verify.jsonl",
         "bytes": 782423,
         "records": 206,
         "sha256": "d7936b0958d8844fc7e8f403ec86516e10099a011ea6198bfe067149c4c49862",
@@ -67,7 +67,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_mini_refute.jsonl",
-        "destination": "nfv/results/lemma4_mini_refute.jsonl",
+        "destination": "paper/results/lemma4_mini_refute.jsonl",
         "bytes": 1217921,
         "records": 206,
         "sha256": "8defc75aeaab44110ee8eacc36fd8c95d91571b8a36f0330338b8ac367454000",
@@ -80,7 +80,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_mini_verify.jsonl",
-        "destination": "nfv/results/lemma4_mini_verify.jsonl",
+        "destination": "paper/results/lemma4_mini_verify.jsonl",
         "bytes": 1581296,
         "records": 206,
         "sha256": "d7e23f3620dd003a935868bbf91d2200152138667100892140ce39cb0bff999b",
@@ -93,7 +93,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_oracle.jsonl",
-        "destination": "nfv/results/lemma4_oracle.jsonl",
+        "destination": "paper/results/lemma4_oracle.jsonl",
         "bytes": 797188,
         "records": 103,
         "sha256": "b2dd2b56a1d74ca62a68ed97e827de2174a9dd89900083c0c91cbd6330b50f8d",
@@ -106,7 +106,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_refute.jsonl",
-        "destination": "nfv/results/lemma4_refute.jsonl",
+        "destination": "paper/results/lemma4_refute.jsonl",
         "bytes": 1564660,
         "records": 206,
         "sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
@@ -119,7 +119,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
-        "destination": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_refute.jsonl",
         "bytes": 772777,
         "records": 203,
         "sha256": "ed8485258c310eb4cd33611f5093c91a70778cc072c463090b14e82001ab6d27",
@@ -132,7 +132,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
-        "destination": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_verify.jsonl",
         "bytes": 1122774,
         "records": 206,
         "sha256": "8100a6b4405c6af4c63810d0c9b90067b835375de6d7abd90bfdf0a85de3d251",
@@ -145,7 +145,7 @@
       },
       {
         "source_relative_path": "nfv/results/lemma4_verify.jsonl",
-        "destination": "nfv/results/lemma4_verify.jsonl",
+        "destination": "paper/results/lemma4_verify.jsonl",
         "bytes": 2881974,
         "records": 206,
         "sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
@@ -158,7 +158,7 @@
       },
       {
         "source_relative_path": "nfv/results/naive_nogates.jsonl",
-        "destination": "nfv/results/naive_nogates.jsonl",
+        "destination": "paper/results/naive_nogates.jsonl",
         "bytes": 668458,
         "records": 206,
         "sha256": "4d8977d9a244ce3e61714d7f2d4a5bd71f95d137652ab03378082762a1a7e7ad",
@@ -175,7 +175,7 @@
     "scope": "Public diagnostic metadata anonymization only. No program/model, input, label or verifier-verdict changes.",
     "files": [
       {
-        "path": "nfv/results/cbmc_theory.jsonl",
+        "path": "paper/results/cbmc_theory.jsonl",
         "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
         "release_sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
         "field": "cex_diagnostics",
@@ -193,7 +193,7 @@
       {
         "path": "paper/replayed/smoke.json",
         "original_sha256": "b01e0074ffa1ba84c4e2a450ab241e355b9ba5e10bbe2fd4711e131e5f570fff",
-        "release_sha256": "21f4028a6e5354b5b4cff57cbfd138899a888a0270f1dca6a026ae0c108a98fb",
+        "release_sha256": "7275ad68b2e8f5476ea3af8983f193e715d4563f9b39048f85ca9e22e721e5ea",
         "change": "Host paths anonymized in executable/diagnostic metadata; links now distinguish original and release raw hashes. Observations and code hashes unchanged."
       }
     ]
@@ -286,7 +286,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/cbmc_theory.jsonl",
-        "destination": "nfv/results/cbmc_theory.jsonl",
+        "destination": "paper/results/cbmc_theory.jsonl",
         "bytes": 2451985,
         "records": 206,
         "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
@@ -307,7 +307,7 @@
       "logged_runs": [],
       "local_provenance": {
         "source_relative_path": "nfv/results/judge.jsonl",
-        "destination": "nfv/results/judge.jsonl",
+        "destination": "paper/results/judge.jsonl",
         "bytes": 177430,
         "records": 206,
         "sha256": "461d95817a29b53ce100917c7b7f0abf0bd47368d58504ef5d93731e30d8c38d",
@@ -332,7 +332,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_haiku_refute.jsonl",
-        "destination": "nfv/results/lemma4_haiku_refute.jsonl",
+        "destination": "paper/results/lemma4_haiku_refute.jsonl",
         "bytes": 549536,
         "records": 206,
         "sha256": "4e4e679cc839128e4a776a9eb7ca63f3135416bf8f5d149739e2b6bf45cdcad3",
@@ -357,7 +357,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_haiku_verify.jsonl",
-        "destination": "nfv/results/lemma4_haiku_verify.jsonl",
+        "destination": "paper/results/lemma4_haiku_verify.jsonl",
         "bytes": 782423,
         "records": 206,
         "sha256": "d7936b0958d8844fc7e8f403ec86516e10099a011ea6198bfe067149c4c49862",
@@ -382,7 +382,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_mini_refute.jsonl",
-        "destination": "nfv/results/lemma4_mini_refute.jsonl",
+        "destination": "paper/results/lemma4_mini_refute.jsonl",
         "bytes": 1217921,
         "records": 206,
         "sha256": "8defc75aeaab44110ee8eacc36fd8c95d91571b8a36f0330338b8ac367454000",
@@ -407,7 +407,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_mini_verify.jsonl",
-        "destination": "nfv/results/lemma4_mini_verify.jsonl",
+        "destination": "paper/results/lemma4_mini_verify.jsonl",
         "bytes": 1581296,
         "records": 206,
         "sha256": "d7e23f3620dd003a935868bbf91d2200152138667100892140ce39cb0bff999b",
@@ -438,7 +438,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_oracle.jsonl",
-        "destination": "nfv/results/lemma4_oracle.jsonl",
+        "destination": "paper/results/lemma4_oracle.jsonl",
         "bytes": 797188,
         "records": 103,
         "sha256": "b2dd2b56a1d74ca62a68ed97e827de2174a9dd89900083c0c91cbd6330b50f8d",
@@ -469,7 +469,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_refute.jsonl",
-        "destination": "nfv/results/lemma4_refute.jsonl",
+        "destination": "paper/results/lemma4_refute.jsonl",
         "bytes": 1564660,
         "records": 206,
         "sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
@@ -487,7 +487,7 @@
       "logged_runs": [],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
-        "destination": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_refute.jsonl",
         "bytes": 772777,
         "records": 203,
         "sha256": "ed8485258c310eb4cd33611f5093c91a70778cc072c463090b14e82001ab6d27",
@@ -512,7 +512,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
-        "destination": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_verify.jsonl",
         "bytes": 1122774,
         "records": 206,
         "sha256": "8100a6b4405c6af4c63810d0c9b90067b835375de6d7abd90bfdf0a85de3d251",
@@ -537,7 +537,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/lemma4_verify.jsonl",
-        "destination": "nfv/results/lemma4_verify.jsonl",
+        "destination": "paper/results/lemma4_verify.jsonl",
         "bytes": 2881974,
         "records": 206,
         "sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
@@ -562,7 +562,7 @@
       ],
       "local_provenance": {
         "source_relative_path": "nfv/results/naive_nogates.jsonl",
-        "destination": "nfv/results/naive_nogates.jsonl",
+        "destination": "paper/results/naive_nogates.jsonl",
         "bytes": 668458,
         "records": 206,
         "sha256": "4d8977d9a244ce3e61714d7f2d4a5bd71f95d137652ab03378082762a1a7e7ad",
@@ -578,7 +578,7 @@
   "smoke_replay": {
     "command": "python -m paper.smoke",
     "report": "paper/replayed/smoke.json",
-    "sha256": "21f4028a6e5354b5b4cff57cbfd138899a888a0270f1dca6a026ae0c108a98fb",
+    "sha256": "7275ad68b2e8f5476ea3af8983f193e715d4563f9b39048f85ca9e22e721e5ea",
     "scope": "Four fixed retained model artifacts, two per backend; no inference or model repair."
   },
   "files": [
@@ -737,15 +737,15 @@
     },
     {
       "source": "nfv/data/MANIFEST.md",
-      "destination": "nfv/data/MANIFEST.md",
+      "destination": "paper/data/MANIFEST.md",
       "source_sha256": "23582ce208d8160284b4686816914bcba38bf1eb1f9af9cb4205cbb99ad15ba8",
       "source_git_blob": "38347d0e9bbf9b41ed75e91c5b1e2611031c28f3",
-      "release_sha256": "23582ce208d8160284b4686816914bcba38bf1eb1f9af9cb4205cbb99ad15ba8",
-      "modified_from_materialized_source": false
+      "release_sha256": "415cd906444e753583e1b074d78e01c148c17f52966698a02104111aedef0f28",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/__init__.py",
-      "destination": "nfv/data/__init__.py",
+      "destination": "paper/data/__init__.py",
       "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
       "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -753,55 +753,55 @@
     },
     {
       "source": "nfv/data/build_safe.py",
-      "destination": "nfv/data/build_safe.py",
+      "destination": "paper/data/build_safe.py",
       "source_sha256": "a23b330ae432960546889afa53e53c2f4852e08c29c5e93189eff87e59a861e0",
       "source_git_blob": "3ec4a55b95303cff3c880026452246b7be587a89",
-      "release_sha256": "93ebb5a4fad11dd2ba36c870f1735f727837ecbd6b447c8abec015b03f54ae29",
+      "release_sha256": "7758124ba91c0186f912521140ca9df4579bf74ed1b2991795ec6a39e696ecf1",
       "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/build_subset.py",
-      "destination": "nfv/data/build_subset.py",
+      "destination": "paper/data/build_subset.py",
       "source_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc",
       "source_git_blob": "0e22eecd8af06efbf2af8254a763d4a8f70e9901",
-      "release_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc",
-      "modified_from_materialized_source": false
+      "release_sha256": "c7b8a8a34b8f47c2254225c0eb56a71b1a0109011175faa2e4dec72fb57f5e9b",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/input_assumptions.json",
-      "destination": "nfv/data/input_assumptions.json",
+      "destination": "paper/data/input_assumptions.json",
       "source_sha256": "33793c340ac69609655d1fdc61ebe3835b971ebdfe9ecbabb49722710654c6ec",
       "source_git_blob": "c0242bd8bfe62d5f9aabfbb9de49291382d8b41c",
-      "release_sha256": "33793c340ac69609655d1fdc61ebe3835b971ebdfe9ecbabb49722710654c6ec",
-      "modified_from_materialized_source": false
+      "release_sha256": "2bcc615aaa91c2fffffc4695b1939f8608b159877aa25bf0ae3c629559555b69",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/killing_tests.py",
-      "destination": "nfv/data/killing_tests.py",
+      "destination": "paper/data/killing_tests.py",
       "source_sha256": "ff66e0d8f1d629c57c53956ed27d3a178bd2ee57f7b56c071c7d54ff60e27731",
       "source_git_blob": "7ad272adebd048342cbfc2e5c31fcbd1ee244bee",
-      "release_sha256": "65ceb767e6e7472d472bb8bc91063cc6934dff40c94250010bd620864cf3bfc1",
+      "release_sha256": "75882ae4e4a1c0e055af71833c6442cb0c0020319ad9208e260e52aed3290543",
       "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/nl2post_safe.json",
-      "destination": "nfv/data/nl2post_safe.json",
+      "destination": "paper/data/nl2post_safe.json",
       "source_sha256": "ec6822a561b5f865e21efeee6f5680236ada2c67312771a6643dff914993e963",
       "source_git_blob": "c719c04da1527249f1740bc364d2652cdce86085",
-      "release_sha256": "ec6822a561b5f865e21efeee6f5680236ada2c67312771a6643dff914993e963",
-      "modified_from_materialized_source": false
+      "release_sha256": "88e96af01b553fe001036c5bdc4b0c27abbaa960e15181dc80d921f5e3c10e4e",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/rebuild_dataset.py",
-      "destination": "nfv/data/rebuild_dataset.py",
+      "destination": "paper/data/rebuild_dataset.py",
       "source_sha256": "44a48c4b4a755f68feda7d648b0e3e06f784d97a7b237e3923875d49cd78bed5",
       "source_git_blob": "09eb897e25311fb89cef39e34ce633b77b391fa2",
-      "release_sha256": "988cc10e724579c1439d95df1447f2fd1bb92f9249086c387ada61f48222fdb4",
+      "release_sha256": "4ddc41b99ce840950d2110d6fbf7e752a4f1ab783d2042330dfa4d1ed57d6e8b",
       "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/subsets/pilot10.json",
-      "destination": "nfv/data/subsets/pilot10.json",
+      "destination": "paper/data/subsets/pilot10.json",
       "source_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf",
       "source_git_blob": "1adf2ae0564ecd88043bc53bb1cb92baf118f7ed",
       "release_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf",
@@ -809,11 +809,11 @@
     },
     {
       "source": "nfv/data/verify_no_leak.py",
-      "destination": "nfv/data/verify_no_leak.py",
+      "destination": "paper/data/verify_no_leak.py",
       "source_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830",
       "source_git_blob": "eeac36b979e973f1811934fbebabb814c138eb06",
-      "release_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830",
-      "modified_from_materialized_source": false
+      "release_sha256": "5be8b53b974b3b01020fdd13bd219d4dca56ad9b592875a6cee2f08b84fa4544",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nfv/metrics.py",
@@ -828,7 +828,7 @@
       "destination": "nfv/run.py",
       "source_sha256": "009b543b070add04e80296dc7a2503ff0d24a5c59eaa4f3d2eaf32950e5cb226",
       "source_git_blob": "9838a3ed1603ae01a0603a9ec2643cf95f18c341",
-      "release_sha256": "4213c91dfc7c6d9774ef568a3986d33a7bb9d95a02f82a12400db3f5f9240309",
+      "release_sha256": "b7b6d8623349c97be88b1821993e7dfe65c26d3191a50cc883704050090f5b86",
       "modified_from_materialized_source": true
     },
     {
@@ -836,8 +836,8 @@
       "destination": "nfv/run_judge.py",
       "source_sha256": "88c76f4f08b078ec1f8d4a9e2dabce64bc061b0674a1ac256be63ae50440f66e",
       "source_git_blob": "f85a9cb484cfbc235db2406b8bf2c9bf7d24041e",
-      "release_sha256": "88c76f4f08b078ec1f8d4a9e2dabce64bc061b0674a1ac256be63ae50440f66e",
-      "modified_from_materialized_source": false
+      "release_sha256": "503ce375f944d709795729a4b828911420b7c2ad9484b61728e9355b22ffb0ed",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nfv/shared/__init__.py",
@@ -860,7 +860,7 @@
       "destination": "nfv/shared/config.py",
       "source_sha256": "b85e2da0d1da4e0d883b97a51de2d8952a71379c0d64ea5e6d8c31a00fcc1d53",
       "source_git_blob": "ffec7c190e968f16c8afb7b88c734d634d928cec",
-      "release_sha256": "8f38bdb157099d9aeafc960a6493e8fcf35a277662e756fe9344ca1997f1053d",
+      "release_sha256": "1f7f7e04087bfd471889b251d06ed48548dad72a8790710263c8214707205353",
       "modified_from_materialized_source": true
     },
     {
@@ -936,12 +936,12 @@
   "release_authored_files": [
     {
       "path": "paper/prepare.py",
-      "sha256": "b93eb018212068d96ddf67e9c23b80416e0f0060be6b4258db924c5cacb65c4c",
+      "sha256": "a7abbe3e084b3db4a0a5fcc100520ea8a475ab7abbe842a33c1b593774a8c1bd",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "paper/smoke.py",
-      "sha256": "314ec9756483fd95923104f7339a90972e71515456f17226faf727133ed9f520",
+      "sha256": "aa39a942c73f8152b4313f208c4010057b6686a48f42d94cf3b571cd350ad75d",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
@@ -951,22 +951,22 @@
     },
     {
       "path": "paper/extract_source.py",
-      "sha256": "126c7889bd7e6fb40396ce7b11795642d12811a6dd7647f6870b7c4272f5a934",
+      "sha256": "9dd1bfaa3d6fbaf3145a035073b609df641ed69dc80ac42a4a8e605f21fa7266",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "paper/build_manifest.py",
-      "sha256": "744d6cd977d770ce684608f488263414344830db43ded4ee8b5068ac9930ffa9",
+      "sha256": "047f49d38ff6bb5fac4a5340774e7adb87da7a2bc89dd4f4bd010dce16d159b3",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "tests/test_paper_core.py",
-      "sha256": "8364843c581501f0ef323284d3cd56f6173fd1fb244fd3b80e67a15852e84954",
+      "sha256": "7a6653c9fd8f6190439f4c226ac3c81115bc769b06ac6d555208def8caeecc67",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {
       "path": "tests/test_paper_smoke.py",
-      "sha256": "23ba5b454426e537e68a45aee07f3fa1d06f747e5ad73b1614f99ae1a9390851",
+      "sha256": "c981ef7e76b23d4932b9aea38a0baa5ec462d3272ab59f7e5e17c196ce077ff5",
       "provenance": "New extraction, portability, validation or workflow integration code"
     }
   ],

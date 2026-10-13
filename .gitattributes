@@ -6,9 +6,9 @@
 *.json text eol=lf
 *.jsonl text eol=lf
 *.md text eol=lf
-nfv/results/*.jsonl -text
-nfv/data/*.json -text
-nfv/data/**/*.json -text
+paper/results/*.jsonl -text
+paper/data/*.json -text
+paper/data/**/*.json -text
 paper/data/** -text
 
 .github/workflows/*.lock.yml linguist-generated=true

@@ -31,7 +31,7 @@
   "cases": [
     {
       "name": "dafny-reference-proof",
-      "result_file": "nfv/results/lemma4_verify.jsonl",
+      "result_file": "paper/results/lemma4_verify.jsonl",
       "entry_id": "HumanEval_157__r1__reference",
       "backend": "dafny",
       "artifact_field": "final_dafny",
@@ -72,7 +72,7 @@
     },
     {
       "name": "dafny-mutant-negation",
-      "result_file": "nfv/results/lemma4_refute.jsonl",
+      "result_file": "paper/results/lemma4_refute.jsonl",
       "entry_id": "HumanEval_97__r0__mutant",
       "backend": "dafny",
       "artifact_field": "final_dafny",
@@ -113,7 +113,7 @@
     },
     {
       "name": "cbmc-reference-bounded-clean",
-      "result_file": "nfv/results/cbmc_theory.jsonl",
+      "result_file": "paper/results/cbmc_theory.jsonl",
       "entry_id": "HumanEval_53__r0__reference",
       "backend": "cbmc",
       "artifact_field": "model_dafny",
@@ -161,7 +161,7 @@
     },
     {
       "name": "cbmc-mutant-counterexample",
-      "result_file": "nfv/results/cbmc_theory.jsonl",
+      "result_file": "paper/results/cbmc_theory.jsonl",
       "entry_id": "HumanEval_53__r0__mutant",
       "backend": "cbmc",
       "artifact_field": "model_dafny",

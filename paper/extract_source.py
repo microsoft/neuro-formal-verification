@@ -41,7 +41,7 @@ def extract(source: Path, destination: Path) -> None:
         })
 
     for name in CORE:
-        copy("nfv/" + name, "nfv/" + name)
+        copy("nfv/" + name, ("paper/" if name.startswith("data/") else "nfv/") + name)
     # Remove unreachable implementation branches for excluded languages, keeping
     # every retained statement/prompt byte-for-byte rather than AST-unparsing it.
     for name in ("agent/refute.py", "agent/invariant_agent.py", "run.py"):
@@ -77,7 +77,7 @@ def extract(source: Path, destination: Path) -> None:
         target.write_text("".join(line for i, line in enumerate(lines) if i not in drop),
                           encoding="utf-8", newline="\n")
     for path in (source / "nfv/data/subsets").glob("pilot10.json"):
-        copy(path.relative_to(source).as_posix(), path.relative_to(source).as_posix())
+        copy(path.relative_to(source).as_posix(), "paper/data/subsets/" + path.name)
     # Keep only the registered variants needed by the final paper and their bases.
     original = source / "nfv/backends/registry.py"
     text = original.read_text(encoding="utf-8")

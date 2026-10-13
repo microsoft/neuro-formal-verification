@@ -50,7 +50,7 @@ accuracy on correct and on buggy programs SEPARATELY, since answering
 
 Usage:
     python -m nfv.run_judge --model gpt-5.6-sol --concurrency 12 \
-        --out nfv/results/judge.jsonl --resume
+        --out paper/new-results/judge.jsonl --resume
 """
 
 from __future__ import annotations
@@ -71,8 +71,8 @@ from nfv.shared.copilot_client import CopilotChat
 from nfv.shared.store import Store
 
 ROOT = Path(__file__).resolve().parent
-DATA = ROOT / "data" / "nl2post_safe.json"
-ASSUMPTIONS = ROOT / "data" / "input_assumptions.json"
+DATA = ROOT.parent / "paper" / "data" / "nl2post_safe.json"
+ASSUMPTIONS = ROOT.parent / "paper" / "data" / "input_assumptions.json"
 
 
 # --------------------------------------------------------------------------

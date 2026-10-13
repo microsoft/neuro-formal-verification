@@ -133,52 +133,52 @@
     },
     {
       "source": "nfv/data/__init__.py",
-      "destination": "nfv/data/__init__.py",
+      "destination": "paper/data/__init__.py",
       "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "source": "nfv/data/build_safe.py",
-      "destination": "nfv/data/build_safe.py",
+      "destination": "paper/data/build_safe.py",
       "source_sha256": "a23b330ae432960546889afa53e53c2f4852e08c29c5e93189eff87e59a861e0"
     },
     {
       "source": "nfv/data/build_subset.py",
-      "destination": "nfv/data/build_subset.py",
+      "destination": "paper/data/build_subset.py",
       "source_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc"
     },
     {
       "source": "nfv/data/killing_tests.py",
-      "destination": "nfv/data/killing_tests.py",
+      "destination": "paper/data/killing_tests.py",
       "source_sha256": "ff66e0d8f1d629c57c53956ed27d3a178bd2ee57f7b56c071c7d54ff60e27731"
     },
     {
       "source": "nfv/data/rebuild_dataset.py",
-      "destination": "nfv/data/rebuild_dataset.py",
+      "destination": "paper/data/rebuild_dataset.py",
       "source_sha256": "44a48c4b4a755f68feda7d648b0e3e06f784d97a7b237e3923875d49cd78bed5"
     },
     {
       "source": "nfv/data/verify_no_leak.py",
-      "destination": "nfv/data/verify_no_leak.py",
+      "destination": "paper/data/verify_no_leak.py",
       "source_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830"
     },
     {
       "source": "nfv/data/nl2post_safe.json",
-      "destination": "nfv/data/nl2post_safe.json",
+      "destination": "paper/data/nl2post_safe.json",
       "source_sha256": "ec6822a561b5f865e21efeee6f5680236ada2c67312771a6643dff914993e963"
     },
     {
       "source": "nfv/data/MANIFEST.md",
-      "destination": "nfv/data/MANIFEST.md",
+      "destination": "paper/data/MANIFEST.md",
       "source_sha256": "23582ce208d8160284b4686816914bcba38bf1eb1f9af9cb4205cbb99ad15ba8"
     },
     {
       "source": "nfv/data/input_assumptions.json",
-      "destination": "nfv/data/input_assumptions.json",
+      "destination": "paper/data/input_assumptions.json",
       "source_sha256": "33793c340ac69609655d1fdc61ebe3835b971ebdfe9ecbabb49722710654c6ec"
     },
     {
       "source": "nfv/data/subsets/pilot10.json",
-      "destination": "nfv/data/subsets/pilot10.json",
+      "destination": "paper/data/subsets/pilot10.json",
       "source_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf"
     },
     {

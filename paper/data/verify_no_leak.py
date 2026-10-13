@@ -8,7 +8,7 @@ some signal is legitimate: mutants really are different programs, and mutation
 tends to add code. Asserting that to zero would mean deleting the benchmark.
 
 Usage:
-    python nfv/data/verify_no_leak.py
+    python -m paper.data.verify_no_leak
 """
 
 from __future__ import annotations

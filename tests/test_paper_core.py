@@ -14,7 +14,7 @@ import uuid
 from nfv.agent import integrity, refute
 from nfv.backends import dafny
 from nfv.backends.registry import BACKENDS, get
-from nfv.data import build_safe, killing_tests
+from paper.data import build_safe, killing_tests
 from nfv.metrics import compute
 from nfv.shared.config import DAFNY_PATH, Z3_PATH
 

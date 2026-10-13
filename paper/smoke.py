@@ -47,7 +47,7 @@ def digest(data: bytes) -> str:
 def load_case(case: Case) -> tuple[dict, str, dict]:
     """Validate the release file hash and extract the exact stored code string."""
     provenance = json.loads((ROOT / "paper/provenance/local-results.json").read_text(encoding="utf-8"))
-    relative = "nfv/results/" + case.result_file
+    relative = "paper/results/" + case.result_file
     pin = next(r for r in provenance["files"] if r["destination"] == relative)
     raw = (ROOT / relative).read_bytes()
     if digest(raw) != pin["sha256"]:
@@ -180,8 +180,8 @@ def main(argv=None) -> int:
     parser.add_argument("--output", type=Path, default=ROOT / ".nfv-work/paper-smoke.json")
     args = parser.parse_args(argv)
     output = args.output.resolve()
-    protected = (ROOT / "nfv", ROOT / "paper/data", ROOT / "paper/provenance",
-                 ROOT / "paper/licenses")
+    protected = (ROOT / "nfv", ROOT / "paper/data", ROOT / "paper/results",
+                 ROOT / "paper/provenance", ROOT / "paper/licenses")
     if (not output.is_relative_to(ROOT) or output == ROOT / "paper/manifest.json"
             or any(output.is_relative_to(path) for path in protected)):
         parser.error("--output must stay in the checkout without replacing inputs or provenance")

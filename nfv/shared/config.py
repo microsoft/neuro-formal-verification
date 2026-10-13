@@ -20,7 +20,7 @@ NFV_DIR = Path(__file__).resolve().parent.parent
 REPO_DIR = NFV_DIR.parent
 WORK_DIR = NFV_DIR / "work"
 RESULTS_DIR = NFV_DIR / "results"
-DATASET = NFV_DIR / "data" / "nl2post_safe.json"
+DATASET = REPO_DIR / "paper" / "data" / "nl2post_safe.json"
 
 # Dafny 4.11 expects z3 4.12.1; listed first. Others are fallbacks.
 _Z3_PREFERRED = ("z3-4.12.1", "z3-4.13.4", "z3-4.11.2")
