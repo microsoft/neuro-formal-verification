@@ -794,6 +794,13 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("prototype", source)
         self.assertNotIn("Prototyp:", source)
 
+    def test_aw_package_installs_the_template(self):
+        manifest = (self.template.parent / "aw.yml").read_text(encoding="utf-8")
+        self.assertIn('manifest-version: "1"', manifest)
+        self.assertIn("  - source: templates/nfv-pr-review.md\n"
+                      "    destination: .github/workflows/nfv-pr-review.md", manifest)
+        self.assertTrue((self.template.parent / "README.md").exists())
+
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", source)

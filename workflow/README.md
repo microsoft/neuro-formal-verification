@@ -184,9 +184,12 @@ path does not require the model client.
 3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
    fine-grained token with read-only *Contents* access to
    `microsoft/neuro-formal-verification`.
-4. Copy `templates\nfv-pr-review.md` to `.github\workflows\`, run
-   `gh aw compile nfv-pr-review`, and commit the Markdown and its lock. The
-   checked-in template lock is compiled with **gh aw v0.88.7**.
+4. Install the `aw.yml` package from this folder, which copies
+   `templates\nfv-pr-review.md` to `.github\workflows\` and compiles it:
+   `gh aw add microsoft/neuro-formal-verification/workflow@<NFV_RELEASE_SHA>`
+   (`--approve` acknowledges the `NFV_RELEASE_TOKEN` secret). Commit the Markdown,
+   its lock, and `.github\aw\packages\`. The checked-in template lock is compiled
+   with **gh aw v0.88.7**.
 
 Everything runs in the agent job; there is no custom safe-output job. Before
 the agent starts, trusted steps check out the pinned release, install it, download
