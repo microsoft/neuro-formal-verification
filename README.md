@@ -8,10 +8,10 @@ This repository contains two components:
 - **Paper artifact:** dataset, retained results, experiment scripts, and Dafny/CBMC backends.
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
-- **GitHub Agentic Workflow integration (prototype implementation):** a
-  refutation-only audit of intended properties in merged pull requests.
-  See [workflow/README.md](workflow/README.md) for setup, model configuration,
-  supported languages, and examples.
+- **GitHub Agentic Workflow integration (prototype implementation):** a PR
+  reviewer that refutes a pull request's intended properties with Dafny and
+  comments the result. See [workflow/README.md](workflow/README.md) for setup,
+  model configuration, supported languages, and examples.
 
 ## Folder structure
 
@@ -20,8 +20,11 @@ This repository contains two components:
 | `nfv/` | Core implementation, backends, and experiment runner |
 | `paper/` | Paper artifact: dataset, retained results, documentation and utilities |
 | `tests/` | Core and artifact tests |
-| `workflow/` | Prototype GitHub Agentic Workflow integration |
+| `workflow/` | Prototype GitHub Agentic Workflow integration (`nfv-workflow` package and `aw.yml`) |
+| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow |
 
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof
 of correctness.
+
+Contributors and coding agents: see [AGENTS.md](AGENTS.md).
