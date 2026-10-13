@@ -1,7 +1,7 @@
 {
   "paper": {
-    "url": "https://arxiv.org/abs/2608.21516v3",
-    "verified_html": "https://arxiv.org/html/2608.21516v3",
+    "url": "https://arxiv.org/abs/2608.21516",
+    "verified_html": "https://arxiv.org/html/2608.21516",
     "note": "Manuscript sources and table generators remain in the private research repository; reported claims below are can be recounted from paper/results with python -m nfv.metrics."
   },
   "source": {
@@ -956,7 +956,7 @@
     },
     {
       "path": "paper/build_manifest.py",
-      "sha256": "047f49d38ff6bb5fac4a5340774e7adb87da7a2bc89dd4f4bd010dce16d159b3",
+      "sha256": "fc84e8832bc6da07af8ee5d086dfbbfa815e8aeec7a2e9f747ba16ef8a2276e9",
       "provenance": "New extraction, portability, validation or workflow integration code"
     },
     {

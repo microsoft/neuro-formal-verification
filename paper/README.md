@@ -1,7 +1,7 @@
 # Run the paper experiments
 
 These are the experiments of [*Neuro-Formal Verification: Agentic Language-Agnostic
-Formal Program Reasoning*](https://arxiv.org/abs/2608.21516v3) (arXiv:2608.21516v3).
+Formal Program Reasoning*](https://arxiv.org/abs/2608.21516) (arXiv:2608.21516).
 
 **Dataset: [`paper/data/nl2post_safe.json`](data/nl2post_safe.json)** — one
 JSON object containing `entries`: **206 programs = 103 `correct` references +
@@ -100,7 +100,7 @@ separately budgeted, one-entry **new model** smoke.
 
 ## Notes
 
-These experiments accompany [arXiv:2608.21516v3](https://arxiv.org/abs/2608.21516v3);
+These experiments accompany [arXiv:2608.21516](https://arxiv.org/abs/2608.21516);
 results remain attributed to its authors. Historical model-service snapshots
 are unavailable, so identical new inference outcomes are not guaranteed.
 The Nagini comparison is outside this release.

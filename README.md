@@ -1,7 +1,7 @@
 # Neuro-Formal Verification
 
 Code and data for the paper [*Neuro-Formal Verification: Agentic Language-Agnostic
-Formal Program Reasoning*](https://arxiv.org/abs/2608.21516v3) (arXiv:2608.21516v3).
+Formal Program Reasoning*](https://arxiv.org/abs/2608.21516) (arXiv:2608.21516).
 
 This repository contains two components:
 

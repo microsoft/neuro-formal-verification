@@ -74,8 +74,8 @@ def build(source: Path) -> dict:
                           digest(path) != record["source_sha256"]
                           if "source_sha256" in record else None)})
     return {
-        "paper": {"url": "https://arxiv.org/abs/2608.21516v3",
-                  "verified_html": "https://arxiv.org/html/2608.21516v3",
+        "paper": {"url": "https://arxiv.org/abs/2608.21516",
+                  "verified_html": "https://arxiv.org/html/2608.21516",
                   "note": "Manuscript sources and table generators remain in the private research repository; reported claims below can be recounted from paper/results with python -m nfv.metrics."},
         "source": {"snapshot_id": COMMIT},
         "result_integrity": recovery,
