@@ -9,6 +9,7 @@ Guidance for coding agents and contributors working in this repository. Read
 |---|---|
 | `nfv/` | Core implementation: agents, Dafny/CBMC backends, shared config and Copilot client |
 | `paper/` | Paper artifact (arXiv:2608.21516): dataset, retained results, smoke replay |
+| `paper/data/nl2post_safe.json` | Main dataset; `paper/results/*.jsonl` are the retained paper runs, indexed by `paper/manifest.json` and `paper/provenance/` |
 | `tests/` | Core and artifact tests |
 | `workflow/` | `nfv-workflow` package: PR collection, Dafny refutation pipeline, publication |
 | `workflow/aw.yml` | gh-aw package manifest that installs the PR reviewer |
@@ -22,7 +23,12 @@ python -m pip install -e ".[inference]" -e ./workflow
 python -m unittest discover -s tests
 python -m unittest discover -s workflow/tests        # ~3 min; -p test_workflow.py for a fast subset
 python -m paper.smoke --timeout 60                  # replays saved verdicts, no inference
+python -m nfv.metrics <results.jsonl>               # scores a run
 ```
+
+Paper reruns use `python -m paper.prepare`, then `python -m nfv.run --data
+paper/data/nl2post_safe.json --backend … --out paper/new-results/<name>.jsonl`
+(see `paper/README.md`); `paper/new-results/` is git-ignored.
 
 Without installing, run workflow tests from `workflow/` with `PYTHONPATH=src`.
 Tests needing Dafny skip when it is absent. CI pins Dafny 4.11.0 (SHA-256
@@ -42,6 +48,20 @@ under `workflow/tests/.general-scratch/`; never commit them.
   summarize or add to generated report text.
 - Limits: at most 10 intended properties per PR, 6 syntax repairs and 10
   annotation-only proof repairs per property.
+- Do not modify the dataset or retained results in `paper/data` and
+  `paper/results`; they are checksum-pinned and marked `-text` in
+  `.gitattributes`. Public docs must not reveal private provenance; keep model
+  configuration generic.
+- The general (workflow) path translates C, C++, Java, C#, Go, JavaScript,
+  TypeScript, Python and Rust to **Dafny only**; CBMC is used only by the paper
+  artifact.
+- Translation rules (`workflow/src/nfv_workflow/general_prompt.txt`,
+  `general_gates.py`): every Dafny computation line carries a preceding
+  `// src: path:LINE | exact source line` tag; synthetic tags may only cover
+  contracts, braces and annotations. Missing callees are modelled from captured
+  code and comments with the weakest justified contract; abstain only when the
+  behaviour is undocumented. Invalid extracted claims become per-claim
+  abstentions instead of failing the batch.
 - The `nfv-merged-pr:` prefix of the report dedup marker is kept deliberately
   for continuity; do not rename it.
 
