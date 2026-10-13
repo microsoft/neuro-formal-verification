@@ -231,16 +231,6 @@ def finding_lines(index, finding, bundle, repo, commit):
     return out
 
 
-def anchor_of(finding, bundle):
-    # Inline review comments must sit on a line the PR added or changed.
-    claim = finding["candidate"]
-    changed = set(bundle.get("changed", {}).get(claim["path"], []))
-    lines = [x for x in claim["lines"] if x in changed]
-    if not lines:
-        raise Abstain("Finding is not anchored on a changed line")
-    return claim["path"], max(lines)
-
-
 def render(report, bundle, evidence_url):
     findings = checked_findings(report, bundle, evidence_url)
     if findings is None:
@@ -257,32 +247,6 @@ def render(report, bundle, evidence_url):
     if len(body) > 60000:
         raise Abstain("Publication exceeds bounded size")
     return body
-
-
-def review(report, bundle, evidence_url):
-    """A short PR review body plus one inline comment per finding on its claim line."""
-    findings = checked_findings(report, bundle, evidence_url)
-    if findings is None:
-        return None
-    ident = report["identity"]
-    repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
-    summary = [marker(ident),
-               f"**Neuro-formal verification:** Dafny refuted {len(findings)} intended "
-               f"propert{'y' if len(findings) == 1 else 'ies'} of this PR in a translated model.",
-               *preamble(ident, evidence_url)]
-    comments = []
-    for index, finding in enumerate(findings, 1):
-        path, line = anchor_of(finding, bundle)
-        summary.append(f"{index}. {text(finding['candidate']['property'])} "
-                       f"(`{text(path)}:{line}`)")
-        body = "\n\n".join(finding_lines(index, finding, bundle, repo, commit))
-        if len(body) > 60000:
-            raise Abstain("Review comment exceeds bounded size")
-        comments.append({"path": path, "line": line, "side": "RIGHT", "body": body})
-    body = "\n\n".join(summary)
-    if len(body) > 60000:
-        raise Abstain("Review exceeds bounded size")
-    return {"body": body, "comments": comments}
 
 
 def publish(api, report, bundle, evidence_url, category, apply=False, label=LABEL, target=None):

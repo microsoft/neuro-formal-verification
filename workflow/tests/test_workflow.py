@@ -15,7 +15,7 @@ from nfv_workflow.cli import audit, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
-from nfv_workflow.publish import marker, publication_allowed, publish, render, review
+from nfv_workflow.publish import marker, publication_allowed, publish, render
 from nfv_workflow.source_binding import bind_source, Parser
 
 
@@ -410,26 +410,6 @@ class PublicationTests(ScratchTest):
         with self.assertRaises(Abstain):
             render(report, data, self.url)
 
-    def test_review_has_short_body_and_inline_comment_on_claim_line(self):
-        result = review(self.report(), bundle(), self.url)
-        self.assertIn("Dafny refuted 1 intended property", result["body"])
-        self.assertIn("`src/f.cpp:2`", result["body"])
-        self.assertNotIn("```dafny", result["body"])
-        self.assertEqual(len(result["comments"]), 1)
-        comment = result["comments"][0]
-        self.assertEqual((comment["path"], comment["line"], comment["side"]), ("src/f.cpp", 2, "RIGHT"))
-        self.assertIn("```dafny", comment["body"])
-
-    def test_review_rejects_finding_off_the_diff(self):
-        data = bundle()
-        report = check(data, [candidate()], self.directory, lambda *_: success())
-        data["changed"] = {"src/f.cpp": [1]}
-        with self.assertRaises(Abstain):
-            review(report, data, self.url)
-
-    def test_review_is_none_without_findings(self):
-        self.assertIsNone(review(check(bundle(), [], self.directory), bundle(), self.url))
-
     def test_clear_conditional_explanation(self):
         body = render(self.report(), bundle(), self.url)
         self.assertIn("# Conditional model findings", body)
@@ -820,10 +800,10 @@ class TemplateTests(unittest.TestCase):
         self.assertIn('"./nfv-plugin[inference]"', source)
         self.assertNotIn("COPILOT_GITHUB_TOKEN: ${{ secrets", source)
 
-    def test_review_safe_outputs_never_approve(self):
+    def test_report_is_posted_as_a_single_pr_comment(self):
         source = self.source()
-        self.assertIn("create-pull-request-review-comment:", source)
-        self.assertIn("allowed-events: [COMMENT]", source)
+        self.assertIn("add-comment:\n    max: 1\n", source)
+        self.assertNotIn("pull-request-review", source)
         self.assertNotIn("APPROVE", source)
 
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
@@ -859,7 +839,7 @@ class AuditTests(ScratchTest):
                                      "GITHUB_REPOSITORY": "owner/project", "GITHUB_RUN_ID": "1"}):
             summary = audit(self.directory / "p.json", (6, 10, 60))
         self.assertEqual(summary["findings"], 0)
-        self.assertNotIn("review", summary)
+        self.assertNotIn("comment", summary)
         self.assertTrue((out / "report.json").exists() or (out / "proposals.json").exists())
 
     def test_rejects_non_array_proposals(self):

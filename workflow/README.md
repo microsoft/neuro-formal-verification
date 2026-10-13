@@ -50,21 +50,19 @@ used as a finding or as evidence of source correctness.
 
 The source identity is the event's **immutable PR head SHA**, with the base SHA
 recorded and changed files obtained from the immutable `base...head` comparison.
-Inline comments therefore sit on lines of the PR diff. A PR whose head or base
+A PR whose head or base
 moves during collection is rejected; the next `synchronize` run reviews the new
 head and cancels the older run.
 
-When accepted refutations exist, the agent posts one **`COMMENT` review** (never
-`APPROVE` or `REQUEST_CHANGES`):
-
-* a short body listing each refuted property and its `path:line`, with the run link;
-* one inline comment per finding on its changed claim line, with the developer
-  quote, formalized expectation, concrete inputs, a conditional model-based
-  explanation, an annotated source overlay, retained assumptions, and the Dafny
-  model in a collapsed section.
+When accepted refutations exist, the agent posts **one PR comment** (never a
+review approval or change request). It states the analyzed head and base, the
+conditional nature of the findings, and the run link, then for each finding the
+developer quote, formalized expectation, concrete inputs, a conditional
+model-based explanation, an annotated source overlay, retained assumptions, and
+the Dafny model in a collapsed section.
 
 No accepted findings, errors-only runs, and abstentions-only runs post **no
-review** (`noop`). Verifier models, repair logs and hashes are in the run's
+comment** (`noop`). Verifier models, repair logs and hashes are in the run's
 `agent` artifact under `nfv-evidence/`.
 
 ## Refutation pipeline and gates
@@ -202,10 +200,9 @@ AWF sandbox mounts **read-only**, and are exported as `NFV_DAFNY_PATH`,
 
 The agent may only read files, write `nfv-proposals.json`, and run
 `nfv-workflow audit --proposals nfv-proposals.json`; every other audit input is
-fixed by the trusted steps. `audit` writes `review.md` and `comments.json`,
-which the agent copies verbatim into the `create-pull-request-review-comment`
-and `submit-pull-request-review` safe outputs. gh-aw threat detection screens
-those outputs before the `safe_outputs` job, the only job with write access,
+fixed by the trusted steps. `audit` writes `comment.md`, which the agent
+copies verbatim into the `add-comment` safe output. gh-aw threat detection
+screens that output before the `safe_outputs` job, the only job with write access,
 posts them. Never check out the PR head or execute PR scripts. This is **not an
 OS-level sandbox against verifier vulnerabilities**: use ephemeral
 GitHub-hosted runners.
