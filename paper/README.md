@@ -7,6 +7,25 @@ JSON object containing `entries`: **206 programs = 103 `correct` references +
 fields. Top-level counts are `total`, `num_correct`, and `num_incorrect`.
 Labels are the original benchmark labels, not independently proved ground truth.
 
+Example: the mutant of the pair for `HumanEval/97` (provenance fields omitted):
+
+```json
+{
+  "entry_id": "HumanEval_97__r0__mutant",
+  "task_id": "HumanEval/97",
+  "entry_point": "multiply",
+  "label": "incorrect",
+  "code": "def multiply(a, b):\n    unit_a = a % 10\n    unit_b = b % 10\n    product = unit_a * unit_b\n    return product",
+  "postcondition": "assert return_value == abs(a) % 10 * (abs(b) % 10)",
+  "docstring": "Complete the function that takes two integers and returns \nthe product of their unit digits.\nAssume the input is always valid."
+}
+```
+
+Its reference, `HumanEval_97__r0__reference` (label `correct`), has the same
+postcondition and docstring, with code
+`return int(str(a)[-1]) * int(str(b)[-1])`. The mutant breaks the postcondition
+for negative inputs: Python's `-3 % 10` is `7`, not `3`.
+
 ## 1. Setup
 
 Use Python 3.10+, `github-copilot-sdk==1.0.4`, an authenticated Copilot account
