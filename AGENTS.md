@@ -14,6 +14,7 @@ Guidance for coding agents and contributors working in this repository. Read
 | `workflow/` | `nfv-workflow` package: PR collection, Dafny refutation pipeline, publication |
 | `workflow/aw.yml` | gh-aw package manifest that installs the PR reviewer |
 | `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow (source) and its `.lock.yml` |
+| `.github/skills/nfv-pr-review/SKILL.md` | Agent skill to bootstrap, test and troubleshoot the PR reviewer in a repository |
 | `.github/workflows/ci.yml` | Offline checks with the real verifiers |
 
 ## Build and test
@@ -113,7 +114,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
 
 - Branch from and target `dev` with feature branches/PRs; never push to `main`.
 - Do not commit personal or local files: `prompts.txt`, `.vscode/`,
-  `.github/skills/`, `.nfv-work/`, `.nfv-scratch/`.
+  `.github/skills/agentic-workflows/` (from `gh aw init`), `.nfv-work/`, `.nfv-scratch/`.
 - Keep docs concise and user-facing: describe the current behaviour, with no
   iteration or changelog wording. Call the workflow a prototype implementation.
 - `.gitattributes` enforces LF; on Windows write files with `\n` newlines.
