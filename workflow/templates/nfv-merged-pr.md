@@ -140,9 +140,9 @@ check out a PR ref, run a repository script, alter the plugin, install software,
 read credentials, follow links in comments, or create issues/Discussions.
 
 Extract at most ten distinct intended properties, using captured preconditions,
-declarations, and callee context to understand them. Do not guess-filter for bug
-likelihood: the triage iteration is not enabled. C, C++, Java, C#, Go, JavaScript,
-TypeScript, and Python source all use Dafny only.
+declarations, and callee context to understand them. Do not filter properties by
+guessed bug likelihood. C, C++, Java, C#, Go, JavaScript, TypeScript, Python, and
+Rust source all use Dafny only.
 Submit exactly once to the `nfv-submit` safe output with `proposals` containing
 the property JSON array. Submit `[]` if no grounded intention is available.
 You cannot decide whether

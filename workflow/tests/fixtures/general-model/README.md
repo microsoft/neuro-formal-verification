@@ -14,7 +14,7 @@ From the pinned repository root, with the core inference extra, workflow package
 Dafny 4.11.0, and matching Z3 installed:
 
 ```powershell
-python workflow\examples\general-model\replay.py
+python workflow\tests\fixtures\general-model\replay.py
 ```
 
 The **real NFV type checker** resolves the translation without verifying its
@@ -24,11 +24,11 @@ The first real negative check fails. The offline fixture then supplies only
 check, concrete witness call, returning-case checks, and final recheck succeed.
 
 Observed result: **one checked conditional MODEL refutation, one annotation
-repair, zero model-service calls**. Evidence is in `evidence/report.json` and its
+repair, zero model-service calls**. Evidence is written to `.nfv-work/fixture-general-model/report.json` and its
 per-property Dafny/log/transcript files. Default budgets remain six syntax
 repairs and ten annotation repairs; this case needs only one.
 
 The unit suite additionally exercises C, C++, Java, C#, Go, JavaScript,
-TypeScript, and Python fixtures through fake translation responses and actual
+TypeScript, Python, and Rust fixtures through fake translation responses and actual
 Dafny checking. This validates orchestration and gates, not automatic translation
 accuracy. A new live translator smoke remains separately coordinated.

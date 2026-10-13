@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from nfv_workflow.general import run
 
 ROOT = Path(__file__).resolve().parent
+OUT = ROOT.parents[3] / ".nfv-work" / "fixture-general-model"
 
 
 class ReplayProposer:
@@ -31,7 +32,7 @@ class ReplayProposer:
 async def main():
     bundle = json.loads((ROOT / "bundle.json").read_text(encoding="utf-8"))
     properties = json.loads((ROOT / "properties.json").read_text(encoding="utf-8"))
-    report = await run(bundle, properties, ROOT / "evidence", ReplayProposer())
+    report = await run(bundle, properties, OUT, ReplayProposer())
     if len(report["findings"]) != 1 or report["errors"]:
         raise RuntimeError(json.dumps(report))
     finding = report["findings"][0]

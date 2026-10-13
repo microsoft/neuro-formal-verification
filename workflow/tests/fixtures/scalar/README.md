@@ -1,6 +1,6 @@
 # Positive synthetic source-bound integration
 
-This example exercises the prototype NFV workflow integration.
+This test fixture exercises the prototype NFV workflow integration.
 
 This deliberately false expectation is **synthetic test data**, not an actual
 GitHub PR or a discovered bug. No Discussion is created and the placeholder
@@ -12,7 +12,7 @@ returns `x`. The witness is `x = 0`.
 From the repository root, with the core/workflow packages and Dafny installed:
 
 ```powershell
-nfv-workflow check --bundle workflow\examples\scalar\bundle.json --proposals workflow\examples\scalar\proposals.json --out workflow\examples\scalar\evidence
+nfv-workflow check --bundle workflow\tests\fixtures\scalar\bundle.json --proposals workflow\tests\fixtures\scalar\proposals.json --out .nfv-work\fixture-scalar
 ```
 
 Expected and actually observed: **one accepted conditional refutation**, zero

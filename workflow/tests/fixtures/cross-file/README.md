@@ -1,6 +1,6 @@
 # Positive cross-file environment integration
 
-This example exercises the prototype NFV workflow integration.
+This test fixture exercises the prototype NFV workflow integration.
 
 This is synthetic test data, **not a discovered GitHub bug**. Publication of
 its synthetic source identity is prohibited.
@@ -13,11 +13,11 @@ The synthetic developer claim says the result equals `x`, and the input is zero.
 From the pinned repository root:
 
 ```powershell
-nfv-workflow check --bundle workflow\examples\cross-file\bundle.json --proposals workflow\examples\cross-file\proposals.json --out workflow\examples\cross-file\evidence
+nfv-workflow check --bundle workflow\tests\fixtures\cross-file\bundle.json --proposals workflow\tests\fixtures\cross-file\proposals.json --out .nfv-work\fixture-cross-file
 ```
 
 Actually observed: **one accepted conditional refutation**, through the real NFV
-Dafny backend. `evidence/report.json` records the computed result `1`, the
+Dafny backend. `report.json` in the output directory records the computed result `1`, the
 source-derived callee definition/prototype, and actual verifier output. The
 model contains a body-defined `helper` function and a call from `NfvTarget`.
 No source program is compiled or executed, and no inference or GitHub mutation

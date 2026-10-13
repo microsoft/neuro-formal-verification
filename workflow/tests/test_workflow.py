@@ -537,6 +537,29 @@ class CollectionTests(unittest.TestCase):
         self.assertIn("pkg/helper.py", result["sources"])
         self.assertIn("def inc", result["sources"]["pkg/helper.py"]["text"])
 
+    def test_collects_rust_module_and_crate_use_context(self):
+        api = self.api()
+        original = api.request
+        def request(path):
+            result = original(path)
+            if "/compare/" in path:
+                result["files"][0]["filename"] = "src/lib.rs"
+            if "/git/trees/" in path:
+                result["tree"] = [
+                    {"path": "src/lib.rs", "type": "blob", "mode": "100644", "sha": "d" * 40},
+                    {"path": "src/math/mod.rs", "type": "blob", "mode": "100644", "sha": "e" * 40},
+                    {"path": "src/math/ops.rs", "type": "blob", "mode": "100644", "sha": "f" * 40},
+                    {"path": "vendor/unrelated.rs", "type": "blob", "mode": "100644", "sha": "1" * 40}]
+            return result
+        texts = {"d" * 40: "mod math;\nuse crate::math::ops::inc;\npub fn f(x: u32) -> u32 { inc(x) }\n",
+                 "e" * 40: "pub mod ops;\n", "f" * 40: "pub fn inc(x: u32) -> u32 { x + 1 }\n",
+                 "1" * 40: "pub fn other() {}\n"}
+        api.request, api.blob = request, lambda repo, oid: texts[oid]
+        result = collect(event(), api)
+        self.assertIn("src/math/mod.rs", result["sources"])
+        self.assertIn("src/math/ops.rs", result["sources"])
+        self.assertNotIn("vendor/unrelated.rs", result["sources"])
+
     def test_collects_quoted_header_companion_implementation(self):
         api = self.api()
         original_request, original_blob = api.request, api.blob
@@ -698,15 +721,15 @@ class TemplateTests(unittest.TestCase):
         self.assertIn('run-name: "Merged-PR conditional neuro-formal verification"\n', lock)
         self.assertIn('GH_AW_WORKFLOW_NAME: "Merged-PR conditional neuro-formal verification"', lock)
         self.assertIn("nfv-workflow evaluate", template)
-        docs = [workflow / "README.md", workflow.parent / "examples" / "z3" / "README.md"]
-        docs.extend(workflow / "examples" / example / "README.md"
+        docs = [workflow / "README.md", workflow.parent / "examples" / "z3-10961" / "README.md"]
+        docs.extend(workflow / "tests" / "fixtures" / example / "README.md"
                     for example in ("scalar", "cross-file", "general-model"))
         for document in docs:
             source = document.read_text(encoding="utf-8")
             self.assertIn("prototype", source)
             self.assertNotIn("Prototyp:", source)
 
-    def test_general_pipeline_doubled_budgets_are_default(self):
+    def test_general_pipeline_repair_budgets_are_default(self):
         source = (Path(__file__).parents[1] / "templates" / "nfv-merged-pr.md").read_text()
         self.assertIn("--mode general", source)
         self.assertIn("--syntax-rounds 6 --proof-rounds 10", source)

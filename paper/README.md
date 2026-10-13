@@ -1,5 +1,8 @@
 # Run the paper experiments
 
+These are the experiments of [*Neuro-Formal Verification: Agentic Language-Agnostic
+Formal Program Reasoning*](https://arxiv.org/abs/2608.21516v3) (arXiv:2608.21516v3).
+
 **Dataset: [`paper/data/nl2post_safe.json`](data/nl2post_safe.json)** — one
 JSON object containing `entries`: **206 programs = 103 `correct` references +
 103 `incorrect` mutants** (103 pairs). Each entry has `entry_id`, `task_id`,
@@ -73,7 +76,7 @@ Preserved defaults: three syntax-repair rounds, five refutation witness
 attempts, unwind 10, verifier timeout 120 seconds, proof budget 60 seconds,
 and Dafny LLM timeout 600 seconds. CBMC uses its final logged resume settings:
 **300-second LLM timeout / 1,800-second entry deadline**, not a 300-second
-verifier timeout. No workflow/Iter1 doubled budgets are applied.
+verifier timeout. The workflow prototype's larger repair budgets do not apply here.
 
 Use **fresh output files**: the store appends. Never overwrite archived
 `paper/results`; use `--resume` only for an identical new configuration.

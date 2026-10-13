@@ -23,6 +23,7 @@ SOURCES = {
     "javascript": (".js", ["function f(n) {", "  let r = 0;", "  for (let i=0; i<n; i++) { r++; }", "  return r + 1;", "}"]),
     "typescript": (".ts", ["function f(n: number): number {", "  let r: number = 0;", "  for (let i=0; i<n; i++) { r++; }", "  return r + 1;", "}"]),
     "python": (".py", ["def f(n):", "    r = 0", "    for i in range(n): r += 1", "    return r + 1"]),
+    "rust": (".rs", ["fn f(n: u32) -> u32 {", "    let mut r = 0;", "    for _ in 0..n { r += 1; }", "    r + 1", "}"]),
 }
 
 
@@ -120,7 +121,7 @@ class GeneralTests(unittest.TestCase):
     def execute(self, bundle, claim, chat, **kwargs):
         return asyncio.run(run(bundle, [claim], self.directory, chat, **kwargs))
 
-    def test_doubled_defaults(self):
+    def test_default_repair_budgets(self):
         self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
 
     def test_context_budget_keeps_claim_and_nearest_files(self):
@@ -157,6 +158,7 @@ class GeneralTests(unittest.TestCase):
         self.assertIn("IEEE-754", LANGUAGE_GUIDES["javascript"])
         self.assertIn("checked versus unchecked", LANGUAGE_GUIDES["csharp"])
         self.assertIn("arbitrary-precision", LANGUAGE_GUIDES["python"])
+        self.assertIn("debug builds", LANGUAGE_GUIDES["rust"])
 
     def test_untrusted_model_text_cannot_close_evidence_fence(self):
         source = "// source contains a fence\n```\n<untrusted>"
@@ -307,7 +309,7 @@ class GeneralTests(unittest.TestCase):
                                        "--out", str(self.directory / "out"), "--model", "fake-model"]), 0)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
-    def test_all_eight_languages_with_fake_translation_and_real_dafny(self):
+    def test_all_languages_with_fake_translation_and_real_dafny(self):
         for language in SOURCES:
             with self.subTest(language=language):
                 bundle, claim, translation = fixture(language)

@@ -50,8 +50,12 @@ jobs:
           python -m nfv.backends.cbmc --selftest
           python -m unittest discover -s tests -v
           python -m unittest discover -s workflow/tests -v
-          python workflow/examples/general-model/replay.py
-          python examples/z3/replay.py
+          python workflow/tests/fixtures/general-model/replay.py
+          for fixture in scalar cross-file; do
+            nfv-workflow check --bundle "workflow/tests/fixtures/$fixture/bundle.json" \
+              --proposals "workflow/tests/fixtures/$fixture/proposals.json" \
+              --out ".nfv-work/fixture-$fixture" | grep -F '"findings": 1, "errors": []'
+          done
           python examples/z3-10961/replay.py
       - name: Replay saved Dafny and CBMC verdicts without inference
         run: python -m paper.smoke --timeout 60

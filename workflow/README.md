@@ -6,17 +6,15 @@ comments, reviews, review comments, and commit messages, then applies the retain
 **NFV Dafny backend** to look for conditional model refutations.
 
 The default path accepts source in **C, C++, Java, C#, Go, JavaScript, TypeScript,
-and Python**. It translates imperative computation into Dafny rather than limiting
-the workflow to a scalar-expression evaluator. Per the requested iterations:
+Python, and Rust** and translates the code each property is about, including loops
+and branches, into Dafny.
 
-* **Iter 1:** up to **6 syntax/type repairs** and **10 annotation-only repairs**
-  of the negative check—twice the historical 3/5 defaults.
-* **Iter 3:** all eight source languages use **Dafny only**. CBMC remains confined
-  to the paper component.
-* **Iter 5:** the workflow runs only for **merged** PRs; PRs closed without
-  merging are skipped before any agent or model call.
-* **Iter 4 is not implemented:** there is no educated-guess bug-likelihood
-  filter before verification.
+* Each property gets up to **6 syntax/type repairs** and **10 annotation-only
+  repairs** of the negative check.
+* All source languages use **Dafny only**. CBMC is used only by the paper
+  artifact.
+* The workflow runs only for **merged** PRs; PRs closed without merging are
+  skipped before any agent or model call.
 
 ## What a finding means
 
@@ -34,7 +32,8 @@ both the original quote and the exact checked expectation.
 Each language receives specific semantic guidance: C/C++ undefined behavior and
 widths, Java wrapping, C# checked/unchecked behavior, Go widths/slices/panics,
 JavaScript/TypeScript IEEE-754 and runtime coercions, and Python arbitrary-precision
-integers, floor division, dynamic types, and aliasing. This guides translation;
+integers, floor division, dynamic types, and aliasing, and Rust debug/release
+overflow, panics, Option/Result, and ownership/borrows. This guides translation;
 it is not a mechanically verified source-language frontend.
 
 Unsupported constructs, unavailable context, invalid witness encodings,
@@ -151,7 +150,7 @@ The current concrete-call bridge supports named **`int`, `bool`, `seq<int>`,
 and `seq<bool>` input/return values**. Heap/graph initial state may be modeled
 through these value parameters; arbitrary object identity or constructor-based
 witnesses are not silently guessed. This is still a bounded modeling frontend,
-not a complete compiler for any of the eight source languages.
+not a complete compiler for any of the nine source languages.
 
 ## Install from an immutable revision
 
@@ -302,21 +301,14 @@ NL formalization, external caller preconditions, or linker behavior.
 ## Evidence, limits, and validation
 
 * Tests cover every source language using fake translator responses and **real
-  Dafny checks**, actual type and annotation repair, doubled repair bounds,
+  Dafny checks**, actual type and annotation repair, the 6/10 repair bounds,
   altered goals/computation, fabricated provenance, inconsistent witnesses,
   unsafe/bodyless models, and returning-case failures. No inference is required.
   Run `python -m unittest discover -s workflow\tests -v`.
-* [Scalar](examples/scalar/README.md) and
-  [cross-file](examples/cross-file/README.md) examples contain actual positive
-  synthetic source-bound checks, clearly labelled non-GitHub fixtures.
-* [General imperative replay](examples/general-model/README.md) runs an actual
-  failed negative check and annotation-only repair using a handwritten fake
-  proposer and the real NFV/Dafny checker, with persistent evidence and no
-  inference calls.
-* [Z3 example](../examples/z3/README.md) replays the general pipeline on merged
-  Z3 PR #11123 with a handwritten translation and real Dafny checks. It yields
-  one conditional model refutation: padding is skipped for length bounds above
-  65,536. A live read-only collection on unmerged PR #11007 is rejected.
+* Synthetic, clearly labelled test fixtures (not GitHub PRs) are in
+  [`tests/fixtures`](tests/fixtures): `scalar` and `cross-file` positive checks,
+  and a `general-model` replay of one real failed negative check and
+  annotation-only repair with a scripted proposer and no inference.
 * [Z3 before/after example](../examples/z3-10961/README.md) is a **live** model run
   (nothing handwritten) on fix PR #10961, which fixed an earlier NFV-found bug. It
   yields two refutations on the pre-fix base and none on the fixed head. The replay
@@ -334,6 +326,6 @@ NL formalization, external caller preconditions, or linker behavior.
 * Paper core, historical model prompts, scoring, and experiment budgets are
   unchanged by this package. The workflow owns its language prompts and repairs.
 * One bounded live model smoke (`gpt-5.6-sol`, one call) on the synthetic
-  general example abstained at the goal-integrity gate; see
-  [live-smoke.json](examples/general-model/live-smoke.json). No end-to-end
+  general fixture abstained at the goal-integrity gate; see
+  [live-smoke.json](tests/fixtures/general-model/live-smoke.json). No end-to-end
   GitHub Actions run has been recorded yet.

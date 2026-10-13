@@ -256,7 +256,7 @@ def collect(event, api, side="head"):
         directory = path.rpartition("/")[0]
         suffix = path.rsplit(".", 1)[-1].lower()
         language_neighbors = {
-            "java": (".java",), "cs": (".cs",), "go": (".go",), "py": (".py",),
+            "java": (".java",), "cs": (".cs",), "go": (".go",), "py": (".py",), "rs": (".rs",),
             "js": (".js", ".mjs", ".ts"), "jsx": (".js", ".jsx", ".ts", ".tsx"),
             "ts": (".ts", ".tsx", ".js"), "tsx": (".ts", ".tsx", ".js", ".jsx"),
         }
@@ -268,6 +268,20 @@ def collect(event, api, side="head"):
             stem = posixpath.normpath(posixpath.join(directory, module))
             found.update(name for name in blobs if name == stem or any(
                 name in (stem + ext, stem + "/index" + ext) for ext in extensions))
+        if suffix == "rs":
+            # `mod m;` lives beside lib.rs/main.rs/mod.rs, otherwise under foo/;
+            # `use crate::a::b` maps to a.rs, a/b.rs or a/b/mod.rs.
+            filename = path.rpartition("/")[2]
+            base = directory if filename in ("lib.rs", "main.rs", "mod.rs") else path[:-3]
+            for module in re.findall(r"(?m)^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;", text):
+                found.update(name for name in blobs if name in (
+                    posixpath.join(base, module + ".rs"), posixpath.join(base, module, "mod.rs")))
+            for use in re.findall(r"\buse\s+crate::([\w:]+)", text):
+                parts = [part for part in use.split("::") if part]
+                for k in range(len(parts), 0, -1):
+                    stem = "/".join(parts[:k])
+                    found.update(name for name in blobs
+                                 if name.endswith(("/" + stem + ".rs", "/" + stem + "/mod.rs")))
         for module in re.findall(r"(?m)^\s*(?:from|import)\s+([\w.]+)", text):
             stem = module.replace(".", "/").strip("/")
             found.update(name for name in blobs if any(
@@ -294,7 +308,8 @@ def collect(event, api, side="head"):
                 words.update(w for w in re.findall(r"[A-Za-z_]\w{3,}", text_lines[n - 1]))
     words -= {"return", "false", "true", "void", "const", "auto", "bool", "char", "else",
               "while", "break", "self", "this", "null", "None", "static", "struct", "class",
-              "unsigned", "signed", "public", "private", "inline", "override", "virtual"}
+              "unsigned", "signed", "public", "private", "inline", "override", "virtual",
+              "impl", "match", "Self", "Some", "Option", "Result", "usize", "isize"}
     families = [(".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp"), (".java",), (".cs",), (".go",),
                 (".py",), (".js", ".jsx", ".mjs", ".ts", ".tsx"), (".rs",)]
     wanted = tuple(ext for family in families for ext in family

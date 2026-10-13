@@ -19,9 +19,10 @@ LANGUAGES = {
     ".c": "c", ".h": "cpp", ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
     ".hpp": "cpp", ".java": "java", ".cs": "csharp", ".go": "go",
     ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
-    ".ts": "typescript", ".tsx": "typescript", ".py": "python",
+    ".ts": "typescript", ".tsx": "typescript", ".py": "python", ".rs": "rust",
 }
-ALIASES = {"c++": "cpp", "c#": "csharp", "js": "javascript", "ts": "typescript", "py": "python"}
+ALIASES = {"c++": "cpp", "c#": "csharp", "js": "javascript", "ts": "typescript", "py": "python",
+           "rs": "rust"}
 LANGUAGE_GUIDES = {
     "c": "Preserve integer widths/promotions, signed-overflow undefined behavior versus unsigned wrapping, "
          "division truncation toward zero, pointer validity/lifetimes, aliasing, and evaluation order. "
@@ -48,6 +49,13 @@ LANGUAGE_GUIDES = {
     "python": "Preserve Python arbitrary-precision integers, floor // and modulo versus floating /, "
               "truthiness, mutable object aliasing, negative indexing/slices, exceptions, and dynamic "
               "types. Do not replace a dynamic input type case or library behavior by an unrecorded assumption.",
+    "rust": "Preserve Rust fixed-width integers: plain arithmetic overflow panics in debug builds and wraps "
+            "in release builds, so record the modeled build mode; wrapping_/checked_/saturating_/overflowing_ "
+            "methods have their own semantics. Preserve truncating division, panics (unwrap/expect, indexing, "
+            "division by zero, explicit panic!) as exceptional outcomes, Option/Result variants, ownership "
+            "moves and &mut borrows as explicit state updates, and slice/Vec bounds. unsafe code, unknown trait "
+            "impls or generic instantiations, macros, and closures without captured definitions require "
+            "explicit context or abstention.",
 }
 
 
