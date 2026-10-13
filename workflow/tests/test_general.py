@@ -137,6 +137,9 @@ class GeneralTests(unittest.TestCase):
     def execute(self, bundle, claim, chat, **kwargs):
         return asyncio.run(run(bundle, [claim], self.directory, chat, **kwargs))
 
+    def execute_many(self, bundle, claims, chat, **kwargs):
+        return asyncio.run(run(bundle, claims, self.directory, chat, **kwargs))
+
     def test_default_repair_budgets(self):
         self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
 
@@ -189,6 +192,26 @@ class GeneralTests(unittest.TestCase):
             properties.append({**claim, "property": f"Intended property {i}"})
         self.assertEqual(len(select_properties(properties, bundle)), 10)
         self.assertEqual(len(select_properties([claim, claim], bundle)), 1)
+
+    def test_invalid_claim_is_an_abstention_not_a_batch_failure(self):
+        bundle, claim, _ = fixture()
+        unchanged = {**claim, "lines": [999999], "property": "Cites unchanged code"}
+        with self.assertRaises(Abstain):
+            select_properties([unchanged], bundle)
+        chat = Chat([{"abstain": "valid claim reached translation"}])
+        report = self.execute_many(bundle, [unchanged, claim], chat)
+        reasons = [x["reason"] for x in report["abstentions"]]
+        self.assertTrue(any("not tied to added/changed head code" in r for r in reasons))
+        self.assertTrue(any("valid claim reached translation" in r for r in reasons))
+        self.assertEqual(report["errors"], [])
+
+    def test_translator_sees_repository_line_numbers(self):
+        bundle, claim, _ = fixture()
+        chat = Chat([{"abstain": "stop"}])
+        self.execute(bundle, claim, chat)
+        first = bundle["sources"][claim["path"]]["text"].splitlines()[0]
+        self.assertIn(json.dumps(f"1| {first}")[1:-1], chat.prompts[0])
+        self.assertNotIn('"text":', chat.prompts[0].split("Translate this intended property", 1)[1])
 
     def test_proof_repair_budget_is_ten(self):
         bundle, claim, translation = fixture(invariant=False)

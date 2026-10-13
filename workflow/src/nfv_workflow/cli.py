@@ -52,8 +52,9 @@ async def propose(bundle, model, intent_only=False):
 
 async def run_general(bundle, properties, output, model, limits):
     from .general import run, select_properties
-    if not select_properties(properties, bundle):
-        return await run(bundle, [], output, None, limits)
+    if not select_properties(properties, bundle, rejected=[]):
+        # Nothing valid to translate; run still records each rejection as an abstention.
+        return await run(bundle, properties, output, None, limits)
     if not model:
         raise Abstain("General translation/repair requires an explicitly configured model")
     from nfv.shared.config import DAFNY_PATH

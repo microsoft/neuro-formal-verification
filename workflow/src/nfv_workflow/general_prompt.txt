@@ -74,6 +74,8 @@ Choose an entry name distinct from callable declarations quoted in source tags
 EVERY nonblank code line must immediately follow one of:
   // src: captured/path.ext:LINE | exact source line (trim surrounding whitespace)
   // synth: short reason
+Captured sources arrive as "numbered_lines": each line is "N| text". LINE is that
+N; the quoted text is everything after "N| ". Never count lines yourself.
 Use src for declarations and computation. Use synth ONLY for braces, contracts,
 invariants, assertions, decreases, reads, and modifies. Each significant line in
 source_span must appear in a src tag, including the changed anchors. Multiple

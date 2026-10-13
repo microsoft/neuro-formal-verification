@@ -29,6 +29,13 @@ NOT_CALLEES = {"if", "for", "while", "switch", "return", "sizeof", "catch", "sta
                "dynamic_cast", "reinterpret_cast", "const_cast", "decltype", "typeid"}
 
 
+def numbered(record):
+    """Model view of a captured source: each line prefixed by its repository line number."""
+    first = record.get("line_start", 1)
+    return {"blob_sha": record.get("blob_sha"), "numbered_lines": "\n".join(
+        f"{first + index}| {line}" for index, line in enumerate(record["text"].splitlines()))}
+
+
 def environment_order(bundle, claim, window=25):
     """Claim file first, then files declaring/defining callees near the claim lines."""
     sources = bundle["sources"]
@@ -110,18 +117,28 @@ class Limits:
             raise ValueError("Timeouts must be positive")
 
 
-def select_properties(raw, bundle):
+def select_properties(raw, bundle, rejected=None):
+    """Validate extracted claims. With `rejected`, invalid claims are recorded there
+    and skipped instead of failing the whole batch."""
     if not isinstance(raw, list) or len(raw) > 100:
         raise Abstain("Expected at most 100 extracted intended properties")
     selected, seen = [], set()
     for value in raw:
-        path = validate_claim(value, bundle)
-        language = str(value.get("language") or LANGUAGES.get(Path(path).suffix.lower(), "")).lower()
-        language = ALIASES.get(language, language)
-        expected = LANGUAGES.get(Path(path).suffix.lower())
-        if language not in set(LANGUAGES.values()) or (expected != language and not (
-                Path(path).suffix.lower() == ".h" and language in ("c", "cpp"))):
-            raise Abstain("Unsupported or mismatched source language")
+        try:
+            path = validate_claim(value, bundle)
+            language = str(value.get("language") or LANGUAGES.get(Path(path).suffix.lower(), "")).lower()
+            language = ALIASES.get(language, language)
+            expected = LANGUAGES.get(Path(path).suffix.lower())
+            if language not in set(LANGUAGES.values()) or (expected != language and not (
+                    Path(path).suffix.lower() == ".h" and language in ("c", "cpp"))):
+                raise Abstain("Unsupported or mismatched source language")
+        except (Abstain, KeyError, TypeError, AttributeError) as exc:
+            if rejected is None:
+                raise
+            identity = json.dumps(value, sort_keys=True, default=str) if isinstance(value, dict) else repr(value)
+            rejected.append({"id": "claim-" + hashlib.sha256(identity.encode()).hexdigest()[:14],
+                             "reason": f"Abstain: {exc}"})
+            continue
         key = (path, normalize(value["property"]))
         if key in seen:
             continue
@@ -204,7 +221,7 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     # order and are dropped (and disclosed) once the per-property budget would be exceeded.
     size = len(json.dumps(context))
     for path in environment_order(bundle, claim):
-        record = bundle["sources"][path]
+        record = numbered(bundle["sources"][path])
         cost = len(json.dumps({path: record})) + 2
         if path != claim["path"] and size + cost > 560000:
             context["context_omissions"].append(f"{path}: omitted by per-property context budget")
@@ -333,8 +350,8 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
     if getattr(account, "login", None):
         report["authenticated_account"] = account.login
     try:
-        claims = select_properties(properties, bundle)
-    except (ValueError, KeyError, TypeError) as exc:
+        claims = select_properties(properties, bundle, rejected=report["abstentions"])
+    except (Abstain, ValueError, KeyError, TypeError) as exc:
         claims = []
         report["errors"].append(str(exc))
     for claim in claims:
