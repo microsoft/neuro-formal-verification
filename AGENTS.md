@@ -97,9 +97,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
 - The firewall blocks the Copilot SDK's CLI download; set `COPILOT_CLI_PATH` to
   gh-aw's `$RUNNER_TEMP/gh-aw/bin/copilot`.
 - The agent's shell does not inherit the harness's Copilot provider settings or
-  token. `cli.awf_byok_environment()` points the nested client at the AWF API
-  proxy (`http://api-proxy:10002`) in offline BYOK mode with a placeholder key;
-  the proxy injects the credential.
+  token, and the SDK-launched CLI ignores `COPILOT_PROVIDER_*` variables. Pass
+  `cli.awf_provider()` (an SDK `ProviderConfig` for the AWF API proxy at
+  `http://api-proxy:10002`, placeholder key) to `CopilotChat(provider=...)`,
+  which hands it to each `create_session`; the proxy injects the credential.
 - `pull_request` runs use the workflow from the PR merge ref. A test PR's base
   branch must already contain the workflow, and its head must be parented on
   that base so the workflow files stay out of the diff.

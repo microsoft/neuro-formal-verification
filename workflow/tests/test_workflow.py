@@ -11,7 +11,7 @@ import uuid
 from unittest.mock import patch
 
 from nfv_workflow.check import Dafny, accepted, check
-from nfv_workflow.cli import audit, awf_byok_environment, submission, write_sources
+from nfv_workflow.cli import audit, awf_provider, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
@@ -860,17 +860,14 @@ class AuditTests(ScratchTest):
         self.assertIn("```dafny\nensures result >= 0\n```", body)
         self.assertIn("p1: Abstain: no witness", body)
 
-    def test_awf_byok_environment_restores_proxy_provider(self):
-        with patch.dict(os.environ, {"COPILOT_API_URL": "http://172.30.0.30:10002"}, clear=True):
-            with patch("sys.stderr"):
-                awf_byok_environment()
-            self.assertEqual(os.environ["COPILOT_PROVIDER_BASE_URL"], "http://172.30.0.30:10002")
-            self.assertEqual(os.environ["COPILOT_PROVIDER_API_KEY"], "dummy-byok-key-for-offline-mode")
-            self.assertEqual(os.environ["COPILOT_OFFLINE"], "true")
+    def test_awf_provider_targets_the_api_proxy(self):
         with patch.dict(os.environ, {}, clear=True):
-            with patch("sys.stderr"):
-                awf_byok_environment()
-            self.assertEqual(os.environ["COPILOT_PROVIDER_BASE_URL"], "http://api-proxy:10002")
+            provider = awf_provider()
+        self.assertEqual(provider, {"type": "openai", "wire_api": "responses",
+                                    "base_url": "http://api-proxy:10002",
+                                    "api_key": "dummy-byok-key-for-offline-mode"})
+        with patch.dict(os.environ, {"COPILOT_API_URL": "http://172.30.0.30:10002"}, clear=True):
+            self.assertEqual(awf_provider()["base_url"], "http://172.30.0.30:10002")
 
     def test_rejects_non_array_proposals(self):
         (self.directory / "p.json").write_text("{}")

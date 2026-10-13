@@ -5,7 +5,6 @@ import asyncio
 import importlib.resources
 import json
 import os
-import sys
 from pathlib import Path
 
 from .check import check
@@ -70,9 +69,8 @@ async def run_general(bundle, properties, output, model, limits):
             raise Abstain("Actions general inference requires a dedicated COPILOT_GITHUB_TOKEN")
         os.environ.pop("GH_TOKEN", None)
         os.environ.pop("GITHUB_TOKEN", None)
-        if os.environ.get("GITHUB_AW") == "true":
-            awf_byok_environment()
-    async with CopilotChat(model=model, concurrency=1) as chat:
+    provider = awf_provider() if os.environ.get("GITHUB_AW") == "true" else None
+    async with CopilotChat(model=model, concurrency=1, provider=provider) as chat:
         return await run(bundle, properties, output, chat, limits)
 
 
@@ -81,20 +79,17 @@ AWF_PLACEHOLDER_KEY = "dummy-byok-key-for-offline-mode"
 AWF_COPILOT_PROXY = "http://api-proxy:10002"
 
 
-def awf_byok_environment():
-    """Point the nested Copilot CLI at the AWF API proxy in offline BYOK mode.
+def awf_provider():
+    """BYOK provider for the nested Copilot client inside the gh-aw sandbox.
 
-    The AWF entrypoint unsets the (placeholder) provider key from the agent's
-    shell; the proxy injects the real credential, so a placeholder suffices.
+    The agent's shell has no Copilot credential; the AWF API proxy injects it,
+    so a placeholder key suffices.
     """
     env = os.environ
-    print("[nfv] Copilot env present: " + ", ".join(sorted(k for k in env if k.startswith("COPILOT_"))),
-          file=sys.stderr, flush=True)
-    env["COPILOT_PROVIDER_BASE_URL"] = (env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL")
-                                        or AWF_COPILOT_PROXY)
-    env.setdefault("COPILOT_PROVIDER_API_KEY", AWF_PLACEHOLDER_KEY)
-    env.setdefault("COPILOT_PROVIDER_WIRE_API", "responses")
-    env.setdefault("COPILOT_OFFLINE", "true")
+    return {"type": "openai",
+            "wire_api": env.get("COPILOT_PROVIDER_WIRE_API") or "responses",
+            "base_url": env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL") or AWF_COPILOT_PROXY,
+            "api_key": AWF_PLACEHOLDER_KEY}
 
 
 def submission(path):
