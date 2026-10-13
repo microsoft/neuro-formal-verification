@@ -49,7 +49,7 @@ historical package versions.
    documentation remains a separate shared input for goal-blind precondition
    synthesis. It is not hidden in code.
 4. The original pair identifiers and mutant response numbers are in
-   `nfv\data\MANIFEST.md`; file-level provenance is in `paper\manifest.json`.
+   `paper/data/MANIFEST.md`; file-level provenance is in `paper/manifest.json`.
    The optional pilot subset is retained only to check the documented
    deterministic derivation, not to replace the full evaluation denominator.
 
