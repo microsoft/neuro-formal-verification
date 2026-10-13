@@ -21,7 +21,6 @@ This repository contains two components:
 | `paper/` | Paper artifact: dataset, retained results, documentation and utilities |
 | `tests/` | Core and artifact tests |
 | `workflow/` | Prototype GitHub Agentic Workflow integration |
-| `examples/` | Integration examples |
 
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof

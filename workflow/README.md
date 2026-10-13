@@ -2,17 +2,21 @@
 
 This is a prototype implementation of a GitHub Agentic Workflow that runs when
 a pull request is **merged**, extracts up to **ten intended properties** from PR
-comments, reviews, review comments, and commit messages, then applies the retained
-**NFV Dafny backend** to look for conditional model refutations.
+comments, reviews, review comments, and commit messages, then translates the code
+into the language of a **verifier backend** to look for conditional model
+refutations.
 
 The default path accepts source in **C, C++, Java, C#, Go, JavaScript, TypeScript,
 Python, and Rust** and translates the code each property is about, including loops
-and branches, into Dafny.
+and branches, into the verifier's language.
 
+* **Verifier backends:** only **Dafny** (the retained NFV Dafny backend) is
+  currently supported, and all source languages use it. Other verifiers (e.g.,
+  Lean) can be added as backends. CBMC is used only by the paper artifact.
+  Verifier-specific details below (constructs, annotations, versions) describe
+  the Dafny backend.
 * Each property gets up to **6 syntax/type repairs** and **10 annotation-only
   repairs** of the negative check.
-* All source languages use **Dafny only**. CBMC is used only by the paper
-  artifact.
 * The workflow runs only for **merged** PRs; PRs closed without merging are
   skipped before any agent or model call.
 
@@ -67,7 +71,7 @@ Discussions view. It includes:
 * an annotated overlay on source lines linked to the immutable commit;
 * retained high-level assumptions and explicit source-correspondence limitations;
 * **“This issue was found by a neuro-formal-verifier.”**
-* an Actions artifact link, with Dafny, repair logs, hashes, and assumption details
+* an Actions artifact link, with verifier models, repair logs, hashes, and assumption details
   inside a collapsed section.
 
 No accepted findings, errors-only runs, and abstentions-only runs create **no
@@ -97,7 +101,7 @@ permits recreation.
    changed-line anchors are mandatory. Deduplicate and select at most ten
    intended properties. No likelihood-based triage is applied.
 3. **Translate and resolve.** The tool-free NFV `CopilotChat` client produces a
-   canonical Dafny model, original `ensures`, source mappings, concrete witness,
+   canonical verifier model (Dafny), original `ensures`, source mappings, concrete witness,
    environment descriptions, and inferred input conditions. Up to six repair
    requests may fix syntax/types before freezing computation. Each attempt uses
    the real NFV `type_check` / `dafny resolve` interface—**not verification of the
@@ -285,7 +289,7 @@ The previous scalar implementation remains an **optional stricter path**, not
 the default or the sole implementation:
 
 ```powershell
-nfv-workflow check --bundle workflow\examples\scalar\bundle.json --proposals workflow\examples\scalar\proposals.json --out .nfv-work\scalar
+nfv-workflow check --bundle bundle.json --proposals proposals.json --out .nfv-work\scalar
 ```
 
 `propose` generates that path's restricted expression schema; `check` consumes it
@@ -305,27 +309,16 @@ NL formalization, external caller preconditions, or linker behavior.
   altered goals/computation, fabricated provenance, inconsistent witnesses,
   unsafe/bodyless models, and returning-case failures. No inference is required.
   Run `python -m unittest discover -s workflow\tests -v`.
-* Synthetic, clearly labelled test fixtures (not GitHub PRs) are in
-  [`tests/fixtures`](tests/fixtures): `scalar` and `cross-file` positive checks,
-  and a `general-model` replay of one real failed negative check and
-  annotation-only repair with a scripted proposer and no inference.
-* [Z3 before/after example](../examples/z3-10961/README.md) is a **live** model run
-  (nothing handwritten) on fix PR #10961, which fixed an earlier NFV-found bug. It
-  yields two refutations on the pre-fix base and none on the fixed head. The replay
-  feeds back the recorded model responses and reruns every gate and Dafny check.
 * Source collection: up to 300 changed files, 200 KB per blob, 6 MB source,
   80 context files, and 500 commentary signals/1 MB. Per-signal truncation and
   source omissions are recorded. Deleted-only files and missing diff anchors
   cannot yield a finding. Context gathering is lexical/bounded, not a complete
   language server or build-system resolver.
-* General modeling: 600,000-character context, 160,000-character Dafny model,
+* General modeling: 600,000-character context, 160,000-character verifier model,
   1,000-line source span, 20 input conditions, 30 environment helpers, and a
   bounded concrete-value witness bridge. Unrepresentable semantics abstain.
 * Artifact access follows repository permissions and expires after 30 days by
   default. Download evidence before expiry.
 * Paper core, historical model prompts, scoring, and experiment budgets are
   unchanged by this package. The workflow owns its language prompts and repairs.
-* One bounded live model smoke (`gpt-5.6-sol`, one call) on the synthetic
-  general fixture abstained at the goal-integrity gate; see
-  [live-smoke.json](tests/fixtures/general-model/live-smoke.json). No end-to-end
-  GitHub Actions run has been recorded yet.
+* No end-to-end GitHub Actions run has been recorded yet.

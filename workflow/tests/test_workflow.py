@@ -721,9 +721,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn('run-name: "Merged-PR conditional neuro-formal verification"\n', lock)
         self.assertIn('GH_AW_WORKFLOW_NAME: "Merged-PR conditional neuro-formal verification"', lock)
         self.assertIn("nfv-workflow evaluate", template)
-        docs = [workflow / "README.md", workflow.parent / "examples" / "z3-10961" / "README.md"]
-        docs.extend(workflow / "tests" / "fixtures" / example / "README.md"
-                    for example in ("scalar", "cross-file", "general-model"))
+        docs = [workflow / "README.md"]
         for document in docs:
             source = document.read_text(encoding="utf-8")
             self.assertIn("prototype", source)
