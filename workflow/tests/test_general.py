@@ -8,7 +8,8 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from nfv_workflow.general import LANGUAGE_GUIDES, Limits, reachable, run, select_properties, validate_finding
+from nfv_workflow.general import (LANGUAGE_GUIDES, Limits, environment_order, reachable, run,
+                                  select_properties, validate_finding)
 from nfv_workflow.general_gates import annotate
 from nfv_workflow.github import Abstain
 from nfv_workflow.publish import dafny_block, render
@@ -107,6 +108,21 @@ class FailingVerifier:
 
 
 class GeneralTests(unittest.TestCase):
+    def test_environment_files_precede_unrelated_context(self):
+        bundle = {"sources": {
+            "a.cpp": {"text": "void g() {\n  ctx.mk_axiom(l1, l2);\n}\n"},
+            "unrelated.h": {"text": "int other(int);\n"},
+            "ctx.h": {"text": "void mk_axiom(int a, int b);\n"},
+            "ctx.cpp": {"text": "void context::mk_axiom(int a, int b) {\n}\n"},
+        }}
+        order = environment_order(bundle, {"path": "a.cpp", "lines": [2]})
+        self.assertEqual(["a.cpp", "ctx.cpp", "ctx.h", "unrelated.h"], order)
+
+    def test_prompt_models_missing_callees_as_environment(self):
+        prompt = (Path(__file__).parents[1] / "src/nfv_workflow/general_prompt.txt").read_text(encoding="utf-8")
+        self.assertNotIn("Missing referenced files mean abstention", prompt)
+        self.assertIn("Do not abstain merely because a callee is implemented elsewhere", prompt)
+
     def setUp(self):
         self.directory = Path(__file__).parent / ".general-scratch" / uuid.uuid4().hex
         self.directory.mkdir(parents=True)

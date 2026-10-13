@@ -144,7 +144,11 @@ environment helper's captured anchors are checked. This is **provenance coverage
 not semantic equivalence**.
 
 Helpers must have checked bodies and explicit source/inferred environment
-descriptions. No axioms, `assume`, `expect`, bodyless callable contracts,
+descriptions. Code the slice calls but does not translate is environment: the
+translator models it from the callee's captured implementation, declaration and
+comments, preferring the weakest contract those lines justify, and leaves
+undocumented results as entry inputs. The translator's context puts files that
+declare or define calls near the claim first. No axioms, `assume`, `expect`, bodyless callable contracts,
 verification-disabling attributes, includes/imports, opaque definitions, or
 termination escapes are allowed. No model-authored shell command is executed.
 Canonical callable signatures/contracts are complete single lines and their

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.resources
 import json
+import re
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -23,6 +24,32 @@ LANGUAGES = {
 }
 ALIASES = {"c++": "cpp", "c#": "csharp", "js": "javascript", "ts": "typescript", "py": "python",
            "rs": "rust"}
+CALL = re.compile(r"\b([A-Za-z_]\w{2,})\s*\(")
+NOT_CALLEES = {"if", "for", "while", "switch", "return", "sizeof", "catch", "static_cast",
+               "dynamic_cast", "reinterpret_cast", "const_cast", "decltype", "typeid"}
+
+
+def environment_order(bundle, claim, window=25):
+    """Claim file first, then files declaring/defining callees near the claim lines."""
+    sources = bundle["sources"]
+    lines = sources[claim["path"]]["text"].splitlines()
+    first, last = min(claim["lines"]), max(claim["lines"])
+    nearby = "\n".join(lines[max(first - 1 - window, 0):last + window])
+    callees = {name for name in CALL.findall(nearby) if name not in NOT_CALLEES}
+    def score(path):
+        text = sources[path]["text"]
+        found = 0
+        for name in callees:
+            # A definition (`T name(...) {` or `X::name(`) outranks a declaration.
+            if re.search(rf"(?m)(::{name}\s*\(|^[^;\n]*\b{name}\s*\([^;]*\)\s*(const)?\s*\{{)", text):
+                found += 2
+            elif re.search(rf"\b{name}\s*\(", text):
+                found += 1
+        return found
+    others = [p for p in sources if p != claim["path"]]
+    scores = {p: score(p) for p in others}
+    # Stable sort keeps the collector order among equally relevant files.
+    return [claim["path"]] + sorted(others, key=lambda p: -scores[p])
 LANGUAGE_GUIDES = {
     "c": "Preserve integer widths/promotions, signed-overflow undefined behavior versus unsigned wrapping, "
          "division truncation toward zero, pointer validity/lifetimes, aliasing, and evaluation order. "
@@ -172,10 +199,11 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
         "callee_names": bundle.get("callee_names", []),
         "context_omissions": list(bundle.get("context_omissions", [])),
     }
-    # The claim file always comes first; other sources keep the collector's nearest-first order
-    # and are dropped (and disclosed) once the per-property budget would be exceeded.
+    # The claim file always comes first, then files that declare or define what the code
+    # around the claim calls (its environment); others keep the collector's nearest-first
+    # order and are dropped (and disclosed) once the per-property budget would be exceeded.
     size = len(json.dumps(context))
-    for path in [claim["path"]] + [p for p in bundle["sources"] if p != claim["path"]]:
+    for path in environment_order(bundle, claim):
         record = bundle["sources"][path]
         cost = len(json.dumps({path: record})) + 2
         if path != claim["path"] and size + cost > 560000:

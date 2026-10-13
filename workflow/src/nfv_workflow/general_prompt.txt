@@ -10,8 +10,9 @@ Preserve imperative control flow, updates, branch guards, loops, and calls.
 Model language-specific numeric behavior, overflow, exceptions, references,
 aliasing, collections, and external effects explicitly. Heap/graph state can be
 represented by explicit sequences/indices; do not silently identify source
-semantics with mathematical integers. Unsupported or insufficiently captured
-semantics/context require {"abstain":"specific reason"}, not a fabricated model.
+semantics with mathematical integers. Unsupported semantics, or environment
+behavior that no captured line documents, require {"abstain":"specific reason"},
+not a fabricated model.
 No source-to-model correspondence proof is claimed; disclose every abstraction.
 Do NOT triage/filter properties based on an educated guess about which are bugs.
 
@@ -45,8 +46,20 @@ Mark supplied assumptions as inferred, even if motivated by source comments.
 Use optional=true only for additional environment/domain restrictions that can
 be deleted and rechecked; required applicability conditions must have
 optional=false.
-Every modeled external helper must have a body and environment metadata with
-captured source anchors. Missing referenced files mean abstention.
+Every modeled external helper must have a body and environment metadata.
+
+ENVIRONMENT. Everything the slice calls but does not translate is environment.
+Do not abstain merely because a callee is implemented elsewhere. Read its
+captured implementation, declaration, and comments, and model it as a helper
+whose body realizes the contract those lines justify:
+  - kind "source-derived": the body follows the captured implementation;
+  - kind "inferred": the body postulates the behavior its declaration,
+    comments, name, or documented invariants state.
+Anchor source.lines at the captured lines you relied on. Where they do not fix
+a result, make it an extra entry input instead of inventing a value, restricted
+only by inferred assumptions those lines justify. Use the weakest contract the
+cited lines support; its one-sentence description is printed with any finding.
+Abstain only when no captured line documents the behavior the property needs.
 
 Write ORIGINAL ensures, never its negation. Trusted code mechanically negates
 the recorded conjunction, and NEVER verifies the original property.

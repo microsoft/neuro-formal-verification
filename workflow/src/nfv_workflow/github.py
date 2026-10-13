@@ -73,7 +73,7 @@ class GitHub:
 
     def blob(self, repo, oid):
         result = self.request(f"repos/{repository(repo)}/git/blobs/{sha(oid)}")
-        if result.get("size", 0) > 200_000 or result.get("encoding") != "base64":
+        if result.get("size", 0) > 1_000_000 or result.get("encoding") != "base64":
             raise Abstain("Source blob unsupported or too large")
         raw = base64.b64decode(result["content"])
         actual = hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest()
