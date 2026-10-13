@@ -196,7 +196,7 @@ path does not require the model client.
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
    * `NFV_DISCUSSION_CATEGORY`: existing category name.
-   * `NFV_MODEL`: explicitly approved model ID for translation/repair.
+   * `NFV_MODEL`: explicitly approved model ID for agent extraction and translation/repair.
 3. Configure an approved **`COPILOT_GITHUB_TOKEN`** secret: a fine-grained token
    owned by a Copilot-licensed user with *Copilot Requests: Read*. gh-aw rejects
    OAuth (`gho_`) tokens. The outer AW agent
