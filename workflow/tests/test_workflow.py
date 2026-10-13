@@ -15,7 +15,7 @@ from nfv_workflow.cli import audit, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
-from nfv_workflow.publish import marker, publication_allowed, publish, render
+from nfv_workflow.publish import comment, marker, publication_allowed, publish, render
 from nfv_workflow.source_binding import bind_source, Parser
 
 
@@ -802,7 +802,7 @@ class TemplateTests(unittest.TestCase):
 
     def test_report_is_posted_as_a_single_pr_comment(self):
         source = self.source()
-        self.assertIn("add-comment:\n    max: 1\n", source)
+        self.assertIn("add-comment:\n    max: 1\n    hide-older-comments: true\n", source)
         self.assertNotIn("pull-request-review", source)
         self.assertNotIn("APPROVE", source)
 
@@ -821,6 +821,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("-name 'z3-4.12.1'", source)
         self.assertIn('echo "NFV_Z3_PATH=${solvers[0]}" >> "$GITHUB_ENV"', source)
         self.assertIn('echo "NFV_DAFNY_PATH=$dafny_dir/dafny" >> "$GITHUB_ENV"', source)
+        self.assertIn('echo "COPILOT_CLI_PATH=$RUNNER_TEMP/gh-aw/bin/copilot"', source)
         self.assertNotIn("setup-dafny-action", source)
 
 
@@ -839,8 +840,25 @@ class AuditTests(ScratchTest):
                                      "GITHUB_REPOSITORY": "owner/project", "GITHUB_RUN_ID": "1"}):
             summary = audit(self.directory / "p.json", (6, 10, 60))
         self.assertEqual(summary["findings"], 0)
-        self.assertNotIn("comment", summary)
+        body = Path(summary["comment"]).read_text(encoding="utf-8")
+        self.assertIn("no refutations", body)
+        self.assertIn("Extracted 0 intended properties", body)
+        self.assertIn("/actions/runs/1", body)
         self.assertTrue((out / "report.json").exists() or (out / "proposals.json").exists())
+
+    def test_no_finding_comment_lists_formalized_properties(self):
+        data = bundle()
+        report = {"identity": data["identity"], "findings": [], "errors": [],
+                  "abstentions": [{"id": "p1", "reason": "Abstain: no witness"}],
+                  "properties": [{"id": "p1", "path": "src/f.cpp", "lines": [2], "quote": "never negative",
+                                  "property": "result is never negative", "formalized": "result >= 0",
+                                  "status": "abstained"}]}
+        body = comment(report, data, "https://github.com/owner/project/actions/runs/1", 1)
+        self.assertIn("## Intended properties checked", body)
+        self.assertIn("**result is never negative** (`src/f.cpp:2`) \u2014 abstained", body)
+        self.assertIn("Quoted claim: never negative", body)
+        self.assertIn("```dafny\nensures result >= 0\n```", body)
+        self.assertIn("p1: Abstain: no witness", body)
 
     def test_rejects_non_array_proposals(self):
         (self.directory / "p.json").write_text("{}")

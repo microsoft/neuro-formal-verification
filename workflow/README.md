@@ -61,8 +61,10 @@ developer quote, formalized expectation, concrete inputs, a conditional
 model-based explanation, an annotated source overlay, retained assumptions, and
 the Dafny model in a collapsed section.
 
-No accepted findings, errors-only runs, and abstentions-only runs post **no
-comment** (`noop`). Verifier models, repair logs and hashes are in the run's
+Otherwise the comment says no property was refuted and lists each extracted
+property with its quoted claim, its formalized Dafny `ensures` (when the
+translation got that far), and its status, plus abstention and error reasons; this is not evidence of
+correctness. Each new push hides the previous NFV comment. Verifier models, repair logs and hashes are in the run's
 `agent` artifact under `nfv-evidence/`.
 
 ## Refutation pipeline and gates

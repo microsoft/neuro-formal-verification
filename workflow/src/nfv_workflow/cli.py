@@ -84,7 +84,7 @@ def submission(path):
 def audit(proposals_path, limits):
     """Agent-sandbox entry point: every input except the proposals is fixed by trusted steps."""
     from .general import Limits
-    from .publish import render
+    from .publish import comment
     bundle_path, model = os.environ.get("NFV_BUNDLE"), os.environ.get("NFV_MODEL", "")
     output = Path(os.environ.get("NFV_OUT") or "nfv-evidence")
     if not bundle_path:
@@ -99,12 +99,10 @@ def audit(proposals_path, limits):
     report = asyncio.run(run_general(bundle, proposals, output, model, Limits(*limits)))
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
-    body = render(report, bundle, evidence)
     summary = {"findings": len(report["findings"]), "abstentions": len(report.get("abstentions", [])),
                "errors": report["errors"]}
-    if body:
-        (output / "comment.md").write_text(body, encoding="utf-8")
-        summary["comment"] = str(output / "comment.md")
+    (output / "comment.md").write_text(comment(report, bundle, evidence, len(proposals)), encoding="utf-8")
+    summary["comment"] = str(output / "comment.md")
     return summary
 
 
