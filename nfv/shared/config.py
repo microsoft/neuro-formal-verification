@@ -134,7 +134,7 @@ _UNSET = object()
 _MSVC_ENV_CACHE: object = _UNSET
 
 Z3_PATH = find_z3()
-DAFNY_PATH = find_tool("dafny")
+DAFNY_PATH = os.environ.get("NFV_DAFNY_PATH") or find_tool("dafny")
 CBMC_PATH = find_cbmc()
 
 

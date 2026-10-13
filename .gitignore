@@ -11,4 +11,5 @@ dist/
 !.env.example
 .nfv-work/
 .nfv-scratch/
+workflow/tests/.general-scratch/
 /paper/new-results/

@@ -222,6 +222,9 @@ class GeneralTests(unittest.TestCase):
         self.assertEqual(len(chat.prompts), 11)
         self.assertEqual(sum(op == "verify" for op, _ in verifier.operations), 11)
         self.assertIn("10 proof repairs", report["abstentions"][0]["reason"])
+        entry = report["properties"][0]
+        self.assertEqual(entry["status"], "abstained")
+        self.assertEqual(entry["formalized"], translation["original_ensures"])
         for operation, source in verifier.operations:
             if operation == "verify":
                 self.assertIn("ensures !((r == n))", source)

@@ -11,11 +11,11 @@ import uuid
 from unittest.mock import patch
 
 from nfv_workflow.check import Dafny, accepted, check
-from nfv_workflow.cli import submission, write_sources
+from nfv_workflow.cli import audit, awf_provider, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
-from nfv_workflow.publish import marker, publication_allowed, publish, render
+from nfv_workflow.publish import comment, marker, publication_allowed, publish, render
 from nfv_workflow.source_binding import bind_source, Parser
 
 
@@ -120,6 +120,14 @@ class IdentityTests(unittest.TestCase):
         data["action"] = "synchronize"
         with self.assertRaises(Abstain):
             identity(data)
+
+    def test_open_pr_is_reviewed_at_its_head(self):
+        data = event(False)
+        data["action"] = "synchronize"
+        data["pull_request"]["state"] = "open"
+        ident = identity(data)
+        self.assertEqual((ident["merged"], ident["merge_sha"], ident["source_sha"]),
+                         (False, None, "a" * 40))
 
     def test_mutable_ref_rejected(self):
         with self.assertRaises(Abstain):
@@ -387,9 +395,17 @@ class PublicationTests(ScratchTest):
         report["errors"] = ["collection incomplete"]
         self.assertIsNone(render(report, bundle(), self.url))
 
-    def test_unmerged_identity_cannot_publish(self):
+    def test_open_pr_identity_publishes_without_merge_note(self):
         report, data = self.report(), bundle()
-        data["identity"]["merged"] = False
+        data["identity"].update(merged=False, merge_sha=None)
+        report["identity"] = data["identity"]
+        body = render(report, data, self.url)
+        self.assertIn("# Conditional model findings", body)
+        self.assertNotIn("merged as", body)
+
+    def test_merged_identity_without_merge_sha_cannot_publish(self):
+        report, data = self.report(), bundle()
+        data["identity"]["merge_sha"] = None
         report["identity"] = data["identity"]
         with self.assertRaises(Abstain):
             render(report, data, self.url)
@@ -397,7 +413,7 @@ class PublicationTests(ScratchTest):
     def test_clear_conditional_explanation(self):
         body = render(self.report(), bundle(), self.url)
         self.assertIn("# Conditional model findings", body)
-        self.assertIn("This issue was found by a neuro-formal-verifier.", body)
+        self.assertIn("This was found by a neuro-formal verifier.", body)
         self.assertIn("not** an execution", body)
         self.assertIn("Source overlay", body)
         self.assertIn("merged as `" + "c" * 40 + "`", body)
@@ -743,57 +759,123 @@ class CollectionTests(unittest.TestCase):
 
 
 class TemplateTests(unittest.TestCase):
-    def test_prototype_maturity_preserves_nfv_identifiers(self):
-        workflow = Path(__file__).parents[1]
-        template = (workflow / "templates" / "nfv-merged-pr.md").read_text(encoding="utf-8")
-        lock = (workflow / "templates" / "nfv-merged-pr.lock.yml").read_text(encoding="utf-8")
-        self.assertIn("a prototype implementation", template)
-        self.assertIn('name: "Merged-PR neuro-formal verification audit"\n', lock)
-        self.assertIn('run-name: "Merged-PR neuro-formal verification audit"\n', lock)
-        self.assertIn('GH_AW_WORKFLOW_NAME: "Merged-PR neuro-formal verification audit"', lock)
-        self.assertIn("nfv-workflow evaluate", template)
-        docs = [workflow / "README.md"]
-        for document in docs:
-            source = document.read_text(encoding="utf-8")
-            self.assertIn("prototype", source)
-            self.assertNotIn("Prototyp:", source)
+    template = Path(__file__).parents[2] / ".github" / "workflows"
+    package = Path(__file__).parents[1]
 
-    def test_general_pipeline_repair_budgets_are_default(self):
-        source = (Path(__file__).parents[1] / "templates" / "nfv-merged-pr.md").read_text()
-        self.assertIn("--mode general", source)
-        self.assertIn("--syntax-rounds 6 --proof-rounds 10", source)
-        self.assertIn("intent_prompt.txt", source)
+    def source(self):
+        return (self.template / "nfv-pr-review.md").read_text(encoding="utf-8")
+
+    def lock(self):
+        return (self.template / "nfv-pr-review.lock.yml").read_text(encoding="utf-8")
+
+    def test_prototype_maturity_preserves_nfv_identifiers(self):
+        self.assertIn("a prototype implementation", self.source())
+        self.assertIn('name: "NFV PR reviewer"\n', self.lock())
+        source = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
+        self.assertIn("prototype", source)
+        self.assertNotIn("Prototyp:", source)
+
+    def test_aw_package_installs_the_template(self):
+        manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
+        self.assertIn('manifest-version: "1"', manifest)
+        self.assertIn("includes:\n  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertTrue((self.package / "README.md").exists())
+
+    def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
+        source, lock = self.source(), self.lock()
+        self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", source)
+        self.assertIn("if: github.event.pull_request.draft == false", source)
+        self.assertNotIn("slash_command", source)
+        self.assertNotIn("pull_request_target", lock)
+        self.assertNotIn("roles: all", source)
+        self.assertFalse((self.template / "agentic_commands.yml").exists())
+
+    def test_evaluation_runs_in_the_agent_job_without_custom_safe_jobs(self):
+        source, lock = self.source(), self.lock()
+        self.assertNotIn("post-steps:", source)
+        self.assertNotIn("  nfv_submit:", lock)
+        self.assertNotIn("discussions: write", source)
+        self.assertIn("nfv-workflow audit --proposals nfv-proposals.json", source)
+        self.assertIn("--allow-all-tools", lock)
         self.assertIn('"./nfv-plugin[inference]"', source)
-        self.assertIn("COPILOT_GITHUB_TOKEN:", source)
+        self.assertNotIn("COPILOT_GITHUB_TOKEN: ${{ secrets", source)
+
+    def test_report_is_posted_as_a_single_pr_comment(self):
+        source = self.source()
+        self.assertIn("add-comment:\n    max: 1\n    hide-older-comments: true\n", source)
+        self.assertNotIn("pull-request-review", source)
+        self.assertNotIn("APPROVE", source)
+
+    def test_trusted_inputs_are_read_only_in_the_sandbox(self):
+        source, lock = self.source(), self.lock()
+        self.assertIn('bundle="$RUNNER_TEMP/gh-aw/nfv/bundle.json"', source)
+        self.assertIn('tool_dir="$RUNNER_TEMP/gh-aw/nfv-tools"', source)
+        self.assertIn('--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"', lock)
+        self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", lock)
+        self.assertIn("persist-credentials: false", source)
+        self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
-        source = (Path(__file__).parents[1] / "templates" / "nfv-merged-pr.md").read_text()
-        self.assertIn("runs-on: ubuntu-22.04", source)
+        source = self.source()
         self.assertIn("a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179", source)
         self.assertIn("-name 'z3-4.12.1'", source)
         self.assertIn('echo "NFV_Z3_PATH=${solvers[0]}" >> "$GITHUB_ENV"', source)
+        self.assertIn('echo "NFV_DAFNY_PATH=$dafny_dir/dafny" >> "$GITHUB_ENV"', source)
+        self.assertIn('echo "COPILOT_CLI_PATH=$RUNNER_TEMP/gh-aw/bin/copilot"', source)
         self.assertNotIn("setup-dafny-action", source)
 
-    def test_generated_trigger_runs_only_for_merged_prs(self):
-        template = Path(__file__).parents[1] / "templates"
-        source = (template / "nfv-merged-pr.md").read_text(encoding="utf-8")
-        lock = (template / "nfv-merged-pr.lock.yml").read_text(encoding="utf-8")
-        self.assertIn("roles: all", source)
-        self.assertIn("pull_request_target:\n    types:\n      - closed", lock)
-        self.assertIn("if: github.event.pull_request.merged == true", source)
-        self.assertIn("  activation:\n    if: github.event.pull_request.merged == true\n", lock)
-        self.assertIn("  agent:\n    needs: activation\n", lock)
-        self.assertNotIn("forks:", lock)
-        self.assertNotIn("GH_AW_REQUIRED_ROLES:", lock)
-        self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", lock)
-        self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 
-    def test_custom_publisher_has_deterministic_gate(self):
-        source = (Path(__file__).parents[1] / "templates" / "nfv-merged-pr.md").read_text()
-        self.assertIn("if: needs.detection.result == 'success'", source)
-        self.assertIn("if: steps.checked.outputs.has_findings == 'true'", source)
-        self.assertIn('nfv-workflow evaluate --event "$GITHUB_EVENT_PATH"', source)
-        self.assertIn("persist-credentials: false", source)
+class AuditTests(ScratchTest):
+    def test_requires_trusted_bundle(self):
+        (self.directory / "p.json").write_text("[]")
+        with patch.dict(os.environ, {"NFV_BUNDLE": "", "NFV_OUT": str(self.directory / "out")}):
+            with self.assertRaises(Abstain):
+                audit(self.directory / "p.json", (6, 10, 60))
+
+    def test_no_properties_writes_no_review(self):
+        (self.directory / "p.json").write_text("[]")
+        (self.directory / "b.json").write_text(json.dumps(bundle()))
+        out = self.directory / "out"
+        with patch.dict(os.environ, {"NFV_BUNDLE": str(self.directory / "b.json"), "NFV_OUT": str(out),
+                                     "GITHUB_REPOSITORY": "owner/project", "GITHUB_RUN_ID": "1"}):
+            summary = audit(self.directory / "p.json", (6, 10, 60))
+        self.assertEqual(summary["findings"], 0)
+        body = Path(summary["comment"]).read_text(encoding="utf-8")
+        self.assertIn("no refutations", body)
+        self.assertIn("Extracted 0 intended properties", body)
+        self.assertIn("/actions/runs/1", body)
+        self.assertTrue((out / "report.json").exists() or (out / "proposals.json").exists())
+
+    def test_no_finding_comment_lists_formalized_properties(self):
+        data = bundle()
+        report = {"identity": data["identity"], "findings": [], "errors": [],
+                  "abstentions": [{"id": "p1", "reason": "Abstain: no witness"}],
+                  "properties": [{"id": "p1", "path": "src/f.cpp", "lines": [2], "quote": "never negative",
+                                  "property": "result is never negative", "formalized": "result >= 0",
+                                  "status": "abstained"}]}
+        body = comment(report, data, "https://github.com/owner/project/actions/runs/1", 1)
+        self.assertIn("## Intended properties checked", body)
+        self.assertIn("**result is never negative** (`src/f.cpp:2`) \u2014 abstained", body)
+        self.assertIn("Quoted claim: never negative", body)
+        self.assertIn("```dafny\nensures result >= 0\n```", body)
+        self.assertIn("p1: Abstain: no witness", body)
+
+    def test_awf_provider_targets_the_api_proxy(self):
+        with patch.dict(os.environ, {}, clear=True):
+            provider = awf_provider()
+        self.assertEqual(provider, {"type": "openai", "wire_api": "responses",
+                                    "base_url": "http://api-proxy:10002",
+                                    "api_key": "dummy-byok-key-for-offline-mode"})
+        with patch.dict(os.environ, {"COPILOT_API_URL": "http://172.30.0.30:10002"}, clear=True):
+            self.assertEqual(awf_provider()["base_url"], "http://172.30.0.30:10002")
+
+    def test_rejects_non_array_proposals(self):
+        (self.directory / "p.json").write_text("{}")
+        (self.directory / "b.json").write_text(json.dumps(bundle()))
+        with patch.dict(os.environ, {"NFV_BUNDLE": str(self.directory / "b.json"),
+                                     "NFV_OUT": str(self.directory / "out")}):
+            with self.assertRaises(Abstain):
+                audit(self.directory / "p.json", (6, 10, 60))
 
 
 @unittest.skipUnless(shutil.which("dafny"), "Dafny integration requires installed Dafny")

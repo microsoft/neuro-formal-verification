@@ -345,7 +345,7 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     report = {"schema": 2, "mode": "general-model-refutation", "identity": bundle["identity"],
-              "limits": asdict(limits), "findings": [], "abstentions": [], "errors": []}
+              "limits": asdict(limits), "findings": [], "abstentions": [], "errors": [], "properties": []}
     account = getattr(chat, "account", None)
     if getattr(account, "login", None):
         report["authenticated_account"] = account.login
@@ -355,8 +355,12 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
         claims = []
         report["errors"].append(str(exc))
     for claim in claims:
+        entry = {k: claim[k] for k in ("id", "path", "lines", "quote", "property")}
+        entry.update(formalized=None, status="not run")
+        report["properties"].append(entry)
         try:
             finding = await run_property(claim, bundle, chat, output / claim["id"], limits, verifier)
+            entry["status"] = "refuted"
             # Identical formalized properties on the same slice are one finding.
             duplicate = any(
                 x["candidate"]["path"] == claim["path"] and
@@ -365,11 +369,19 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
                 for x in report["findings"])
             if not duplicate:
                 report["findings"].append(finding)
+            else:
+                entry["status"] = "duplicate of an earlier refutation"
         except ToolFailure as exc:
+            entry["status"] = "error"
             report["errors"].append(str(exc))
             break
         except Exception as exc:
+            entry["status"] = "abstained"
             report["abstentions"].append({"id": claim["id"], "reason": f"{type(exc).__name__}: {exc}"[:3000]})
+        finally:
+            translation = output / claim["id"] / "translation.json"
+            if translation.exists():
+                entry["formalized"] = json.loads(translation.read_text(encoding="utf-8")).get("original_ensures")
     save(output / "report.json", report)
     return report
 

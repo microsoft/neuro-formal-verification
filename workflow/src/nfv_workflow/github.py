@@ -82,12 +82,19 @@ class GitHub:
         return raw.decode("utf-8")
 
 
+OPEN_ACTIONS = ("opened", "synchronize", "reopened", "ready_for_review")
+
+
 def identity(event):
     pr = event.get("pull_request", {})
-    if event.get("action") != "closed" or pr.get("state") != "closed":
-        raise Abstain("Only merged pull requests are supported")
-    if pr.get("merged") is not True or not pr.get("merge_commit_sha"):
-        raise Abstain("Only merged pull requests are supported; closed without merging")
+    if event.get("action") == "closed" and pr.get("state") == "closed":
+        if pr.get("merged") is not True or not pr.get("merge_commit_sha"):
+            raise Abstain("Only merged pull requests are supported; closed without merging")
+        merged = True
+    elif event.get("action") in OPEN_ACTIONS and pr.get("state") == "open":
+        merged = False
+    else:
+        raise Abstain("Only open or merged pull requests are supported")
     repo = repository(event["repository"]["full_name"])
     if pr["base"]["repo"]["full_name"] != repo:
         raise Abstain("Event repository does not match PR base")
@@ -96,9 +103,15 @@ def identity(event):
     return {"repository": repo, "number": int(pr["number"]),
             "base_sha": sha(pr["base"]["sha"]), "head_sha": sha(pr["head"]["sha"]),
             "source_sha": sha(pr["head"]["sha"]), "source_repository": repo,
-            "head_repository": head_repo, "merged": True,
-            "merge_sha": sha(pr["merge_commit_sha"]),
+            "head_repository": head_repo, "merged": merged,
+            "merge_sha": sha(pr["merge_commit_sha"]) if merged else None,
             "source_kind": "pull-request-head", "closed_at": pr.get("closed_at")}
+
+
+def unchanged(latest, ident):
+    state = ("closed", True) if ident["merged"] else ("open", False)
+    return (latest["head"]["sha"], latest["base"]["sha"], latest["state"],
+            bool(latest.get("merged"))) == (ident["head_sha"], ident["base_sha"], *state)
 
 
 def added_lines(patch):
@@ -178,8 +191,7 @@ def collect(event, api, side="head"):
     repo, number = ident["repository"], ident["number"]
     prefix = f"repos/{repo}"
     latest = api.request(f"{prefix}/pulls/{number}")
-    if (latest["head"]["sha"], latest["base"]["sha"], latest["state"], latest.get("merged")) != (
-            ident["head_sha"], ident["base_sha"], "closed", True):
+    if not unchanged(latest, ident):
         raise Abstain("PR identity changed since event; refusing mutable snapshot")
     comparison = api.request(
         f"{prefix}/compare/{ident['base_sha']}...{ident['head_sha']}")
@@ -358,8 +370,7 @@ def collect(event, api, side="head"):
                 declarations.append({"path": path, "line": line, "text": text[:500]})
             calls.update(re.findall(r"\b([A-Za-z_]\w*)\s*\(", text))
     latest = api.request(f"{prefix}/pulls/{number}")
-    if (latest["head"]["sha"], latest["base"]["sha"], latest["state"], latest.get("merged")) != (
-            ident["head_sha"], ident["base_sha"], "closed", True):
+    if not unchanged(latest, ident):
         raise Abstain("PR changed during collection")
     bundle = {"schema": 1, "identity": ident, "signals": signals, "changed": changed,
               "sources": sources, "declarations_and_preconditions": declarations[:500],

@@ -179,8 +179,10 @@ def new_usage_scope() -> UsageTotals:
 class CopilotChat:
     """Shared client; each `ask` gets its own stateless session."""
     def __init__(self, model: str = "gpt-5.5", concurrency: int = 4,
-                 allow_emu: bool | None = None):
+                 allow_emu: bool | None = None, provider: dict | None = None):
         self._model = model
+        # Optional BYOK provider (SDK ProviderConfig); bypasses Copilot API auth.
+        self._provider = provider
         self._client: CopilotClient | None = None
         self._sem = asyncio.Semaphore(concurrency)
         self._allow_emu = allow_emu
@@ -280,10 +282,12 @@ class CopilotChat:
             for _t in (self.usage, _scope.get()):
                 if _t is not None:
                     _t.sem_wait_seconds += waited
+            extra = {"provider": self._provider} if self._provider else {}
             session = await self._client.create_session(
                 model=self._model,
                 system_message={"mode": "replace", "content": system},
                 available_tools=[],
+                **extra,
             )
             chunks: list[str] = []
             used = {"in": 0, "out": 0, "reason": 0, "cache": 0, "aiu": 0, "calls": 0}
