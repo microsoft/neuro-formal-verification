@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "neuro-formal-verification-workflow"
 version = "0.1.0"
-description = "Closed-PR, Dafny-only conditional model refutations"
+description = "Merged-PR, Dafny-only conditional model refutations"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []

@@ -1,7 +1,7 @@
 {
   "outcome": "verified",
   "exit_code": 0,
-  "duration_s": 1.251,
+  "duration_s": 1.232,
   "mode": "unbounded",
   "unroll": null,
   "errors": [],

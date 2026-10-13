@@ -1,7 +1,7 @@
 {
   "outcome": "failed",
   "exit_code": 4,
-  "duration_s": 1.304,
+  "duration_s": 1.316,
   "mode": "unbounded",
   "unroll": null,
   "errors": [

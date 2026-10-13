@@ -85,17 +85,19 @@ class GitHub:
 def identity(event):
     pr = event.get("pull_request", {})
     if event.get("action") != "closed" or pr.get("state") != "closed":
-        raise Abstain("Only closed pull requests are supported")
+        raise Abstain("Only merged pull requests are supported")
+    if pr.get("merged") is not True or not pr.get("merge_commit_sha"):
+        raise Abstain("Only merged pull requests are supported; closed without merging")
     repo = repository(event["repository"]["full_name"])
     if pr["base"]["repo"]["full_name"] != repo:
         raise Abstain("Event repository does not match PR base")
     head_repo = (pr["head"].get("repo") or {}).get("full_name")
-    # Commit objects of closed/fork PRs are also reachable via the base repo API.
+    # Commit objects of merged/fork PRs are also reachable via the base repo API.
     return {"repository": repo, "number": int(pr["number"]),
             "base_sha": sha(pr["base"]["sha"]), "head_sha": sha(pr["head"]["sha"]),
             "source_sha": sha(pr["head"]["sha"]), "source_repository": repo,
-            "head_repository": head_repo, "merged": bool(pr.get("merged")),
-            "merge_sha": sha(pr["merge_commit_sha"]) if pr.get("merged") else None,
+            "head_repository": head_repo, "merged": True,
+            "merge_sha": sha(pr["merge_commit_sha"]),
             "source_kind": "pull-request-head", "closed_at": pr.get("closed_at")}
 
 
@@ -119,8 +121,8 @@ def collect(event, api):
     repo, number = ident["repository"], ident["number"]
     prefix = f"repos/{repo}"
     latest = api.request(f"{prefix}/pulls/{number}")
-    if (latest["head"]["sha"], latest["base"]["sha"], latest["state"]) != (
-            ident["head_sha"], ident["base_sha"], "closed"):
+    if (latest["head"]["sha"], latest["base"]["sha"], latest["state"], latest.get("merged")) != (
+            ident["head_sha"], ident["base_sha"], "closed", True):
         raise Abstain("PR identity changed since event; refusing mutable snapshot")
     comparison = api.request(
         f"{prefix}/compare/{ident['base_sha']}...{ident['head_sha']}")
@@ -243,8 +245,8 @@ def collect(event, api):
                 declarations.append({"path": path, "line": line, "text": text[:500]})
             calls.update(re.findall(r"\b([A-Za-z_]\w*)\s*\(", text))
     latest = api.request(f"{prefix}/pulls/{number}")
-    if (latest["head"]["sha"], latest["base"]["sha"], latest["state"]) != (
-            ident["head_sha"], ident["base_sha"], "closed"):
+    if (latest["head"]["sha"], latest["base"]["sha"], latest["state"], latest.get("merged")) != (
+            ident["head_sha"], ident["base_sha"], "closed", True):
         raise Abstain("PR changed during collection")
     return {"schema": 1, "identity": ident, "signals": signals, "changed": changed,
             "sources": sources, "declarations_and_preconditions": declarations[:500],

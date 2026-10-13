@@ -7,7 +7,7 @@
     "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "merged": false,
+    "merged": true, "merge_sha": "cccccccccccccccccccccccccccccccccccccccc",
     "source_kind": "synthetic"
   },
   "sources": {

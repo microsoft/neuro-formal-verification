@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .check import Dafny, accepted
-from .general_gates import (BACKEND, annotate, final_gate,
+from .general_gates import (BACKEND, annotate, clean_code, final_gate,
                             remove_requirement, validate_translation, witness_bridge)
 from .github import Abstain
 from .model import normalize, validate_claim
@@ -120,7 +120,9 @@ def json_answer(text):
 
 def reachable(verifier, model, entry, directory):
     from nfv.agent import refute
-    probe = refute._probe_source(model, entry, BACKEND)
+    # The retained probe builder counts braces textually; source excerpts in
+    # provenance comments (e.g. `if (...) {`) must not unbalance its body scan.
+    probe = refute._probe_source(clean_code(model), entry, BACKEND)
     if not probe:
         raise Abstain("Could not construct retained NFV reachability probe")
     result = verifier.run(model + probe, directory, filter_symbol=refute.REACH_PROBE)

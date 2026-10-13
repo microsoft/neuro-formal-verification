@@ -6,7 +6,7 @@ This repository contains two components:
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, instructions for running experiments, and table reproduction.
 - **GitHub Agentic Workflow integration (prototype implementation):** a
-  refutation-only audit of intended properties in closed pull requests.
+  refutation-only audit of intended properties in merged pull requests.
   See [workflow/README.md](workflow/README.md) for setup, model configuration,
   supported languages, and examples.
 

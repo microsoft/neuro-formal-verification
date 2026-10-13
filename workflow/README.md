@@ -1,7 +1,7 @@
-# Closed-PR neuro-formal verification
+# Merged-PR neuro-formal verification
 
-This is a prototype implementation of a GitHub Agentic Workflow that extracts
-up to **ten intended properties** from PR
+This is a prototype implementation of a GitHub Agentic Workflow that runs when
+a pull request is **merged**, extracts up to **ten intended properties** from PR
 comments, reviews, review comments, and commit messages, then applies the retained
 **NFV Dafny backend** to look for conditional model refutations.
 
@@ -13,6 +13,8 @@ the workflow to a scalar-expression evaluator. Per the requested iterations:
   of the negative check—twice the historical 3/5 defaults.
 * **Iter 3:** all eight source languages use **Dafny only**. CBMC remains confined
   to the paper component.
+* **Iter 5:** the workflow runs only for **merged** PRs; PRs closed without
+  merging are skipped before any agent or model call.
 * **Iter 4 is not implemented:** there is no educated-guess bug-likelihood
   filter before verification.
 
@@ -42,18 +44,24 @@ used as a finding or as evidence of source correctness.
 
 ## What developers receive
 
-Closing a PR triggers analysis whether it is **merged or unmerged**, including
-fork PRs and non-collaborator closing actors, subject to repository/organization
-Actions policy and AW spending limits.
+Merging a PR triggers analysis, including PRs from forks and merges by any
+actor, subject to repository/organization Actions policy and AW spending limits.
+GitHub has no separate `merged` event, so the workflow listens to
+`pull_request_target: closed` and its activation job runs only when
+`github.event.pull_request.merged == true`. All later jobs depend on activation,
+so unmerged PRs consume no agent or model budget. The collector and publisher
+independently reject unmerged identities.
 
 The source identity is the event's **immutable PR head SHA**, with the base SHA
 recorded and changed files obtained from the immutable `base...head` comparison.
-Merged events additionally record the merge SHA, but reports explicitly analyze
-the saved PR head, **not** the merge result. No moving branch substitutes for a
-missing commit. Reopened/mutated identities during collection are rejected.
+The merge SHA is recorded and shown, but reports explicitly analyze the saved
+PR head, **not** the merge result, so changed-line anchors match the PR diff. No moving branch substitutes for a
+missing commit. Reopened, unmerged, or mutated identities during collection are
+rejected.
 
 At most **one Discussion** is created, and only when accepted refutations exist.
-It includes:
+It is labeled **`NFV-formal-review`**, so findings can be filtered in the
+Discussions view. It includes:
 
 * the exact developer quote, intended behavior, and formalized expectation;
 * concrete modeled inputs and a conditional model-based explanation;
@@ -172,7 +180,11 @@ path does not require the model client.
 
 ## Configure GitHub Agentic Workflows
 
-1. Enable Discussions and choose an existing category, e.g. `General`.
+1. Enable Discussions and choose an existing category, e.g. `General`. Create the
+   `NFV-formal-review` label once, e.g.
+   `gh label create NFV-formal-review --repo OWNER/REPO --description "Neuro-formal verification findings"`.
+   The workflow applies, but does not create, this label. If it is missing, the
+   Discussion is still created, unlabeled, and the publish step logs a warning.
 2. Configure protected repository variables:
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
@@ -182,8 +194,8 @@ path does not require the model client.
    uses normal AW authentication; the separate NFV translation/repair client
    needs this dedicated Copilot credential. Org-billed AW inference by itself
    does not automatically authenticate the separate SDK sessions.
-4. Copy `templates\nfv-closed-pr.md` to
-   `.github\workflows\nfv-closed-pr.md`, run `gh aw compile nfv-closed-pr`, and
+4. Copy `templates\nfv-merged-pr.md` to
+   `.github\workflows\nfv-merged-pr.md`, run `gh aw compile nfv-merged-pr`, and
    review/commit both Markdown and generated lock through your normal process.
    The checked-in template lock is compiled with **gh aw v0.88.7**.
 5. Ensure the target token can read the chosen NFV revision. Until that repository
@@ -191,8 +203,8 @@ path does not require the model client.
    credential; the target's default `GITHUB_TOKEN` cannot read another private
    repository. Same-repository checkout is different.
 
-The intentional `pull_request_target: types: [closed]` trigger emits AW's
-elevated-context warning. **Never change its trusted release checkout to the PR
+The intentional `pull_request_target: types: [closed]` trigger, gated to merged
+PRs, emits AW's elevated-context warning. **Never change its trusted release checkout to the PR
 head**, execute PR scripts, or enable PR builds. All actors are enabled explicitly.
 
 The isolated safe-output job runs on **Ubuntu 22.04**, installs the trusted
@@ -218,7 +230,7 @@ available to that credential. For GitHub Actions, configure `NFV_MODEL` and the
 `COPILOT_GITHUB_TOKEN` secret as described above.
 
 ```powershell
-# Read-only collection of a real closed-event payload.
+# Read-only collection of a real merged-PR event payload.
 nfv-workflow collect --event event.json --out .nfv-work\bundle.json
 
 # Explicitly billable extraction and general refutation; replace placeholders.
@@ -286,10 +298,10 @@ NL formalization, external caller preconditions, or linker behavior.
   failed negative check and annotation-only repair using a handwritten fake
   proposer and the real NFV/Dafny checker, with persistent evidence and no
   inference calls.
-* [Z3 evidence](../examples/z3/README.md) separates historical experiments from
-  the actual zero-finding replay. The earlier bounded live SDK smoke on public
-  Z3 text returned `[]`; it predates this general pipeline and is **not** claimed
-  as a live validation of the new translator/repair prompts.
+* [Z3 example](../examples/z3/README.md) replays the general pipeline on merged
+  Z3 PR #11123 with a handwritten translation and real Dafny checks. It yields
+  one conditional model refutation: padding is skipped for length bounds above
+  65,536. A live read-only collection on unmerged PR #11007 is rejected.
 * Source collection: up to 300 changed files, 200 KB per blob, 6 MB source,
   40 context files, and 500 commentary signals/1 MB. Per-signal truncation and
   source omissions are recorded. Deleted-only files and missing diff anchors

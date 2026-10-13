@@ -8,7 +8,7 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from nfv_workflow.general import LANGUAGE_GUIDES, Limits, run, select_properties, validate_finding
+from nfv_workflow.general import LANGUAGE_GUIDES, Limits, reachable, run, select_properties, validate_finding
 from nfv_workflow.general_gates import annotate
 from nfv_workflow.github import Abstain
 from nfv_workflow.publish import dafny_block, render
@@ -38,7 +38,7 @@ def fixture(language="c", invariant=True):
     bundle = {
         "identity": {"repository": "local/synthetic", "number": 1, "head_sha": "a" * 40,
                      "source_sha": "a" * 40, "base_sha": "b" * 40,
-                     "merged": False, "source_kind": "synthetic"},
+                     "merged": True, "merge_sha": "c" * 40, "source_kind": "synthetic"},
         "sources": {path: {"text": "\n".join(source) + "\n"}},
         "changed": {path: [4 + offset]},
         "signals": [{"id": "comment:1", "text": claim["quote"]}],
@@ -122,6 +122,20 @@ class GeneralTests(unittest.TestCase):
 
     def test_doubled_defaults(self):
         self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
+
+    def test_reachability_probe_ignores_braces_in_provenance_comments(self):
+        model = ("method Target(x: int) returns (r: int)\n  ensures r == x\n{\n"
+                 "// src: f.cpp:2 | if (x > 0) {\n  r := x;\n}\n")
+        seen = {}
+
+        class Verifier:
+            def run(self, source, directory, filter_symbol=None):
+                seen["source"] = source
+                return {"outcome": "failed", "exit_code": 4, "mode": "unbounded"}
+
+        ok, _ = reachable(Verifier(), model, "Target", self.directory)
+        self.assertTrue(ok)
+        self.assertIn("ensures false", seen["source"])
 
     def test_each_language_has_specific_semantics_guidance(self):
         self.assertEqual(set(LANGUAGE_GUIDES), set(SOURCES))

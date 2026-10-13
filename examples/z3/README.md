@@ -1,71 +1,93 @@
-# Z3: archived evidence and a real offline replay
+# Z3 example: merged PR #11123
 
-This directory distinguishes archived NFV experiments from replays for the
-prototype workflow integration.
+This example runs the prototype implementation's default general pipeline on a
+real **merged** Z3 pull request. It is an offline replay: the translation is
+handwritten instead of model-generated, but every gate and Dafny check is real.
+No Discussion was created on Z3Prover/z3.
 
-This is **not a live GitHub Actions run** and does not demonstrate a newly
-discovered Z3 bug. No Discussion was created.
+## The pull request
 
-After the offline tests passed, one **live local proposer smoke call** through
-the NFV Copilot client (`gpt-5.5`) used only this public excerpt. It returned
-`[]`, an abstention; the deterministic checker consequently found nothing.
-`model-smoke.json`, `model-proposals.json`, and `model-replay/report.json`
-record that result separately from the handwritten replay. No private source
-was sent to the model.
+[Z3 PR #11123](https://github.com/Z3Prover/z3/pull/11123), "fix(seq): respect
+known length lower bounds when minting fresh model values", was merged on
+October 9, 2026, as `5353a8ead555533bb513467cb917bcaeae8901cd`. Its head is
+`396ee5b75b74d96e0344aeaad665648507d597cc` and its base is
+`5b01068df8fbce9772031a288a235e3f7090f01e`.
 
-The public [Z3 PR #11007](https://github.com/Z3Prover/z3/pull/11007) was closed
-**without merging** on October 2, 2026. Its closed head is
-`7467919f10cdddc6c736da2c46d205f62dd13bea`, with base
-`36828e144e0802a1e936031b6efa2dbe89fde9a5`. These identities, the commit-message
-claim, and the exact source excerpt were read from GitHub on October 12, 2026.
+The commit message states the intended behavior:
 
-## Replay without inference or network access
+> reuse the existing theory_seq::lower_bound2 helper to query any known length
+> lower bound on the original term, and pad the fresh string value to meet it
+> before it is used as a model value.
 
-Install the root package, `workflow` package, and Dafny as described in
-[the workflow guide](../../workflow/README.md). From the repository root:
+## What was run
+
+1. **Collection (real, read-only, no model calls).** `nfv-workflow collect`
+   ran on the merged-PR event. It captured the immutable head, the commit
+   signal, and the changed lines of `src/smt/theory_seq.cpp`.
+   `bundle.json` keeps that identity, signal, and those changed-line anchors.
+   It reduces the source to an exact excerpt of `theory_seq::mk_value`
+   (lines 2278–2326).
+2. **Intended property.** `properties.json` formalizes the quote: when a
+   positive length lower bound is known, the fresh string used as the model
+   value is padded to at least that length.
+3. **Translation (handwritten).** `translation.json` translates lines
+   2308–2319, including the padding loop, into Dafny. Every computation line
+   carries an exact `// src:` tag. Strings are modeled by their lengths. The
+   results of `is_string` and `lower_bound2` are free inputs. Fresh values from
+   `seq_factory::get_fresh_value` are plain ASCII (`!0!`, `!1!`, ...), so
+   `encode()` does not change their length.
+4. **Refutation checks (real Dafny).** The pipeline inverts the goal, pins the
+   proposed inputs, and checks the negative model and the concrete call.
+   It also checks that the model can return, plus integrity and provenance.
+
+Replay it from the repository root after installing the root package, the
+`workflow` package, and Dafny 4.11.0 (see [the workflow guide](../../workflow/README.md)):
 
 ```powershell
-nfv-workflow check --bundle examples\z3\bundle.json --proposals examples\z3\proposals.json --out examples\z3\replay
+python examples\z3\replay.py
 ```
 
-`bundle.json` contains a curated excerpt of
-[`ff_basic_simplifier::reduce`, lines 540–551](https://github.com/Z3Prover/z3/blob/7467919f10cdddc6c736da2c46d205f62dd13bea/src/ast/simplifiers/ff_simplify.cpp#L540-L551).
-It is not presented as the complete collector output. The handwritten proposal
-formalizes the commit-message claim “declines to run under proofs,” checking
-whether delegation occurs when `proofsEnabled=true`, `preprocessEnabled=true`,
-and `skipBooleanGoal=false`.
+## Result
 
-The model only describes reaching `m_impl->reduce()`. It explicitly does not
-describe exception propagation, AST state, or callees' effects. Dafny is asked
-only to establish that the claim **fails on those inputs**. It cannot: the first
-branch throws before delegation. The recorded real replay therefore has:
+**One checked conditional model refutation, with zero repairs and zero
+inference calls.**
 
-* **0 accepted refutations**
-* **1 abstention** (`failed` negative check)
-* **0 Discussions**
+The padding at lines 2311–2312 runs only when `lo.get_unsigned() <= max_pad`,
+where `max_pad = 1 << 16` (65,536). For a known lower bound of **65,537** and
+the 3-character placeholder `!0!`, the branch is skipped. The model value then
+stays 3 characters long, shorter than the bound it was meant to satisfy.
 
-The strengthened source-publication gate would also reject this excerpt as a
-publishable positive: it contains a method, control-flow statements, external
-state, and incomplete declaration context. The example does not demonstrate
-automatic source correspondence for general Z3 C++.
+* Negative model and concrete call: verified (`2 verified, 0 errors`).
+* Returning-case probe: a normal return is possible, as required.
+* Gates: integrity, goal, source freeze, conditions, witness consistency, and
+  reachability all pass. Source correspondence is **not established**.
 
-This is **not proof that the original property holds**, and no original-property
-verification is attempted. `replay/report.json` and the initial Dafny/log files
-are generated by the command, not pre-labelled success fixtures.
+[`discussion-preview.md`](discussion-preview.md) shows what a developer would
+see in the Discussion, which a live run labels `NFV-formal-review`. The [`evidence/`](evidence/) folder contains the Dafny
+models, verifier logs, and `report.json`.
 
-## Historical result, deliberately not republished
+## How to read this
 
-`archive-metadata.json` records an existing archived experiment on the older
-PR revision `d9d0e3259dc8ad59594e6f860b7ab6385d041f99`. That experiment labelled
-`basic_reduce_obeys_gates_and_delegates` as refuted, using a `Unit` witness.
-Two other properties in that archived retry failed their translation audit.
+This is a **conditional model refutation, not a confirmed Z3 bug**. The cap
+looks like a deliberate resource limit. However, neither the commit message nor
+the code comment at lines 2302–2307 mentions it. For bounds above 65,536, the
+model value can still contradict the derived length bound, which is the
+inconsistency the PR set out to fix. A maintainer might document the cap, fall
+back differently, or treat it as acceptable. The model does not cover exception
+handling, memory limits, or the later `model_validate` check.
 
-That historical label is **not accepted evidence for this release's workflow**:
-the revision, model, and witness contract differ, and source correspondence has
-not been established. We do not invent a new counterexample, reuse its verdict,
-or publish it as a source bug. The local replay above illustrates the intended
-no-finding behavior on actual Z3 source; the workflow tests separately exercise
-successful conditional refutations on clearly synthetic examples.
+## Unmerged PRs are not analyzed
+
+Iter 5 restricts the workflow to merged PRs. Running `nfv-workflow collect` on
+the event for [Z3 PR #11007](https://github.com/Z3Prover/z3/pull/11007), which
+was closed without merging, stops immediately:
+
+```text
+{"status": "error", "message": "Only merged pull requests are supported; closed without merging"}
+```
+
+In GitHub Actions, the activation job is also skipped for such PRs, so no agent
+or model call runs.
 
 The short Z3 source excerpt remains subject to
-[Z3's source license](https://github.com/Z3Prover/z3/blob/7467919f10cdddc6c736da2c46d205f62dd13bea/LICENSE.txt).
+[Z3's source license](https://github.com/Z3Prover/z3/blob/396ee5b75b74d96e0344aeaad665648507d597cc/LICENSE.txt).

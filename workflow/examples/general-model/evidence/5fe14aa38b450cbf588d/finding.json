@@ -64,7 +64,7 @@
   "result": {
     "outcome": "verified",
     "exit_code": 0,
-    "duration_s": 1.314,
+    "duration_s": 1.327,
     "mode": "unbounded",
     "unroll": null,
     "errors": [],
@@ -75,7 +75,7 @@
   "reachability_result": {
     "outcome": "failed",
     "exit_code": 4,
-    "duration_s": 1.304,
+    "duration_s": 1.316,
     "mode": "unbounded",
     "unroll": null,
     "errors": [
@@ -163,7 +163,7 @@
     {
       "outcome": "verified",
       "exit_code": 0,
-      "duration_s": 0.62,
+      "duration_s": 0.646,
       "mode": "typecheck",
       "unroll": null,
       "errors": [],
@@ -176,7 +176,7 @@
     {
       "outcome": "failed",
       "exit_code": 4,
-      "duration_s": 1.375,
+      "duration_s": 1.345,
       "mode": "unbounded",
       "unroll": null,
       "errors": [
@@ -189,7 +189,7 @@
     {
       "outcome": "verified",
       "exit_code": 0,
-      "duration_s": 1.315,
+      "duration_s": 1.342,
       "mode": "unbounded",
       "unroll": null,
       "errors": [],

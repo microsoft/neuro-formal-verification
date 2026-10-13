@@ -9,8 +9,8 @@
     "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "source_repository": "local/synthetic",
     "head_repository": "local/synthetic",
-    "merged": false,
-    "merge_sha": null,
+    "merged": true,
+    "merge_sha": "cccccccccccccccccccccccccccccccccccccccc",
     "source_kind": "synthetic",
     "closed_at": null
   },

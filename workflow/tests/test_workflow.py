@@ -18,7 +18,7 @@ from nfv_workflow.publish import marker, publication_allowed, publish, render
 from nfv_workflow.source_binding import bind_source, Parser
 
 
-def event(merged=False):
+def event(merged=True):
     return {"action": "closed", "repository": {"full_name": "owner/project"},
             "pull_request": {"number": 7, "state": "closed", "merged": merged,
                              "merge_commit_sha": "c" * 40 if merged else None,
@@ -83,11 +83,17 @@ class ScratchTest(unittest.TestCase):
 
 
 class IdentityTests(unittest.TestCase):
-    def test_closed_unmerged_head(self):
-        self.assertEqual(identity(event())["source_sha"], "a" * 40)
-        self.assertFalse(identity(event())["merged"])
+    def test_closed_unmerged_rejected(self):
+        with self.assertRaises(Abstain):
+            identity(event(False))
 
-    def test_closed_merged_head_not_merge_result(self):
+    def test_merged_without_merge_sha_rejected(self):
+        data = event()
+        data["pull_request"]["merge_commit_sha"] = None
+        with self.assertRaises(Abstain):
+            identity(data)
+
+    def test_merged_head_not_merge_result(self):
         ident = identity(event(True))
         self.assertEqual(ident["source_sha"], "a" * 40)
         self.assertEqual(ident["merge_sha"], "c" * 40)
@@ -364,13 +370,20 @@ class PublicationTests(ScratchTest):
         report["errors"] = ["collection incomplete"]
         self.assertIsNone(render(report, bundle(), self.url))
 
+    def test_unmerged_identity_cannot_publish(self):
+        report, data = self.report(), bundle()
+        data["identity"]["merged"] = False
+        report["identity"] = data["identity"]
+        with self.assertRaises(Abstain):
+            render(report, data, self.url)
+
     def test_clear_conditional_explanation(self):
         body = render(self.report(), bundle(), self.url)
         self.assertIn("# Conditional model findings", body)
         self.assertIn("This issue was found by a neuro-formal-verifier.", body)
         self.assertIn("not** an execution", body)
         self.assertIn("Source overlay", body)
-        self.assertIn("closed without merging", body)
+        self.assertIn("merged as `" + "c" * 40 + "`", body)
         self.assertIn(self.url, body)
         self.assertIn("a" * 40, body)
 
@@ -400,21 +413,58 @@ class PublicationTests(ScratchTest):
         result = publish(API(), report, bundle(), self.url, "General", True)
         self.assertEqual(result, {"status": "duplicate", "url": "existing"})
 
+    def creating_api(self, label=True, label_error=False):
+        calls = {"create": [], "label": [], "queries": []}
+        class API:
+            def graphql(self, query, variables):
+                if "createDiscussion" in query:
+                    calls["create"].append(variables)
+                    return {"createDiscussion": {"discussion": {"id": "D", "url": "created"}}}
+                if "addLabelsToLabelable" in query:
+                    calls["label"].append(variables)
+                    if label_error:
+                        raise Abstain("GitHub GraphQL failed; no publication attempted")
+                    return {"addLabelsToLabelable": {"clientMutationId": None}}
+                calls["queries"].append(variables)
+                return {"repository": {"id": "R", "label": {"id": "L"} if label else None,
+                    "discussionCategories": {
+                    "nodes": [{"id": "C", "name": "General"}], "pageInfo": {"hasNextPage": False}},
+                    "discussions": {"nodes": [], "pageInfo": {"hasNextPage": False}}}}
+        return API(), calls
+
     def test_exactly_one_creation_for_multiple_findings(self):
         report = self.report()
         report["findings"].append(copy.deepcopy(report["findings"][0]))
-        mutations = []
-        class API:
-            def graphql(self, query, variables):
-                if "mutation" in query:
-                    mutations.append(variables)
-                    return {"createDiscussion": {"discussion": {"url": "created"}}}
-                return {"repository": {"id": "R", "discussionCategories": {
-                    "nodes": [{"id": "C", "name": "General"}], "pageInfo": {"hasNextPage": False}},
-                    "discussions": {"nodes": [], "pageInfo": {"hasNextPage": False}}}}
-        self.assertEqual(publish(API(), report, bundle(), self.url, "General", True)["status"], "created")
-        self.assertEqual(len(mutations), 1)
-        self.assertTrue(mutations[0]["input"]["title"].startswith("NFV:"))
+        api, calls = self.creating_api()
+        self.assertEqual(publish(api, report, bundle(), self.url, "General", True)["status"], "created")
+        self.assertEqual(len(calls["create"]), 1)
+        self.assertTrue(calls["create"][0]["input"]["title"].startswith("NFV:"))
+
+    def test_created_discussion_gets_nfv_formal_review_label(self):
+        api, calls = self.creating_api()
+        result = publish(api, self.report(), bundle(), self.url, "General", True)
+        self.assertEqual(calls["queries"][0]["label"], "NFV-formal-review")
+        self.assertEqual(calls["label"], [{"input": {"labelableId": "D", "labelIds": ["L"]}}])
+        self.assertEqual(result["label"], "NFV-formal-review")
+        self.assertNotIn("label_warning", result)
+
+    def test_missing_label_still_publishes_with_warning(self):
+        api, calls = self.creating_api(label=False)
+        result = publish(api, self.report(), bundle(), self.url, "General", True)
+        self.assertEqual(result["status"], "created")
+        self.assertEqual(calls["label"], [])
+        self.assertIn("does not exist", result["label_warning"])
+
+    def test_label_failure_does_not_discard_created_discussion(self):
+        api, calls = self.creating_api(label_error=True)
+        result = publish(api, self.report(), bundle(), self.url, "General", True)
+        self.assertEqual((result["status"], result["url"]), ("created", "created"))
+        self.assertIn("Could not apply label", result["label_warning"])
+
+    def test_preview_does_not_create_or_label(self):
+        api, calls = self.creating_api()
+        self.assertEqual(publish(api, self.report(), bundle(), self.url, "General", False)["status"], "preview")
+        self.assertEqual((calls["create"], calls["label"]), ([], []))
 
     def test_staged_flag_prevents_publication(self):
         with patch.dict(os.environ, {"GH_AW_SAFE_OUTPUTS_STAGED": "true"}):
@@ -585,12 +635,12 @@ class CollectionTests(unittest.TestCase):
 class TemplateTests(unittest.TestCase):
     def test_prototype_maturity_preserves_nfv_identifiers(self):
         workflow = Path(__file__).parents[1]
-        template = (workflow / "templates" / "nfv-closed-pr.md").read_text(encoding="utf-8")
-        lock = (workflow / "templates" / "nfv-closed-pr.lock.yml").read_text(encoding="utf-8")
+        template = (workflow / "templates" / "nfv-merged-pr.md").read_text(encoding="utf-8")
+        lock = (workflow / "templates" / "nfv-merged-pr.lock.yml").read_text(encoding="utf-8")
         self.assertIn("a prototype implementation", template)
-        self.assertIn('name: "Closed-PR conditional neuro-formal verification"\n', lock)
-        self.assertIn('run-name: "Closed-PR conditional neuro-formal verification"\n', lock)
-        self.assertIn('GH_AW_WORKFLOW_NAME: "Closed-PR conditional neuro-formal verification"', lock)
+        self.assertIn('name: "Merged-PR conditional neuro-formal verification"\n', lock)
+        self.assertIn('run-name: "Merged-PR conditional neuro-formal verification"\n', lock)
+        self.assertIn('GH_AW_WORKFLOW_NAME: "Merged-PR conditional neuro-formal verification"', lock)
         self.assertIn("nfv-workflow evaluate", template)
         docs = [workflow / "README.md", workflow.parent / "examples" / "z3" / "README.md"]
         docs.extend(workflow / "examples" / example / "README.md"
@@ -601,7 +651,7 @@ class TemplateTests(unittest.TestCase):
             self.assertNotIn("Prototyp:", source)
 
     def test_general_pipeline_doubled_budgets_are_default(self):
-        source = (Path(__file__).parents[1] / "templates" / "nfv-closed-pr.md").read_text()
+        source = (Path(__file__).parents[1] / "templates" / "nfv-merged-pr.md").read_text()
         self.assertIn("--mode general", source)
         self.assertIn("--syntax-rounds 6 --proof-rounds 10", source)
         self.assertIn("intent_prompt.txt", source)
@@ -609,26 +659,29 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("COPILOT_GITHUB_TOKEN:", source)
 
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
-        source = (Path(__file__).parents[1] / "templates" / "nfv-closed-pr.md").read_text()
+        source = (Path(__file__).parents[1] / "templates" / "nfv-merged-pr.md").read_text()
         self.assertIn("runs-on: ubuntu-22.04", source)
         self.assertIn("a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179", source)
         self.assertIn("-name 'z3-4.12.1'", source)
         self.assertIn('echo "NFV_Z3_PATH=${solvers[0]}" >> "$GITHUB_ENV"', source)
         self.assertNotIn("setup-dafny-action", source)
 
-    def test_generated_trigger_is_native_and_closed(self):
+    def test_generated_trigger_runs_only_for_merged_prs(self):
         template = Path(__file__).parents[1] / "templates"
-        source = (template / "nfv-closed-pr.md").read_text(encoding="utf-8")
-        lock = (template / "nfv-closed-pr.lock.yml").read_text(encoding="utf-8")
+        source = (template / "nfv-merged-pr.md").read_text(encoding="utf-8")
+        lock = (template / "nfv-merged-pr.lock.yml").read_text(encoding="utf-8")
         self.assertIn("roles: all", source)
         self.assertIn("pull_request_target:\n    types:\n      - closed", lock)
+        self.assertIn("if: github.event.pull_request.merged == true", source)
+        self.assertIn("  activation:\n    if: github.event.pull_request.merged == true\n", lock)
+        self.assertIn("  agent:\n    needs: activation\n", lock)
         self.assertNotIn("forks:", lock)
         self.assertNotIn("GH_AW_REQUIRED_ROLES:", lock)
         self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", lock)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 
     def test_custom_publisher_has_deterministic_gate(self):
-        source = (Path(__file__).parents[1] / "templates" / "nfv-closed-pr.md").read_text()
+        source = (Path(__file__).parents[1] / "templates" / "nfv-merged-pr.md").read_text()
         self.assertIn("if: needs.detection.result == 'success'", source)
         self.assertIn("if: steps.checked.outputs.has_findings == 'true'", source)
         self.assertIn('nfv-workflow evaluate --event "$GITHUB_EVENT_PATH"', source)
