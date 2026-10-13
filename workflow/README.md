@@ -314,5 +314,7 @@ NL formalization, external caller preconditions, or linker behavior.
   default. Download evidence before expiry.
 * Paper core, historical model prompts, scoring, and experiment budgets are
   unchanged by this package. The workflow owns its language prompts and repairs.
-* Remote deployment and a new live general-model smoke require parent/maintainer
-  coordination. No additional live model calls were made for this extension.
+* One bounded live model smoke (`gpt-5.6-sol`, one call) on the synthetic
+  general example abstained at the goal-integrity gate; see
+  [live-smoke.json](examples/general-model/live-smoke.json). No end-to-end
+  GitHub Actions run has been recorded yet.
