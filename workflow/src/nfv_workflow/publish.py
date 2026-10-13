@@ -128,9 +128,11 @@ def render(report, bundle, evidence_url):
     repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
     if ident != bundle["identity"]:
         raise Abstain("Report and source identity mismatch")
-    if not re.fullmatch(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+(?:/artifacts/\d+)?",
-                        evidence_url):
-        raise Abstain("Evidence URL must point to a GitHub Actions run or artifact")
+    if not (re.fullmatch(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+(?:/artifacts/\d+)?",
+                         evidence_url)
+            or re.fullmatch(r"https://github\.com/[\w.-]+/[\w.-]+/(?:tree|blob)/[0-9a-f]{40}(?:/[\w./-]+)?",
+                            evidence_url)):
+        raise Abstain("Evidence URL must point to a GitHub Actions run/artifact or an immutable commit path")
     findings = report["findings"]
     if not findings or report.get("errors"):
         return None
@@ -230,12 +232,13 @@ def render(report, bundle, evidence_url):
     return body
 
 
-def publish(api, report, bundle, evidence_url, category, apply=False, label=LABEL):
+def publish(api, report, bundle, evidence_url, category, apply=False, label=LABEL, target=None):
     body = render(report, bundle, evidence_url)
     if body is None:
         return {"status": "no-findings"}
     ident = report["identity"]
-    owner, repo = repository(ident["repository"]).split("/")
+    # Source links always point at the PR repository; only the Discussion may live elsewhere.
+    owner, repo = repository(target or ident["repository"]).split("/")
     cursor = None
     repository_id = None
     category_id = None

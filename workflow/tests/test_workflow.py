@@ -462,6 +462,21 @@ class PublicationTests(ScratchTest):
         self.assertEqual((result["status"], result["url"]), ("created", "created"))
         self.assertIn("Could not apply label", result["label_warning"])
 
+    def test_immutable_commit_evidence_url_accepted_moving_branch_rejected(self):
+        commit = "https://github.com/o/bench/tree/" + "a" * 40 + "/nfv/run-1"
+        self.assertIn(commit, render(self.report(), bundle(), commit))
+        with self.assertRaises(Abstain):
+            render(self.report(), bundle(), "https://github.com/o/bench/tree/main/nfv/run-1")
+
+    def test_discussion_target_repository_override(self):
+        api, calls = self.creating_api()
+        report = self.report()
+        result = publish(api, report, bundle(), self.url, "General", True, target="other/bench")
+        self.assertEqual(result["status"], "created")
+        self.assertEqual((calls["queries"][0]["owner"], calls["queries"][0]["repo"]), ("other", "bench"))
+        source_repo = report["identity"]["repository"]
+        self.assertIn(f"https://github.com/{source_repo}/blob/", calls["create"][0]["input"]["body"])
+
     def test_preview_does_not_create_or_label(self):
         api, calls = self.creating_api()
         self.assertEqual(publish(api, self.report(), bundle(), self.url, "General", False)["status"], "preview")

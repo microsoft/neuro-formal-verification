@@ -114,6 +114,8 @@ def main(argv=None):
     p.add_argument("--evidence-url", required=True)
     p.add_argument("--category", required=True)
     p.add_argument("--label", default=LABEL, help="Existing repository label applied to created Discussions")
+    p.add_argument("--repository", default=None,
+                   help="Repository for the Discussion (default: the PR repository)")
     p.add_argument("--apply", action="store_true")
     args = parser.parse_args(argv)
     try:
@@ -165,7 +167,8 @@ def main(argv=None):
             # runner, never a report or source bundle supplied by the agent.
             api = GitHub()
             apply = args.apply and publication_allowed(api)
-            result = publish(api, report, bundle, args.evidence_url, args.category, apply, args.label)
+            result = publish(api, report, bundle, args.evidence_url, args.category, apply, args.label,
+                             args.repository)
             if result.get("body"):
                 Path(args.report).with_suffix(".md").write_text(result["body"], encoding="utf-8")
                 result.pop("body")

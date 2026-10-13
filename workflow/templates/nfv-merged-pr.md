@@ -46,6 +46,7 @@ safe-outputs:
             repository: microsoft/neuro-formal-verification
             ref: ${{ vars.NFV_RELEASE_SHA }}
             path: nfv-plugin
+            token: ${{ secrets.NFV_RELEASE_TOKEN || github.token }}
             persist-credentials: false
         - uses: actions/setup-python@v7.0.0
           with:
@@ -115,6 +116,7 @@ steps:
       repository: microsoft/neuro-formal-verification
       ref: ${{ vars.NFV_RELEASE_SHA }}
       path: nfv-plugin
+      token: ${{ secrets.NFV_RELEASE_TOKEN || github.token }}
       persist-credentials: false
   - uses: actions/setup-python@v7.0.0
     with:

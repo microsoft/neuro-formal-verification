@@ -206,9 +206,9 @@ path does not require the model client.
    review/commit both Markdown and generated lock through your normal process.
    The checked-in template lock is compiled with **gh aw v0.88.7**.
 5. Ensure the target token can read the chosen NFV revision. Until that repository
-   is public, cross-private-repository checkout needs an explicitly scoped read
-   credential; the target's default `GITHUB_TOKEN` cannot read another private
-   repository. Same-repository checkout is different.
+   is public, set a **`NFV_RELEASE_TOKEN`** secret: a fine-grained token with
+   read-only *Contents* access to `microsoft/neuro-formal-verification`. The
+   target's default `GITHUB_TOKEN` cannot read another private repository.
 
 The intentional `pull_request_target: types: [closed]` trigger, gated to merged
 PRs, emits AW's elevated-context warning. **Never change its trusted release checkout to the PR
@@ -275,7 +275,11 @@ Publication is preview-only unless `--apply` is supplied:
 nfv-workflow publish --bundle .nfv-work\bundle.json --report .nfv-work\evidence\report.json --evidence-url https://github.com/OWNER/REPO/actions/runs/RUN_ID/artifacts/ARTIFACT_ID --category General
 ```
 
-Use an actual uploaded artifact URL, never a fabricated example URL. Only consume
+Use an actual uploaded artifact URL, never a fabricated example URL. An immutable
+commit path (`https://github.com/OWNER/REPO/tree/<40-hex SHA>/path`) is also
+accepted, e.g. for evidence committed to a separate repository. `--repository
+OWNER/REPO` posts the Discussion to another repository (default: the PR's);
+source links still point at the PR repository. Only consume
 trusted local checker output, not an externally supplied report/bundle. The
 publisher replays static goal/witness/frozen-model/provenance reconstruction and
 checks accepted verifier evidence. In Actions it also reads staged mode from the
