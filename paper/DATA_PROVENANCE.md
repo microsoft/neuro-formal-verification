@@ -5,20 +5,23 @@ this attribution and the original notices when redistributing it. This note
 records observed upstream licensing; it does not invent a separate license for
 the derived dataset or replace repository-owner/legal review.
 
-## Sources and licenses observed
+## Source and license
 
-| Source | Role | License evidence retrieved 2026-10-12 |
+All distributed benchmark content derives from
+[microsoft/intent-formalization, nl2postcondition-fse2024](https://github.com/microsoft/intent-formalization/tree/main/nl2postcondition-fse2024):
+its generated postconditions, code mutants and distinguishing inputs, together
+with the HumanEval problems (via EvalPlus) that it already redistributes. We
+ship that repository's notices unchanged in [`licenses`](licenses):
+
+| File | Upstream file | License |
 |---|---|---|
-| [Microsoft intent-formalization, nl2postcondition-fse2024](https://github.com/microsoft/intent-formalization/tree/main/nl2postcondition-fse2024) | Generated postconditions, mutants and distinguishing inputs used by nl2post | Root [LICENSE](https://github.com/microsoft/intent-formalization/blob/main/LICENSE), MIT, Git blob `9e841e7a26e4eb057b24511e7b92d42b257a80e5` |
-| [OpenAI HumanEval](https://github.com/openai/human-eval) | Original HumanEval problem IDs, function descriptions and reference programs | Root [LICENSE](https://github.com/openai/human-eval/blob/master/LICENSE), MIT, Git blob `4f14854c3243516f3de1487a60f14882874d7e3a` |
-| [EvalPlus](https://github.com/evalplus/evalplus) | `evalplus.data.get_human_eval_plus()` supplies the HumanEval problems to the acquisition script | Root [LICENSE](https://github.com/evalplus/evalplus/blob/master/LICENSE), Apache-2.0, Git blob `97b358ff02b6d6dd385db5157b070dc607ca6e45` |
+| `microsoft-intent-formalization-LICENSE` | [`LICENSE`](https://github.com/microsoft/intent-formalization/blob/main/LICENSE), Git blob `9e841e7a26e4eb057b24511e7b92d42b257a80e5` | MIT |
+| `microsoft-intent-formalization-evalplus-LICENSE` | [`nl2postcondition-fse2024/nl2postcondition_source_evalplus/LICENSE`](https://github.com/microsoft/intent-formalization/blob/main/nl2postcondition-fse2024/nl2postcondition_source_evalplus/LICENSE), Git blob `eb587c5b6e4756f0b77f1b7bbd9d3b48dcbb7133` | Apache-2.0 |
 
-Original license texts are in `licenses`. Root license discovery does not
-establish that every upstream third-party/generated component has an
-independent permission grant. The acquisition metadata does not record the original
-upstream commit, EvalPlus package version or downloaded cache digest. Confirm
-any additional dataset-specific conditions before publishing; no new
-repository license should erase the upstream notices.
+The original problems are from [OpenAI HumanEval](https://github.com/openai/human-eval)
+and [EvalPlus](https://github.com/evalplus/evalplus); we credit them here for
+attribution. The acquisition metadata does not record the upstream commit,
+EvalPlus package version or downloaded cache digest.
 
 The upstream research is **nl2postcond** (Endres et al., FSE 2024), as cited in
 the paper's unmodified references. The acquisition recipe selects
