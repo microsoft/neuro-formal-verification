@@ -1,8 +1,9 @@
 # Merged-PR neuro-formal verification
 
 This is a prototype implementation of a GitHub Agentic Workflow that runs when
-a pull request is **merged**, extracts up to **ten intended properties** from PR
-comments, reviews, review comments, and commit messages, then translates the code
+a pull request is **merged**, extracts up to **ten intended properties** from the
+PR description, PR conversation comments, and commit messages (not review
+comments or reviews), then translates the code
 into the language of a **verifier backend** to look for conditional model
 refutations.
 

@@ -673,6 +673,7 @@ class CollectionTests(unittest.TestCase):
     def api(self):
         data = event()["pull_request"]
         data["changed_files"] = 1
+        data["body"] = "return input"
         class API:
             def request(self, path):
                 if "/compare/" in path:
@@ -693,10 +694,9 @@ class CollectionTests(unittest.TestCase):
                 return '#include "f.h"\nint f() { SASSERT(true); return 1; }\n'
         return API()
 
-    def test_collects_all_comment_channels_and_declarations(self):
+    def test_collects_description_comments_and_commits_without_reviews(self):
         result = collect(event(), self.api())
-        self.assertEqual({x["kind"] for x in result["signals"]},
-                         {"comment", "review-comment", "review", "commit"})
+        self.assertEqual({x["kind"] for x in result["signals"]}, {"description", "comment", "commit"})
         self.assertIn("src/f.h", result["sources"])
         self.assertTrue(result["declarations_and_preconditions"])
         self.assertIn("SASSERT", result["callee_names"])

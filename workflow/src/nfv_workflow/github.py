@@ -187,11 +187,13 @@ def collect(event, api, side="head"):
     if len(files) != latest["changed_files"] or len(files) > 300:
         raise Abstain("Changed-file inventory incomplete or exceeds 300-file budget")
     signals, signal_bytes = [], 0
-    for endpoint, kind in ((f"issues/{number}/comments", "comment"),
-                           (f"pulls/{number}/comments", "review-comment"),
-                           (f"pulls/{number}/reviews", "review"),
-                           (f"pulls/{number}/commits", "commit")):
-        for item in api.pages(f"{prefix}/{endpoint}"):
+    # Intent comes from the PR description, conversation (issue) comments, and
+    # commit messages; review comments and reviews are not collected.
+    description = {"id": number, "body": latest.get("body"), "html_url": latest.get("html_url", "")}
+    for kind, items in (("description", [description]),
+                        ("comment", api.pages(f"{prefix}/issues/{number}/comments")),
+                        ("commit", api.pages(f"{prefix}/pulls/{number}/commits"))):
+        for item in items:
             body = item.get("body") or (item.get("commit") or {}).get("message", "")
             if body.strip():
                 signal_bytes += len(body[:12000].encode("utf-8"))
