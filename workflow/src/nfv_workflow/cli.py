@@ -77,6 +77,8 @@ async def run_general(bundle, properties, output, model, limits):
 
 
 AWF_PLACEHOLDER_KEY = "dummy-byok-key-for-offline-mode"
+# The AWF API proxy's Copilot route; the agent's shell does not inherit its URL.
+AWF_COPILOT_PROXY = "http://api-proxy:10002"
 
 
 def awf_byok_environment():
@@ -88,10 +90,8 @@ def awf_byok_environment():
     env = os.environ
     print("[nfv] Copilot env present: " + ", ".join(sorted(k for k in env if k.startswith("COPILOT_"))),
           file=sys.stderr, flush=True)
-    base = env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL")
-    if not base:
-        return
-    env["COPILOT_PROVIDER_BASE_URL"] = base
+    env["COPILOT_PROVIDER_BASE_URL"] = (env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL")
+                                        or AWF_COPILOT_PROXY)
     env.setdefault("COPILOT_PROVIDER_API_KEY", AWF_PLACEHOLDER_KEY)
     env.setdefault("COPILOT_PROVIDER_WIRE_API", "responses")
     env.setdefault("COPILOT_OFFLINE", "true")

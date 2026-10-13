@@ -870,7 +870,7 @@ class AuditTests(ScratchTest):
         with patch.dict(os.environ, {}, clear=True):
             with patch("sys.stderr"):
                 awf_byok_environment()
-            self.assertNotIn("COPILOT_PROVIDER_BASE_URL", os.environ)
+            self.assertEqual(os.environ["COPILOT_PROVIDER_BASE_URL"], "http://api-proxy:10002")
 
     def test_rejects_non_array_proposals(self):
         (self.directory / "p.json").write_text("{}")
