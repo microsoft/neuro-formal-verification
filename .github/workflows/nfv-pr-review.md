@@ -22,9 +22,7 @@ tools:
   github:
     toolsets: [pull_requests]
   edit:
-  bash:
-    - cat
-    - nfv-workflow audit
+  bash: ["*"]
 safe-outputs:
   create-pull-request-review-comment:
     max: 10

@@ -816,7 +816,7 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("  nfv_submit:", lock)
         self.assertNotIn("discussions: write", source)
         self.assertIn("nfv-workflow audit --proposals nfv-proposals.json", source)
-        self.assertIn("--allow-tool shell(nfv-workflow audit)", lock)
+        self.assertIn("--allow-all-tools", lock)
         self.assertIn('"./nfv-plugin[inference]"', source)
         self.assertNotIn("COPILOT_GITHUB_TOKEN: ${{ secrets", source)
 
