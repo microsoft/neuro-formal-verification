@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from .check import check
-from .github import Abstain, GitHub, collect, reanchor
+from .github import Abstain, GitHub, collect, pull_request_event, reanchor
 from .publish import LABEL, publication_allowed, publish
 
 
@@ -62,9 +62,10 @@ async def run_general(bundle, properties, output, model, limits):
         raise Abstain("Install Dafny before starting billable model translation")
     from nfv.shared.copilot_client import CopilotChat
     # In Actions, the repository token is for collection/publication, not model
-    # identity. The dedicated Copilot token authenticates this tool-free client.
+    # identity. The dedicated Copilot token authenticates this tool-free client;
+    # inside the gh-aw agent sandbox, the AWF API proxy authenticates instead.
     if os.environ.get("GITHUB_ACTIONS") == "true":
-        if not os.environ.get("COPILOT_GITHUB_TOKEN"):
+        if not os.environ.get("COPILOT_GITHUB_TOKEN") and os.environ.get("GITHUB_AW") != "true":
             raise Abstain("Actions general inference requires a dedicated COPILOT_GITHUB_TOKEN")
         os.environ.pop("GH_TOKEN", None)
         os.environ.pop("GITHUB_TOKEN", None)
@@ -78,6 +79,34 @@ def submission(path):
     if len(items) != 1 or not isinstance(items[0].get("proposals"), str):
         raise Abstain("Exactly one nfv_submit item containing a JSON string is required")
     return json.loads(items[0]["proposals"])
+
+
+def audit(proposals_path, limits):
+    """Agent-sandbox entry point: every input except the proposals is fixed by trusted steps."""
+    from .general import Limits
+    from .publish import review
+    bundle_path, model = os.environ.get("NFV_BUNDLE"), os.environ.get("NFV_MODEL", "")
+    output = Path(os.environ.get("NFV_OUT") or "nfv-evidence")
+    if not bundle_path:
+        raise Abstain("NFV_BUNDLE is not set by a trusted collection step")
+    proposals = load(proposals_path)
+    if not isinstance(proposals, list):
+        raise Abstain("Proposals must be a JSON array")
+    output.mkdir(parents=True, exist_ok=True)
+    bundle = load(bundle_path)
+    save(output / "bundle.json", bundle)
+    save(output / "proposals.json", proposals)
+    report = asyncio.run(run_general(bundle, proposals, output, model, Limits(*limits)))
+    server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+    evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
+    result = review(report, bundle, evidence)
+    summary = {"findings": len(report["findings"]), "abstentions": len(report.get("abstentions", [])),
+               "errors": report["errors"]}
+    if result:
+        (output / "review.md").write_text(result["body"], encoding="utf-8")
+        save(output / "comments.json", result["comments"])
+        summary.update(review=str(output / "review.md"), comments=str(output / "comments.json"))
+    return summary
 
 
 def main(argv=None):
@@ -122,6 +151,8 @@ def main(argv=None):
     p.add_argument("--syntax-rounds", type=int, default=6)
     p.add_argument("--proof-rounds", type=int, default=10)
     p.add_argument("--verifier-timeout", type=int, default=60)
+    p = commands.add_parser("audit", help="Agent-sandbox run on the trusted bundle; writes a PR review")
+    p.add_argument("--proposals", required=True)
     p = commands.add_parser("publish", help="Publish locally checked evidence; preview by default")
     p.add_argument("--bundle", required=True)
     p.add_argument("--report", required=True)
@@ -134,7 +165,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "collect":
-            bundle = collect(load(args.event), GitHub(), side=args.side)
+            api = GitHub()
+            bundle = collect(pull_request_event(load(args.event), api), api, side=args.side)
             save(args.out, bundle)
             if args.sources_dir:
                 write_sources(bundle, args.sources_dir)
@@ -161,7 +193,8 @@ def main(argv=None):
         elif args.command == "evaluate":
             output = Path(args.out)
             output.mkdir(parents=True, exist_ok=True)
-            bundle = collect(load(args.event), GitHub())
+            api = GitHub()
+            bundle = collect(pull_request_event(load(args.event), api), api)
             proposals = submission(args.submission)
             save(output / "bundle.json", bundle)
             save(output / "proposals.json", proposals)
@@ -177,6 +210,11 @@ def main(argv=None):
                     stream.write(f"has_findings={str(has_findings).lower()}\n")
             print(json.dumps({"findings": len(report["findings"]), "errors": report["errors"]}))
             if report["errors"]:
+                return 1
+        elif args.command == "audit":
+            summary = audit(args.proposals, (6, 10, 60))
+            print(json.dumps(summary))
+            if summary["errors"]:
                 return 1
         elif args.command == "publish":
             bundle, report = load(args.bundle), load(args.report)

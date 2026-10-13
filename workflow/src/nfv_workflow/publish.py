@@ -33,7 +33,7 @@ LABEL = "NFV-formal-review"
 
 
 def marker(identity):
-    # One Discussion per merged PR source snapshot, across reruns and attempts.
+    # One publication per PR source snapshot, across reruns and attempts.
     key = ":".join(str(identity[k]) for k in
                    ("repository", "number", "base_sha", "source_sha"))
     return "<!-- nfv-merged-pr:" + hashlib.sha256(key.encode()).hexdigest() + " -->"
@@ -123,9 +123,8 @@ def general_section(index, finding, bundle, repo, commit):
     return lines
 
 
-def render(report, bundle, evidence_url):
+def checked_findings(report, bundle, evidence_url):
     ident = report["identity"]
-    repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
     if ident != bundle["identity"]:
         raise Abstain("Report and source identity mismatch")
     if not (re.fullmatch(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+(?:/artifacts/\d+)?",
@@ -138,98 +137,152 @@ def render(report, bundle, evidence_url):
         return None
     if ident.get("source_kind") != "pull-request-head":
         raise Abstain("Synthetic or non-PR source identities cannot be published")
-    if ident.get("merged") is not True or not ident.get("merge_sha"):
-        raise Abstain("Only merged pull requests can be published")
+    if ident.get("merged") and not ident.get("merge_sha"):
+        raise Abstain("Merged pull request identity lacks its merge commit")
     if len(findings) > 10 or any(not accepted(x["result"]) for x in findings):
         raise Abstain("Unaccepted or excessive findings")
-    header = [
-        marker(ident),
-        f"# Conditional model findings for PR #{ident['number']}",
-        "This issue was found by a neuro-formal-verifier.",
-        f"Analyzed PR head `{commit}` against base `{sha(ident['base_sha'])}`.",
-        f"The PR was merged as `{sha(ident['merge_sha'])}`; this analyzes its saved head, "
-        "**not** the merge result.",
+    return findings
+
+
+def preamble(ident, evidence_url):
+    commit = sha(ident["source_sha"])
+    lines = [f"Analyzed PR head `{commit}` against base `{sha(ident['base_sha'])}`."]
+    if ident.get("merged"):
+        lines.append(f"The PR was merged as `{sha(ident['merge_sha'])}`; this analyzes its saved head, "
+                     "**not** the merge result.")
+    return lines + [
         "Dafny checked that the stated expectation fails for the concrete inputs in the "
         "translated model. This is **not** an execution of the original program or a "
         "machine-checked guarantee that the translation matches it. Each finding is "
         "conditional on the source-to-model correspondence and environment choices below.",
         f"[Dafny files, verifier logs, and minimization rechecks]({evidence_url})",
     ]
+
+
+def finding_lines(index, finding, bundle, repo, commit):
+    if finding.get("kind") == "conditional-model-refutation":
+        return general_section(index, finding, bundle, repo, commit)
+    out = []
+    candidate, model = finding["candidate"], finding["candidate"]["model"]
+    if select_candidates([candidate], bundle)[0]["id"] != candidate["id"]:
+        raise Abstain("Candidate identity changed after checking")
+    binding = bind_source(candidate, bundle)
+    expected_dafny = render_model(candidate, finding["retained_assumptions"])
+    if (finding.get("source_binding") != binding or finding["dafny"] != expected_dafny
+            or finding["dafny_sha256"] != hashlib.sha256(expected_dafny.encode()).hexdigest()):
+        raise Abstain("Publication evidence does not match the source-bound checked model")
+    predicate = expression(model["property"],
+                           [x["name"] for x in model["parameters"]] + ["result"],
+                           [x["name"] for x in model.get("environment", [])])
+    failure = (f"The source-matched scalar calculation produces {json.dumps(binding['result'])}. "
+               f"For these inputs, the displayed checked expectation is false.")
+    path = candidate["path"]
+    record = bundle["sources"][path]
+    source_lines = record["text"].splitlines()
+    first_line = record.get("line_start", 1)
+    anchor = min(candidate["lines"])
+    source_url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{anchor}"
+    out.extend([
+        f"\n## {index}. {text(candidate['property'])}",
+        f"**Quoted developer claim:** {text(candidate['quote'])}",
+        f"**Inputs:** {text(json.dumps(model['witness'], sort_keys=True))}",
+        f"**Checked expectation:** {text(predicate)}",
+        f"**Why the checked model fails:** {text(failure)}",
+        "**Conditional on:**",
+        *("- " + text(condition) for condition in binding["conditions"]),
+        "**Inferred input restrictions retained by the model (checked on these inputs):**",
+    ])
+    optional = model.get("assumptions", [])
+    conditions = model.get("preconditions", []) + [
+        optional[i] for i in finding["retained_assumptions"]]
+    out.extend("- " + text(x["description"]) for x in conditions)
+    if not conditions:
+        out.append("- No additional input conditions are needed by the retained model.")
+    contracts = binding["source_derived_callee_contracts"]
+    if contracts:
+        out.append("**Source-derived environment definitions (not assumed axioms):**")
+    for contract in contracts:
+        body_expression = expression(contract["body"],
+                                     [p["name"] for p in contract["parameters"]],
+                                     [x["function"] for x in contracts])
+        out.append(f"- `{text(contract['function'])}` computes {text(body_expression)}; "
+                   f"matched definition: {text(contract['definition'])}, "
+                   f"declaration: {text(contract['declaration'] or 'same-file definition')}.")
+    out.append(f"\n**Source overlay:** [immutable source]({source_url})")
+    for line in candidate["lines"][:12]:
+        out.append(f"- Line {line}: {text(source_lines[line - first_line])}")
+    out.append("  - Model annotation: " + text(failure))
+    out.extend([
+        "<details><summary>Evidence and assumption details</summary>\n",
+        f"Modeler's additional caveat (unverified): {text(candidate['correspondence'])}",
+        f"Evidence file in the linked artifact: `{finding['evidence']}`.",
+        f"SHA-256: `{finding['dafny_sha256']}`.",
+        f"Optional function assumptions retained after deletion and recheck: "
+        f"{len(finding['retained_assumptions'])}/{len(model.get('assumptions', []))}. "
+        "This is greedy dependency minimization, not a globally smallest set. "
+        "Original applicability checks remain; source correspondence and environment "
+        "definitions are not mechanically minimized.",
+        "Removed optional restrictions (still checked as facts about this witness): "
+        + text("; ".join(x["description"] for i, x in enumerate(optional)
+                         if i not in finding["retained_assumptions"]) or "none"),
+        dafny_block(finding["dafny"]),
+        "</details>",
+    ])
+    return out
+
+
+def anchor_of(finding, bundle):
+    # Inline review comments must sit on a line the PR added or changed.
+    claim = finding["candidate"]
+    changed = set(bundle.get("changed", {}).get(claim["path"], []))
+    lines = [x for x in claim["lines"] if x in changed]
+    if not lines:
+        raise Abstain("Finding is not anchored on a changed line")
+    return claim["path"], max(lines)
+
+
+def render(report, bundle, evidence_url):
+    findings = checked_findings(report, bundle, evidence_url)
+    if findings is None:
+        return None
+    ident = report["identity"]
+    repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
+    header = [marker(ident), f"# Conditional model findings for PR #{ident['number']}",
+              "This was found by a neuro-formal verifier.", *preamble(ident, evidence_url)]
     for index, finding in enumerate(findings, 1):
-        if finding.get("kind") == "conditional-model-refutation":
-            header.extend(general_section(index, finding, bundle, repo, commit))
-            continue
-        candidate, model = finding["candidate"], finding["candidate"]["model"]
-        if select_candidates([candidate], bundle)[0]["id"] != candidate["id"]:
-            raise Abstain("Candidate identity changed after checking")
-        binding = bind_source(candidate, bundle)
-        expected_dafny = render_model(candidate, finding["retained_assumptions"])
-        if (finding.get("source_binding") != binding or finding["dafny"] != expected_dafny
-                or finding["dafny_sha256"] != hashlib.sha256(expected_dafny.encode()).hexdigest()):
-            raise Abstain("Publication evidence does not match the source-bound checked model")
-        predicate = expression(model["property"],
-                               [x["name"] for x in model["parameters"]] + ["result"],
-                               [x["name"] for x in model.get("environment", [])])
-        failure = (f"The source-matched scalar calculation produces {json.dumps(binding['result'])}. "
-                   f"For these inputs, the displayed checked expectation is false.")
-        path = candidate["path"]
-        record = bundle["sources"][path]
-        source_lines = record["text"].splitlines()
-        first_line = record.get("line_start", 1)
-        anchor = min(candidate["lines"])
-        source_url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{anchor}"
-        header.extend([
-            f"\n## {index}. {text(candidate['property'])}",
-            f"**Quoted developer claim:** {text(candidate['quote'])}",
-            f"**Inputs:** {text(json.dumps(model['witness'], sort_keys=True))}",
-            f"**Checked expectation:** {text(predicate)}",
-            f"**Why the checked model fails:** {text(failure)}",
-            "**Conditional on:**",
-            *("- " + text(condition) for condition in binding["conditions"]),
-            "**Inferred input restrictions retained by the model (checked on these inputs):**",
-        ])
-        optional = model.get("assumptions", [])
-        conditions = model.get("preconditions", []) + [
-            optional[i] for i in finding["retained_assumptions"]]
-        header.extend("- " + text(x["description"]) for x in conditions)
-        if not conditions:
-            header.append("- No additional input conditions are needed by the retained model.")
-        contracts = binding["source_derived_callee_contracts"]
-        if contracts:
-            header.append("**Source-derived environment definitions (not assumed axioms):**")
-        for contract in contracts:
-            body_expression = expression(contract["body"],
-                                         [p["name"] for p in contract["parameters"]],
-                                         [x["function"] for x in contracts])
-            header.append(f"- `{text(contract['function'])}` computes {text(body_expression)}; "
-                          f"matched definition: {text(contract['definition'])}, "
-                          f"declaration: {text(contract['declaration'] or 'same-file definition')}.")
-        header.append(f"\n**Source overlay:** [immutable source]({source_url})")
-        for line in candidate["lines"][:12]:
-            header.append(f"- Line {line}: {text(source_lines[line - first_line])}")
-        header.append("  - Model annotation: " + text(failure))
-        header.extend([
-            "<details><summary>Evidence and assumption details</summary>\n",
-            f"Modeler's additional caveat (unverified): {text(candidate['correspondence'])}",
-            f"Evidence file in the linked artifact: `{finding['evidence']}`.",
-            f"SHA-256: `{finding['dafny_sha256']}`.",
-            f"Optional function assumptions retained after deletion and recheck: "
-            f"{len(finding['retained_assumptions'])}/{len(model.get('assumptions', []))}. "
-            "This is greedy dependency minimization, not a globally smallest set. "
-            "Original applicability checks remain; source correspondence and environment "
-            "definitions are not mechanically minimized.",
-            "Removed optional restrictions (still checked as facts about this witness): "
-            + text("; ".join(x["description"] for i, x in enumerate(optional)
-                             if i not in finding["retained_assumptions"]) or "none"),
-            dafny_block(finding["dafny"]),
-            "</details>",
-        ])
+        header.extend(finding_lines(index, finding, bundle, repo, commit))
     header.extend([f"\nGenerated by [Neuro-formal verification]({evidence_url}).",
-                   "<!-- gh-aw-workflow-id: nfv-merged-pr -->"])
+                   "<!-- gh-aw-workflow-id: nfv-pr-review -->"])
     body = "\n\n".join(header)
     if len(body) > 60000:
-        raise Abstain("Discussion exceeds bounded publication size")
+        raise Abstain("Publication exceeds bounded size")
     return body
+
+
+def review(report, bundle, evidence_url):
+    """A short PR review body plus one inline comment per finding on its claim line."""
+    findings = checked_findings(report, bundle, evidence_url)
+    if findings is None:
+        return None
+    ident = report["identity"]
+    repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
+    summary = [marker(ident),
+               f"**Neuro-formal verification:** Dafny refuted {len(findings)} intended "
+               f"propert{'y' if len(findings) == 1 else 'ies'} of this PR in a translated model.",
+               *preamble(ident, evidence_url)]
+    comments = []
+    for index, finding in enumerate(findings, 1):
+        path, line = anchor_of(finding, bundle)
+        summary.append(f"{index}. {text(finding['candidate']['property'])} "
+                       f"(`{text(path)}:{line}`)")
+        body = "\n\n".join(finding_lines(index, finding, bundle, repo, commit))
+        if len(body) > 60000:
+            raise Abstain("Review comment exceeds bounded size")
+        comments.append({"path": path, "line": line, "side": "RIGHT", "body": body})
+    body = "\n\n".join(summary)
+    if len(body) > 60000:
+        raise Abstain("Review exceeds bounded size")
+    return {"body": body, "comments": comments}
 
 
 def publish(api, report, bundle, evidence_url, category, apply=False, label=LABEL, target=None):

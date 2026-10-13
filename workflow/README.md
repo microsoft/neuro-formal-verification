@@ -1,7 +1,7 @@
-# Merged-PR neuro-formal verification
+# NFV PR reviewer
 
-This is a prototype implementation of a GitHub Agentic Workflow that runs when
-a pull request is **merged**, extracts up to **ten intended properties** from the
+This is a prototype implementation of a GitHub Agentic Workflow that reviews a
+pull request when it is opened or updated (or on `/nfv`), extracts up to **ten intended properties** from the
 PR description, PR conversation comments, and commit messages (not review
 comments or reviews), then translates the code
 into the language of a **verifier backend** to look for conditional model
@@ -18,8 +18,8 @@ and branches, into the verifier's language.
   the Dafny backend.
 * Each property gets up to **6 syntax/type repairs** and **10 annotation-only
   repairs** of the negative check.
-* The workflow runs only for **merged** PRs; PRs closed without merging are
-  skipped before any agent or model call.
+* The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
+  `ready_for_review`) and on a `/nfv` PR comment. Drafts are skipped.
 
 ## What a finding means
 
@@ -48,44 +48,24 @@ used as a finding or as evidence of source correctness.
 
 ## What developers receive
 
-Merging a PR triggers analysis, including PRs from forks and merges by any
-actor, subject to repository/organization Actions policy and AW spending limits.
-GitHub has no separate `merged` event, so the workflow listens to
-`pull_request_target: closed` and its activation job runs only when
-`github.event.pull_request.merged == true`. All later jobs depend on activation,
-so unmerged PRs consume no agent or model budget. The collector and publisher
-independently reject unmerged identities.
-
 The source identity is the event's **immutable PR head SHA**, with the base SHA
 recorded and changed files obtained from the immutable `base...head` comparison.
-The merge SHA is recorded and shown, but reports explicitly analyze the saved
-PR head, **not** the merge result, so changed-line anchors match the PR diff. No moving branch substitutes for a
-missing commit. Reopened, unmerged, or mutated identities during collection are
-rejected.
+Inline comments therefore sit on lines of the PR diff. A PR whose head or base
+moves during collection is rejected; the next `synchronize` run reviews the new
+head and cancels the older run.
 
-At most **one Discussion** is created, and only when accepted refutations exist.
-It is labeled **`NFV-formal-review`**, so findings can be filtered in the
-Discussions view. It includes:
+When accepted refutations exist, the agent posts one **`COMMENT` review** (never
+`APPROVE` or `REQUEST_CHANGES`):
 
-* the exact developer quote, intended behavior, and formalized expectation;
-* concrete modeled inputs and a conditional model-based explanation;
-* an annotated overlay on source lines linked to the immutable commit;
-* retained high-level assumptions and explicit source-correspondence limitations;
-* **“This issue was found by a neuro-formal-verifier.”**
-* an Actions artifact link, with verifier models, repair logs, hashes, and assumption details
-  inside a collapsed section.
+* a short body listing each refuted property and its `path:line`, with the run link;
+* one inline comment per finding on its changed claim line, with the developer
+  quote, formalized expectation, concrete inputs, a conditional model-based
+  explanation, an annotated source overlay, retained assumptions, and the Dafny
+  model in a collapsed section.
 
-No accepted findings, errors-only runs, and abstentions-only runs create **no
-Discussion**. A mixed run can report accepted findings alongside recorded
-abstentions; a run-level collection/proposal-validation error suppresses posting.
-AW's own infrastructure diagnostics are not NFV findings.
-
-Discussions are deduplicated by repository, PR number, base SHA, and source SHA.
-The template serializes execution per PR, and the publisher enumerates existing
-Discussions instead of relying on eventually consistent search. Concurrent manual
-publishers or separate installations using different concurrency groups are not
-covered by a cross-workflow atomic uniqueness guarantee. Deleting a Discussion
-permits recreation.
+No accepted findings, errors-only runs, and abstentions-only runs post **no
+review** (`noop`). Verifier models, repair logs and hashes are in the run's
+`agent` artifact under `nfv-evidence/`.
 
 ## Refutation pipeline and gates
 
@@ -192,51 +172,41 @@ path does not require the model client.
 
 ## Configure GitHub Agentic Workflows
 
-1. Enable Discussions and choose an existing category, e.g. `General`. Create the
-   `NFV-formal-review` label once, e.g.
-   `gh label create NFV-formal-review --repo OWNER/REPO --description "Neuro-formal verification findings"`.
-   The workflow applies, but does not create, this label. If it is missing, the
-   Discussion is still created, unlabeled, and the publish step logs a warning.
-2. Configure protected repository variables:
+1. Configure protected repository variables:
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
-   * `NFV_DISCUSSION_CATEGORY`: existing category name.
-   * `NFV_MODEL`: explicitly approved model ID for agent extraction and translation/repair.
-3. Configure an approved **`COPILOT_GITHUB_TOKEN`** secret: a fine-grained token
-   owned by a Copilot-licensed user with *Copilot Requests: Read*. gh-aw rejects
-   OAuth (`gho_`) tokens. The outer AW agent
-   uses normal AW authentication; the separate NFV translation/repair client
-   needs this dedicated Copilot credential. Org-billed AW inference by itself
-   does not automatically authenticate the separate SDK sessions.
-4. Copy `templates\nfv-merged-pr.md` to
-   `.github\workflows\nfv-merged-pr.md`, run `gh aw compile nfv-merged-pr`, and
-   review/commit both Markdown and generated lock through your normal process.
-   `pull_request_target` runs the copy on the **default branch**.
-   The checked-in template lock is compiled with **gh aw v0.88.7**.
-5. Ensure the target token can read the chosen NFV revision. Until that repository
-   is public, set a **`NFV_RELEASE_TOKEN`** secret: a fine-grained token with
-   read-only *Contents* access to `microsoft/neuro-formal-verification`. The
-   target's default `GITHUB_TOKEN` cannot read another private repository.
+   * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.
+2. Configure the **`COPILOT_GITHUB_TOKEN`** secret used by the gh-aw Copilot
+   engine: a fine-grained token owned by a Copilot-licensed user with
+   *Copilot Requests: Read*. gh-aw rejects OAuth (`gho_`) tokens. The NFV
+   translation/repair sessions run inside the agent sandbox and reach the model
+   through the same AWF API proxy, so they need no separate credential.
+3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
+   fine-grained token with read-only *Contents* access to
+   `microsoft/neuro-formal-verification`.
+4. Copy `templates\nfv-pr-review.md` to `.github\workflows\`, run `gh aw compile`,
+   and commit the Markdown, its lock, and the generated `agentic_commands.yml`
+   (the centralized `/nfv` router). The checked-in template locks are compiled
+   with **gh aw v0.88.7**.
 
-The intentional `pull_request_target: types: [closed]` trigger, gated to merged
-PRs, emits AW's elevated-context warning. **Never change its trusted release checkout to the PR
-head**, execute PR scripts, or enable PR builds. All actors are enabled explicitly.
+Everything runs in the agent job; there is no custom safe-output job. Before
+the agent starts, trusted steps check out the pinned release, install it, download
+official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
+`a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179`), select its
+unique bundled `z3-4.12.1`, and collect the PR source with the read-only
+`GITHUB_TOKEN`. Dafny and the bundle live under `$RUNNER_TEMP/gh-aw`, which the
+AWF sandbox mounts **read-only**, and are exported as `NFV_DAFNY_PATH`,
+`NFV_Z3_PATH` and `NFV_BUNDLE`.
 
-The isolated safe-output job runs on **Ubuntu 22.04**, installs the trusted
-release plus SDK, and pins Copilot CLI **1.0.80**. It downloads official
-`dafny-4.11.0-x64-ubuntu-22.04.zip` and checks SHA-256
-`a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179`.
-It verifies the Dafny version, selects the unique bundled `z3-4.12.1`, checks its
-version, and exports the exact **`NFV_Z3_PATH`**. The verifier worker preserves
-this variable, not repository/model tokens. There is no host-solver fallback.
-
-The agent can submit only intended-property JSON, not a verdict, repository,
-category, report, or filename. The safe job recollects source independently,
-runs tool-free SDK translation/repair sessions, and executes only generated
-Dafny through a credential-stripped worker. Publication uses a separate step and
-trusted reconstructed evidence. Source-correspondence caveats cannot be removed
-by agent prose. This is **not an OS-level sandbox against verifier vulnerabilities**:
-use ephemeral GitHub-hosted runners, not privileged shared runners.
+The agent may only read files, write `nfv-proposals.json`, and run
+`nfv-workflow audit --proposals nfv-proposals.json`; every other audit input is
+fixed by the trusted steps. `audit` writes `review.md` and `comments.json`,
+which the agent copies verbatim into the `create-pull-request-review-comment`
+and `submit-pull-request-review` safe outputs. gh-aw threat detection screens
+those outputs before the `safe_outputs` job, the only job with write access,
+posts them. Never check out the PR head or execute PR scripts. This is **not an
+OS-level sandbox against verifier vulnerabilities**: use ephemeral
+GitHub-hosted runners.
 
 ## Local commands and model configuration
 
@@ -245,7 +215,7 @@ available to that credential. For GitHub Actions, configure `NFV_MODEL` and the
 `COPILOT_GITHUB_TOKEN` secret as described above.
 
 ```powershell
-# Read-only collection of a real merged-PR event payload. Optional --sources-dir
+# Read-only collection of a real PR event payload (open or merged). Optional --sources-dir
 # also writes the captured sources as plain files with repository line numbers.
 nfv-workflow collect --event event.json --out .nfv-work\bundle.json
 
@@ -269,8 +239,9 @@ nfv-workflow reanchor --bundle .nfv-work\bundle-base.json --properties .nfv-work
 nfv-workflow run --bundle .nfv-work\bundle-base.json --properties .nfv-work\properties-base.json --model $env:NFV_MODEL --out .nfv-work\evidence-base
 ```
 
-`evaluate` is the trusted AW entrypoint: fresh collection plus general execution.
-Its defaults are `--mode general --syntax-rounds 6 --proof-rounds 10`.
+`audit` is the AW entrypoint; `evaluate` is the standalone equivalent that also
+collects fresh source and reads properties from an `nfv_submit` item.
+Their defaults are `--mode general --syntax-rounds 6 --proof-rounds 10`.
 `--verifier-timeout` defaults to 60 seconds. Each model request defaults to
 240 seconds, with a 30-minute per-property wall limit checked between operations.
 The ordinary maximum is **17 logical model requests per property**
