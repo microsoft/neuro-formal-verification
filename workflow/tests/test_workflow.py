@@ -779,7 +779,8 @@ class CollectionTests(unittest.TestCase):
 
 
 class TemplateTests(unittest.TestCase):
-    template = Path(__file__).parents[1] / "templates"
+    template = Path(__file__).parents[2] / ".github" / "workflows"
+    package = Path(__file__).parents[1]
 
     def source(self):
         return (self.template / "nfv-pr-review.md").read_text(encoding="utf-8")
@@ -795,11 +796,10 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("Prototyp:", source)
 
     def test_aw_package_installs_the_template(self):
-        manifest = (self.template.parent / "aw.yml").read_text(encoding="utf-8")
+        manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
-        self.assertIn("  - source: templates/nfv-pr-review.md\n"
-                      "    destination: .github/workflows/nfv-pr-review.md", manifest)
-        self.assertTrue((self.template.parent / "README.md").exists())
+        self.assertIn("includes:\n  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertTrue((self.package / "README.md").exists())
 
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
