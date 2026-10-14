@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"dec7aadb0b2814fabd857ad00cd39203421a902742ff5a4108c3e20b35fc25e3","body_hash":"6afd6912584e1fc8372d471ea90e955fbd89aa6e8d5f5ccd6355a0a6eb32164a","compiler_version":"v0.91.12","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.96"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-dotnet","sha":"a98b56852c35b8e3190ac28c8c2271da59106c68","version":"v6.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"v0.91.12","version":"v0.91.12"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.56","digest":"sha256:0fe2c0890d6b616f2efe235159d06832baef6b6318dad2cfcba821f213a82178","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.56@sha256:0fe2c0890d6b616f2efe235159d06832baef6b6318dad2cfcba821f213a82178"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.56","digest":"sha256:a727e6ed59354e7075c4783753c574bf11c59067149c3ccdebf3522fbd9bdc49","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.56@sha256:a727e6ed59354e7075c4783753c574bf11c59067149c3ccdebf3522fbd9bdc49"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.56","digest":"sha256:45663d1d97cc117752f26f61aae297eab76789bc846e90045b500e5f639dcb8b","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.56@sha256:45663d1d97cc117752f26f61aae297eab76789bc846e90045b500e5f639dcb8b"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.30","digest":"sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"}],"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"safeoutputs","tools":["create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"enabled"}}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"d5d1c264d65514c92e6b20a9573a44c9a4c0ff051bed031f933d44dabfa4c8c4","body_hash":"3bf048e5b849a96a9725056e8f97875f464f6931f18c2effc51cd4f7bb8a3114","compiler_version":"v0.91.12","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.96"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_DEFAULT_OTLP_ENDPOINT","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"9000827ccba6bdab643e8b6fd33ac0654aef8333","version":"v8.0.2"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-dotnet","sha":"a98b56852c35b8e3190ac28c8c2271da59106c68","version":"v6.0.0"},{"repo":"actions/setup-node","sha":"949feb2413d6458794dcd2491c4babbbce0c15c1","version":"v7.1.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"cf430e030ddbb5b0abf93d22962f4752f3646cd9","version":"v7.0.2"},{"repo":"github/gh-aw-actions/setup","sha":"2f6729681c34eb94a2f94d533d4b6492de0d8a19","version":"v0.91.12"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.56","digest":"sha256:0fe2c0890d6b616f2efe235159d06832baef6b6318dad2cfcba821f213a82178","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.56@sha256:0fe2c0890d6b616f2efe235159d06832baef6b6318dad2cfcba821f213a82178"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.56","digest":"sha256:a727e6ed59354e7075c4783753c574bf11c59067149c3ccdebf3522fbd9bdc49","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.56@sha256:a727e6ed59354e7075c4783753c574bf11c59067149c3ccdebf3522fbd9bdc49"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.56","digest":"sha256:45663d1d97cc117752f26f61aae297eab76789bc846e90045b500e5f639dcb8b","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.56@sha256:45663d1d97cc117752f26f61aae297eab76789bc846e90045b500e5f639dcb8b"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.30","digest":"sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.30@sha256:ab5a436a1490438db473e4e3d4c973cb1d75e3cb233fb08b73d31b42d7d18fba"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f","pinned_image":"ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f"},{"image":"ghcr.io/github/github-mcp-server:v2.0.2","digest":"sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796","pinned_image":"ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796"}],"mcp_servers":[{"name":"github","tools":["get_commit","get_file_contents","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"safeoutputs","tools":["create_issue","missing_data","missing_tool","noop","report_incomplete"]}],"threat_detection":{"mode":"enabled"}}
 # This file was automatically generated by gh-aw (v0.91.12). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -23,7 +23,7 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Daily round-robin run of the NFV paper benchmark (paper/ on the dev branch). Each run checks the next 10 benchmark pairs (10 correct references + 10 incorrect mutants) with the paper's Dafny verify, Dafny refute and CBMC configurations, then publishes the results in a new issue and closes older ones.
+# Weekly full run of the NFV paper benchmark (paper/ on the dev branch). Each run checks every benchmark pair with gpt-5.6-sol using the paper's Dafny verify, Dafny refute and CBMC configurations, then publishes the results in a new issue and closes older ones.
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
@@ -43,7 +43,7 @@
 #   - actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
 #   - actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
 #   - actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-#   - github/gh-aw-actions/setup@v0.91.12
+#   - github/gh-aw-actions/setup@2f6729681c34eb94a2f94d533d4b6492de0d8a19 # v0.91.12
 #
 # Container images used:
 #   - ghcr.io/github/gh-aw-firewall/agent:0.28.56@sha256:0fe2c0890d6b616f2efe235159d06832baef6b6318dad2cfcba821f213a82178
@@ -53,10 +53,10 @@
 #   - ghcr.io/github/gh-aw-node@sha256:11c2c544876cdbaffefe0f7f1283b74838c209654b4934a78e23ed11f750490f
 #   - ghcr.io/github/github-mcp-server:v2.0.2@sha256:ffced0d76e77428532a2ced185516992d77fd146d69eec2f244e6237d1a97796
 
-name: "NFV paper benchmark: daily round-robin report"
+name: "NFV paper benchmark: weekly full report"
 on:
   schedule:
-    - cron: "37 3 * * *"  # Friendly format: daily (scattered)
+    - cron: "37 3 * * 4"  # Friendly format: weekly (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
@@ -72,12 +72,12 @@ concurrency:
   cancel-in-progress: false
   group: nfv-paper-benchmark-${{ github.repository }}
 
-run-name: "NFV paper benchmark: daily round-robin report"
+run-name: "NFV paper benchmark: weekly full report"
 
 env:
   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}
   OTEL_SERVICE_NAME: gh-aw.nfv-paper-benchmark
-  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=NFV%20paper%20benchmark%3A%20daily%20round-robin%20report,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
+  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=NFV%20paper%20benchmark%3A%20weekly%20full%20report,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
   OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
   GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ secrets.GH_AW_DEFAULT_OTLP_ENDPOINT || vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}","headers":"${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}"}]'
   GH_AW_OTLP_IF_MISSING: ignore
@@ -116,13 +116,13 @@ jobs:
     steps:
       - name: Setup Scripts
         id: setup
-        uses: github/gh-aw-actions/setup@v0.91.12
+        uses: github/gh-aw-actions/setup@2f6729681c34eb94a2f94d533d4b6492de0d8a19 # v0.91.12
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/nfv-paper-benchmark.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.96"
           GH_AW_INFO_AWF_VERSION: "v0.28.56"
@@ -139,7 +139,7 @@ jobs:
           GH_AW_INFO_VERSION: "1.0.96"
           GH_AW_INFO_AGENT_VERSION: "1.0.96"
           GH_AW_INFO_CLI_VERSION: "v0.91.12"
-          GH_AW_INFO_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_INFO_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -181,7 +181,7 @@ jobs:
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_WORKFLOW_ID: "nfv-paper-benchmark"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
@@ -259,7 +259,7 @@ jobs:
         env:
           GH_AW_COMPILED_VERSION: "v0.91.12"
           GH_AW_BLOCKED_VERSION_REPORT_AS_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
         with:
           script: |
             const path = require('path');
@@ -420,6 +420,8 @@ jobs:
     needs:
       - activation
       - benchmark
+      - prepare
+      - summarize
     if: needs.activation.outputs.daily_ai_credits_exceeded != 'true'
     runs-on: ubuntu-latest
     # Permissions for the agent job (workflow permissions default to none).
@@ -473,14 +475,14 @@ jobs:
     steps:
       - name: Setup Scripts
         id: setup
-        uses: github/gh-aw-actions/setup@v0.91.12
+        uses: github/gh-aw-actions/setup@2f6729681c34eb94a2f94d533d4b6492de0d8a19 # v0.91.12
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/nfv-paper-benchmark.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.96"
           GH_AW_INFO_AWF_VERSION: "v0.28.56"
@@ -548,8 +550,8 @@ jobs:
       - env:
           NFV_MEMORY_DIR: /tmp/gh-aw/cache-memory/nfv-paper-benchmark
           NFV_SUMMARY: /tmp/gh-aw/agent/nfv-benchmark/summary.json
-        name: Advance round-robin state in cache-memory
-        run: "set -euo pipefail\nmkdir -p \"$NFV_MEMORY_DIR\"\npython3 - <<'PY'\nimport datetime, json, os, pathlib\n\nmem = pathlib.Path(os.environ[\"NFV_MEMORY_DIR\"])\ns = json.loads(pathlib.Path(os.environ[\"NFV_SUMMARY\"]).read_text(encoding=\"utf-8\"))\n(mem / \"state.json\").write_text(json.dumps({\n    \"batches\": s[\"batch\"], \"next_cursor\": s[\"next_cursor\"],\n    \"total_pairs\": s[\"total_pairs\"], \"dataset_sha256\": s[\"dataset_sha256\"],\n}, indent=2), encoding=\"utf-8\")\nkeys = (\"total\", \"tp\", \"fp\", \"tn\", \"fn\", \"abstain_incorrect\", \"abstain_correct\")\nrecord = {\n    \"run_id\": os.environ[\"GITHUB_RUN_ID\"],\n    \"date\": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec=\"seconds\"),\n    \"batch\": s[\"batch\"], \"cursor\": s[\"cursor\"], \"pairs\": s[\"pairs\"],\n    \"total_pairs\": s[\"total_pairs\"], \"task_ids\": s[\"task_ids\"],\n    \"ref_sha\": s[\"ref_sha\"], \"model\": s[\"model\"],\n    \"phases\": {name: {\"exit_code\": p[\"exit_code\"], \"completed\": p[\"completed\"],\n                      \"new\": {k: p[\"new\"][k] for k in keys}}\n               for name, p in s[\"phases\"].items()},\n}\nwith open(mem / \"history.jsonl\", \"a\", encoding=\"utf-8\") as fh:\n    fh.write(json.dumps(record) + \"\\n\")\nPY"
+        name: Record full benchmark run in cache-memory
+        run: "set -euo pipefail\nmkdir -p \"$NFV_MEMORY_DIR\"\npython3 - <<'PY'\nimport datetime, json, os, pathlib\n\nmem = pathlib.Path(os.environ[\"NFV_MEMORY_DIR\"])\ns = json.loads(pathlib.Path(os.environ[\"NFV_SUMMARY\"]).read_text(encoding=\"utf-8\"))\nkeys = (\"total\", \"tp\", \"fp\", \"tn\", \"fn\", \"abstain_incorrect\", \"abstain_correct\")\nrecord = {\n    \"run_id\": os.environ[\"GITHUB_RUN_ID\"],\n    \"date\": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec=\"seconds\"),\n    \"batch\": s[\"batch\"], \"pairs\": s[\"pairs\"],\n    \"total_pairs\": s[\"total_pairs\"], \"task_ids\": s[\"task_ids\"],\n    \"ref_sha\": s[\"ref_sha\"], \"model\": s[\"model\"],\n    \"phases\": {name: {\"exit_code\": p[\"exit_code\"], \"completed\": p[\"completed\"],\n                      \"new\": {k: p[\"new\"][k] for k in keys}}\n               for name, p in s[\"phases\"].items()},\n}\nwith open(mem / \"history.jsonl\", \"a\", encoding=\"utf-8\") as fh:\n    fh.write(json.dumps(record) + \"\\n\")\nPY"
 
       - name: Configure Git credentials
         env:
@@ -1258,18 +1260,25 @@ jobs:
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
 
   benchmark:
-    name: Run paper benchmark batch
-    needs: activation
+    name: Run paper benchmark ${{ matrix.configuration }}
+    needs: prepare
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration:
+          - lemma4_verify
+          - lemma4_refute
+          - cbmc_theory
     # Permissions for the benchmark job (workflow permissions default to none).
     permissions:
       contents: read
     timeout-minutes: 350
     env:
-      GH_AW_WORKFLOW_ID_SANITIZED: nfvpaperbenchmark
-      NFV_BATCH_PAIRS: 10
       NFV_BENCHMARK_DIR: ${{ github.workspace }}/nfv-benchmark
-      NFV_MEMORY_DIR: /tmp/gh-aw/cache-memory/nfv-paper-benchmark
+      NFV_CONCURRENCY: 24
+      NFV_CONFIGURATION: ${{ matrix.configuration }}
+      NFV_MODEL: gpt-5.6-sol
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
@@ -1280,22 +1289,15 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
-      # restore-memory: cache-memory (read-only restore)
-      - name: Create cache-memory directory (default)
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory
-      - name: Restore cache-memory (default)
-        id: restore_cache_memory_0
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          key: memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory
-          restore-keys: |
-            memory-none-nopolicy-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ vars.NFV_BENCHMARK_REF || 'dev' }}
+          ref: ${{ needs.prepare.outputs.ref_sha }}
+      - name: Download full benchmark inputs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: nfv-paper-benchmark-inputs
+          path: nfv-benchmark
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
@@ -1337,65 +1339,7 @@ jobs:
           python -m pip install -r requirements-paper.txt
           python -m nfv.shared.config
           python -m paper.prepare
-      - name: Select next round-robin batch from cache-memory
-        id: select
-        run: |
-          set -euo pipefail
-          mkdir -p "$NFV_BENCHMARK_DIR"
-          python - <<'PY'
-          import hashlib, json, os, pathlib, subprocess
-
-          raw = pathlib.Path("paper/data/nl2post_safe.json").read_bytes()
-          dataset_sha = hashlib.sha256(raw).hexdigest()
-          entries = json.loads(raw)["entries"]
-          tasks = list(dict.fromkeys(e["task_id"] for e in entries))
-          n = len(tasks)
-
-          state_path = pathlib.Path(os.environ["NFV_MEMORY_DIR"]) / "state.json"
-          cursor, batch, note = 0, 1, "cold start (no round-robin state in cache-memory)"
-          try:
-              state = json.loads(state_path.read_text(encoding="utf-8"))
-              if state.get("dataset_sha256") != dataset_sha:
-                  note = "dataset changed since the last run; round robin restarted"
-              else:
-                  cursor = int(state["next_cursor"]) % n
-                  batch = int(state["batches"]) + 1
-                  note = "resumed from cache-memory"
-          except FileNotFoundError:
-              pass
-          except (ValueError, KeyError, TypeError) as exc:
-              note = f"unreadable round-robin state ({type(exc).__name__}); round robin restarted"
-
-          size = min(int(os.environ["NFV_BATCH_PAIRS"]), n)
-          chosen = [tasks[(cursor + i) % n] for i in range(size)]
-          keep = set(chosen)
-          picked = [e for e in entries if e["task_id"] in keep]
-          num_correct = sum(e["label"] == "correct" for e in picked)
-          num_incorrect = sum(e["label"] == "incorrect" for e in picked)
-          if num_correct != size or num_incorrect != size:
-              raise SystemExit(f"expected {size}/{size} correct/incorrect, got {num_correct}/{num_incorrect}")
-
-          out = pathlib.Path(os.environ["NFV_BENCHMARK_DIR"])
-          (out / "batch_data.json").write_text(json.dumps({
-              "description": f"round-robin batch {batch} of paper/data/nl2post_safe.json",
-              "total": len(picked), "num_correct": num_correct,
-              "num_incorrect": num_incorrect, "entries": picked,
-          }, indent=2), encoding="utf-8")
-          meta = {
-              "batch": batch, "cursor": cursor, "next_cursor": (cursor + size) % n,
-              "pairs": size, "total_pairs": n, "task_ids": chosen,
-              "wrapped": cursor + size > n, "state_note": note,
-              "dataset_sha256": dataset_sha, "ref": os.environ["NFV_REF"],
-              "ref_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
-              "model": os.environ["NFV_MODEL"],
-          }
-          (out / "batch.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-          print(json.dumps(meta, indent=2))
-          PY
-        env:
-          NFV_MODEL: ${{ vars.NFV_BENCHMARK_MODEL || 'gpt-5.6-sol' }}
-          NFV_REF: ${{ vars.NFV_BENCHMARK_REF || 'dev' }}
-      - name: Run Dafny verify, Dafny refute and CBMC on the batch
+      - name: Run one configuration on the entire paper benchmark
         run: |
           set -uo pipefail
           data="$NFV_BENCHMARK_DIR/batch_data.json"
@@ -1407,77 +1351,25 @@ jobs:
               2>&1 | tee "$NFV_BENCHMARK_DIR/$name.log"
             echo "${PIPESTATUS[0]}" > "$NFV_BENCHMARK_DIR/$name.exit"
           }
-          run_phase lemma4_verify --backend dafny-theory-lemma4 --phase unbounded
-          run_phase lemma4_refute --backend dafny-theory-lemma4 --phase refute
-          run_phase cbmc_theory --backend cbmc-theory --phase bounded --llm-timeout 300
+          case "$NFV_CONFIGURATION" in
+            lemma4_verify) run_phase lemma4_verify --backend dafny-theory-lemma4 --phase unbounded ;;
+            lemma4_refute) run_phase lemma4_refute --backend dafny-theory-lemma4 --phase refute ;;
+            cbmc_theory) run_phase cbmc_theory --backend cbmc-theory --phase bounded --llm-timeout 300 ;;
+            *) exit 1 ;;
+          esac
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           NFV_ALLOW_EMU: ${{ vars.NFV_ALLOW_EMU }}
-          NFV_CONCURRENCY: ${{ vars.NFV_BENCHMARK_CONCURRENCY || '10' }}
           NFV_EXPECTED_LOGIN: ${{ vars.NFV_EXPECTED_LOGIN }}
-          NFV_MODEL: ${{ vars.NFV_BENCHMARK_MODEL || 'gpt-5.6-sol' }}
-      - name: Summarize batch against retained paper results
-        if: always() && steps.select.outcome == 'success'
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json, os, pathlib
-          from nfv.metrics import compute
-          from nfv.shared.store import Store
-
-          out = pathlib.Path(os.environ["NFV_BENCHMARK_DIR"])
-          meta = json.loads((out / "batch.json").read_text(encoding="utf-8"))
-          batch = {e["entry_id"]: e for e in
-                   json.loads((out / "batch_data.json").read_text(encoding="utf-8"))["entries"]}
-
-          def metrics(records):
-              m = compute(records)
-              return {
-                  "total": m.total, "tp": m.tp, "fp": m.fp, "tn": m.tn, "fn": m.fn,
-                  "abstain_incorrect": m.abstain_incorrect, "abstain_correct": m.abstain_correct,
-                  "coverage": m.coverage, "accuracy_covered": m.accuracy_covered,
-                  "accuracy_overall": m.accuracy_overall, "precision": m.precision,
-                  "recall": m.recall, "f1": m.f1,
-                  "soundness_violations": m.soundness_violations,
-                  "abstain_reasons": m.abstain_reasons,
-              }
-
-          def load(path):
-              if not path.exists():
-                  return {}
-              return {r["entry_id"]: r for r in Store(path).records() if r.get("entry_id") in batch}
-
-          phases = {}
-          for name in ("lemma4_verify", "lemma4_refute", "cbmc_theory"):
-              new = load(out / f"{name}.jsonl")
-              retained = load(pathlib.Path("paper/results") / f"{name}.jsonl")
-              exit_path = out / f"{name}.exit"
-              phases[name] = {
-                  "exit_code": int(exit_path.read_text().strip()) if exit_path.exists() else None,
-                  "completed": len(new),
-                  "new": metrics(list(new.values())),
-                  "retained_paper": metrics(list(retained.values())),
-                  "entries": [
-                      {
-                          "entry_id": eid, "task_id": entry["task_id"], "label": entry["label"],
-                          "prediction": new.get(eid, {}).get("prediction", "missing"),
-                          "reason": str(new.get(eid, {}).get("reason", ""))[:160],
-                          "retained_prediction": retained.get(eid, {}).get("prediction", "missing"),
-                      }
-                      for eid, entry in sorted(batch.items())
-                  ],
-              }
-          (out / "summary.json").write_text(json.dumps({**meta, "phases": phases}, indent=2),
-                                            encoding="utf-8")
-          for name, phase in phases.items():
-              print(f"{name}: exit={phase['exit_code']} completed={phase['completed']}/{len(batch)}")
-          PY
-      - name: Upload batch evidence
-        if: always() && steps.select.outcome == 'success'
+      - name: Upload configuration evidence
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: nfv-paper-benchmark
-          path: nfv-benchmark
+          name: nfv-paper-benchmark-${{ matrix.configuration }}
+          path: |
+            nfv-benchmark/${{ matrix.configuration }}.jsonl
+            nfv-benchmark/${{ matrix.configuration }}.log
+            nfv-benchmark/${{ matrix.configuration }}.exit
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '30' }}
 
   conclusion:
@@ -1487,7 +1379,9 @@ jobs:
       - agent
       - benchmark
       - detection
+      - prepare
       - safe_outputs
+      - summarize
       - update_cache_memory
     if: >
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
@@ -1515,14 +1409,14 @@ jobs:
     steps:
       - name: Setup Scripts
         id: setup
-        uses: github/gh-aw-actions/setup@v0.91.12
+        uses: github/gh-aw-actions/setup@2f6729681c34eb94a2f94d533d4b6492de0d8a19 # v0.91.12
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/nfv-paper-benchmark.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.96"
           GH_AW_INFO_AWF_VERSION: "v0.28.56"
@@ -1570,7 +1464,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "2"
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/nfv-paper-benchmark.md"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
@@ -1595,7 +1489,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/nfv-paper-benchmark.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
@@ -1615,7 +1509,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/nfv-paper-benchmark.md"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
@@ -1634,7 +1528,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/nfv-paper-benchmark.md"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_ENGINE_MODEL: ${{ needs.agent.outputs.model }}
@@ -1653,7 +1547,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/nfv-paper-benchmark.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
@@ -1714,11 +1608,11 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/nfv-paper-benchmark.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_JOB_RESULTS: ${{ toJSON(needs) }}
-          GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"Activation\",\"agent\":\"Agent\",\"benchmark\":\"Run paper benchmark batch\",\"check_token_telemetry\":\"Check token telemetry\",\"conclusion\":\"Conclusion\",\"detection\":\"Detection\",\"evals\":\"Evaluations\",\"pre_activation\":\"Pre-activation\",\"push_evals_state\":\"Push evaluations state\",\"push_experiments_state\":\"Push experiments state\",\"push_ledger_changes\":\"Push ledger changes\",\"push_repo_memory\":\"Push repository memory\",\"safe_outputs\":\"Safe outputs\",\"send_slack_message\":\"Send Slack message\",\"unlock\":\"Unlock\",\"update_cache_memory\":\"Update cache memory\",\"update_drive_memory\":\"Update drive memory\",\"upload_assets\":\"Upload assets\",\"upload_code_coverage\":\"Upload code coverage\",\"upload_code_scanning_sarif\":\"Upload code scanning results\"}"
+          GH_AW_JOB_DISPLAY_NAMES: "{\"activation\":\"Activation\",\"agent\":\"Agent\",\"check_token_telemetry\":\"Check token telemetry\",\"conclusion\":\"Conclusion\",\"detection\":\"Detection\",\"evals\":\"Evaluations\",\"pre_activation\":\"Pre-activation\",\"prepare\":\"Select full paper benchmark\",\"push_evals_state\":\"Push evaluations state\",\"push_experiments_state\":\"Push experiments state\",\"push_ledger_changes\":\"Push ledger changes\",\"push_repo_memory\":\"Push repository memory\",\"safe_outputs\":\"Safe outputs\",\"send_slack_message\":\"Send Slack message\",\"summarize\":\"Summarize full paper benchmark\",\"unlock\":\"Unlock\",\"update_cache_memory\":\"Update cache memory\",\"update_drive_memory\":\"Update drive memory\",\"upload_assets\":\"Upload assets\",\"upload_code_coverage\":\"Upload code coverage\",\"upload_code_scanning_sarif\":\"Upload code scanning results\"}"
           GH_AW_REPORT_FAILED_JOBS: "true"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -1845,14 +1739,14 @@ jobs:
     steps:
       - name: Setup Scripts
         id: setup
-        uses: github/gh-aw-actions/setup@v0.91.12
+        uses: github/gh-aw-actions/setup@2f6729681c34eb94a2f94d533d4b6492de0d8a19 # v0.91.12
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/nfv-paper-benchmark.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.96"
           GH_AW_INFO_AWF_VERSION: "v0.28.56"
@@ -1929,8 +1823,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
-          WORKFLOW_DESCRIPTION: "Daily round-robin run of the NFV paper benchmark (paper/ on the dev branch). Each run checks the next 10 benchmark pairs (10 correct references + 10 incorrect mutants) with the paper's Dafny verify, Dafny refute and CBMC configurations, then publishes the results in a new issue and closes older ones."
+          WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
+          WORKFLOW_DESCRIPTION: "Weekly full run of the NFV paper benchmark (paper/ on the dev branch). Each run checks every benchmark pair with gpt-5.6-sol using the paper's Dafny verify, Dafny refute and CBMC configurations, then publishes the results in a new issue and closes older ones."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
           GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
@@ -1999,8 +1893,8 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
-          WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
-          WORKFLOW_DESCRIPTION: "Daily round-robin run of the NFV paper benchmark (paper/ on the dev branch). Each run checks the next 10 benchmark pairs (10 correct references + 10 incorrect mutants) with the paper's Dafny verify, Dafny refute and CBMC configurations, then publishes the results in a new issue and closes older ones."
+          WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
+          WORKFLOW_DESCRIPTION: "Weekly full run of the NFV paper benchmark (paper/ on the dev branch). Each run checks every benchmark pair with gpt-5.6-sol using the paper's Dafny verify, Dafny refute and CBMC configurations, then publishes the results in a new issue and closes older ones."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
@@ -2114,6 +2008,72 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh" /tmp/gh-aw/threat-detection/detection_result.json
 
+  prepare:
+    name: Select full paper benchmark
+    needs: activation
+    runs-on: ubuntu-22.04
+    # Permissions for the prepare job (workflow permissions default to none).
+    permissions:
+      contents: read
+    env:
+      NFV_BENCHMARK_DIR: ${{ github.workspace }}/nfv-benchmark
+      NFV_MODEL: gpt-5.6-sol
+      NFV_REF: ${{ vars.NFV_BENCHMARK_REF || 'dev' }}
+    outputs:
+      ref_sha: ${{ steps.select.outputs.ref_sha }}
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: | # zizmor: ignore[github-env] - GITHUB_SERVER_URL is set by GitHub Actions, not user input.
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ vars.NFV_BENCHMARK_REF || 'dev' }}
+      - name: Select every paper benchmark entry
+        id: select
+        run: |
+          set -euo pipefail
+          mkdir -p "$NFV_BENCHMARK_DIR"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+
+          raw = pathlib.Path("paper/data/nl2post_safe.json").read_bytes()
+          data = json.loads(raw)
+          entries = data["entries"]
+          tasks = list(dict.fromkeys(e["task_id"] for e in entries))
+          n = len(tasks)
+          num_correct = sum(e["label"] == "correct" for e in entries)
+          num_incorrect = sum(e["label"] == "incorrect" for e in entries)
+          if not n or num_correct != n or num_incorrect != n:
+              raise SystemExit(f"expected {n}/{n} correct/incorrect, got {num_correct}/{num_incorrect}")
+          ref_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          out = pathlib.Path(os.environ["NFV_BENCHMARK_DIR"])
+          (out / "batch_data.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+          meta = {
+              "batch": int(os.environ["GITHUB_RUN_NUMBER"]),
+              "pairs": n, "total_pairs": n, "task_ids": tasks, "entries": len(entries),
+              "dataset_sha256": hashlib.sha256(raw).hexdigest(),
+              "ref": os.environ["NFV_REF"], "ref_sha": ref_sha,
+              "model": os.environ["NFV_MODEL"],
+          }
+          (out / "batch.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"ref_sha={ref_sha}\n")
+          print(json.dumps(meta, indent=2))
+          PY
+      - name: Upload full benchmark inputs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nfv-paper-benchmark-inputs
+          path: nfv-benchmark
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '30' }}
+
   safe_outputs:
     name: safe_outputs
     needs:
@@ -2138,7 +2098,7 @@ jobs:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
       GH_AW_WORKFLOW_ID: "nfv-paper-benchmark"
-      GH_AW_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+      GH_AW_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/nfv-paper-benchmark.md"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
@@ -2159,14 +2119,14 @@ jobs:
     steps:
       - name: Setup Scripts
         id: setup
-        uses: github/gh-aw-actions/setup@v0.91.12
+        uses: github/gh-aw-actions/setup@2f6729681c34eb94a2f94d533d4b6492de0d8a19 # v0.91.12
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/nfv-paper-benchmark.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.96"
           GH_AW_INFO_AWF_VERSION: "v0.28.56"
@@ -2234,6 +2194,102 @@ jobs:
           if-no-files-found: ignore
           retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '0' }}
 
+  summarize:
+    name: Summarize full paper benchmark
+    needs:
+      - benchmark
+      - prepare
+    runs-on: ubuntu-22.04
+    # Permissions for the summarize job (workflow permissions default to none).
+    permissions:
+      contents: read
+    env:
+      NFV_BENCHMARK_DIR: ${{ github.workspace }}/nfv-benchmark
+    steps:
+      - name: Configure GH_HOST for enterprise compatibility
+        id: ghes-host-config
+        shell: bash
+        run: | # zizmor: ignore[github-env] - GITHUB_SERVER_URL is set by GitHub Actions, not user input.
+          # Derive GH_HOST from GITHUB_SERVER_URL so the gh CLI targets the correct
+          # GitHub instance (GHES/GHEC). On github.com this is a harmless no-op.
+          GH_HOST="${GITHUB_SERVER_URL#https://}"
+          GH_HOST="${GH_HOST#http://}"
+          echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.prepare.outputs.ref_sha }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Download all configuration evidence and inputs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          merge-multiple: true
+          path: nfv-benchmark
+          pattern: nfv-paper-benchmark-*
+      - name: Summarize batch against retained paper results
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, pathlib
+          from nfv.metrics import compute
+          from nfv.shared.store import Store
+
+          out = pathlib.Path(os.environ["NFV_BENCHMARK_DIR"])
+          meta = json.loads((out / "batch.json").read_text(encoding="utf-8"))
+          batch = {e["entry_id"]: e for e in
+                   json.loads((out / "batch_data.json").read_text(encoding="utf-8"))["entries"]}
+
+          def metrics(records):
+              m = compute(records)
+              return {
+                  "total": m.total, "tp": m.tp, "fp": m.fp, "tn": m.tn, "fn": m.fn,
+                  "abstain_incorrect": m.abstain_incorrect, "abstain_correct": m.abstain_correct,
+                  "coverage": m.coverage, "accuracy_covered": m.accuracy_covered,
+                  "accuracy_overall": m.accuracy_overall, "precision": m.precision,
+                  "recall": m.recall, "f1": m.f1,
+                  "soundness_violations": m.soundness_violations,
+                  "abstain_reasons": m.abstain_reasons,
+              }
+
+          def load(path):
+              if not path.exists():
+                  return {}
+              return {r["entry_id"]: r for r in Store(path).records() if r.get("entry_id") in batch}
+
+          phases = {}
+          for name in ("lemma4_verify", "lemma4_refute", "cbmc_theory"):
+              new = load(out / f"{name}.jsonl")
+              retained = load(pathlib.Path("paper/results") / f"{name}.jsonl")
+              exit_path = out / f"{name}.exit"
+              phases[name] = {
+                  "exit_code": int(exit_path.read_text().strip()) if exit_path.exists() else None,
+                  "completed": len(new),
+                  "new": metrics(list(new.values())),
+                  "retained_paper": metrics(list(retained.values())),
+                  "entries": [
+                      {
+                          "entry_id": eid, "task_id": entry["task_id"], "label": entry["label"],
+                          "prediction": new.get(eid, {}).get("prediction", "missing"),
+                          "reason": str(new.get(eid, {}).get("reason", ""))[:160],
+                          "retained_prediction": retained.get(eid, {}).get("prediction", "missing"),
+                      }
+                      for eid, entry in sorted(batch.items())
+                  ],
+              }
+          (out / "summary.json").write_text(json.dumps({**meta, "phases": phases}, indent=2),
+                                            encoding="utf-8")
+          for name, phase in phases.items():
+              print(f"{name}: exit={phase['exit_code']} completed={phase['completed']}/{len(batch)}")
+          PY
+      - name: Upload batch evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nfv-paper-benchmark
+          path: nfv-benchmark
+          retention-days: ${{ vars.GH_AW_DEFAULT_ARTIFACT_RETENTION_DAYS || '30' }}
+
   update_cache_memory:
     name: update_cache_memory
     needs:
@@ -2251,14 +2307,14 @@ jobs:
     steps:
       - name: Setup Scripts
         id: setup
-        uses: github/gh-aw-actions/setup@v0.91.12
+        uses: github/gh-aw-actions/setup@2f6729681c34eb94a2f94d533d4b6492de0d8a19 # v0.91.12
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: daily round-robin report"
+          GH_AW_SETUP_WORKFLOW_NAME: "NFV paper benchmark: weekly full report"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/nfv-paper-benchmark.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.96"
           GH_AW_INFO_AWF_VERSION: "v0.28.56"

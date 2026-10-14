@@ -1,11 +1,11 @@
 ---
 description: >-
-  Daily round-robin run of the NFV paper benchmark (paper/ on the dev branch).
-  Each run checks the next 10 benchmark pairs (10 correct references + 10
-  incorrect mutants) with the paper's Dafny verify, Dafny refute and CBMC
+  Weekly full run of the NFV paper benchmark (paper/ on the dev branch).
+  Each run checks every benchmark pair with gpt-5.6-sol using the paper's
+  Dafny verify, Dafny refute and CBMC
   configurations, then publishes the results in a new issue and closes older ones.
 on:
-  schedule: daily
+  schedule: weekly
   workflow_dispatch:
 permissions:
   contents: read
@@ -34,22 +34,86 @@ safe-outputs:
     close-older-issues: true
     max: 1
 jobs:
-  benchmark:
-    name: Run paper benchmark batch
+  prepare:
+    name: Select full paper benchmark
     runs-on: ubuntu-22.04
-    timeout-minutes: 350
-    restore-memory: true
     permissions:
       contents: read
+    outputs:
+      ref_sha: ${{ steps.select.outputs.ref_sha }}
     env:
       NFV_BENCHMARK_DIR: ${{ github.workspace }}/nfv-benchmark
-      NFV_MEMORY_DIR: /tmp/gh-aw/cache-memory/nfv-paper-benchmark
-      NFV_BATCH_PAIRS: "10"
+      NFV_MODEL: gpt-5.6-sol
+      NFV_REF: ${{ vars.NFV_BENCHMARK_REF || 'dev' }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
           ref: ${{ vars.NFV_BENCHMARK_REF || 'dev' }}
           persist-credentials: false
+      - name: Select every paper benchmark entry
+        id: select
+        run: |
+          set -euo pipefail
+          mkdir -p "$NFV_BENCHMARK_DIR"
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+
+          raw = pathlib.Path("paper/data/nl2post_safe.json").read_bytes()
+          data = json.loads(raw)
+          entries = data["entries"]
+          tasks = list(dict.fromkeys(e["task_id"] for e in entries))
+          n = len(tasks)
+          num_correct = sum(e["label"] == "correct" for e in entries)
+          num_incorrect = sum(e["label"] == "incorrect" for e in entries)
+          if not n or num_correct != n or num_incorrect != n:
+              raise SystemExit(f"expected {n}/{n} correct/incorrect, got {num_correct}/{num_incorrect}")
+          ref_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          out = pathlib.Path(os.environ["NFV_BENCHMARK_DIR"])
+          (out / "batch_data.json").write_text(json.dumps(data, indent=2), encoding="utf-8")
+          meta = {
+              "batch": int(os.environ["GITHUB_RUN_NUMBER"]),
+              "pairs": n, "total_pairs": n, "task_ids": tasks, "entries": len(entries),
+              "dataset_sha256": hashlib.sha256(raw).hexdigest(),
+              "ref": os.environ["NFV_REF"], "ref_sha": ref_sha,
+              "model": os.environ["NFV_MODEL"],
+          }
+          (out / "batch.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"ref_sha={ref_sha}\n")
+          print(json.dumps(meta, indent=2))
+          PY
+      - name: Upload full benchmark inputs
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nfv-paper-benchmark-inputs
+          path: nfv-benchmark
+          retention-days: 30
+  benchmark:
+    name: Run paper benchmark ${{ matrix.configuration }}
+    needs: prepare
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [lemma4_verify, lemma4_refute, cbmc_theory]
+    permissions:
+      contents: read
+    env:
+      NFV_BENCHMARK_DIR: ${{ github.workspace }}/nfv-benchmark
+      NFV_MODEL: gpt-5.6-sol
+      NFV_CONCURRENCY: "24"
+      NFV_CONFIGURATION: ${{ matrix.configuration }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.ref_sha }}
+          persist-credentials: false
+      - name: Download full benchmark inputs
+        uses: actions/download-artifact@v8.0.2
+        with:
+          name: nfv-paper-benchmark-inputs
+          path: nfv-benchmark
       - uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.12"
@@ -91,71 +155,11 @@ jobs:
           python -m pip install -r requirements-paper.txt
           python -m nfv.shared.config
           python -m paper.prepare
-      - name: Select next round-robin batch from cache-memory
-        id: select
-        env:
-          NFV_MODEL: ${{ vars.NFV_BENCHMARK_MODEL || 'gpt-5.6-sol' }}
-          NFV_REF: ${{ vars.NFV_BENCHMARK_REF || 'dev' }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$NFV_BENCHMARK_DIR"
-          python - <<'PY'
-          import hashlib, json, os, pathlib, subprocess
-
-          raw = pathlib.Path("paper/data/nl2post_safe.json").read_bytes()
-          dataset_sha = hashlib.sha256(raw).hexdigest()
-          entries = json.loads(raw)["entries"]
-          tasks = list(dict.fromkeys(e["task_id"] for e in entries))
-          n = len(tasks)
-
-          state_path = pathlib.Path(os.environ["NFV_MEMORY_DIR"]) / "state.json"
-          cursor, batch, note = 0, 1, "cold start (no round-robin state in cache-memory)"
-          try:
-              state = json.loads(state_path.read_text(encoding="utf-8"))
-              if state.get("dataset_sha256") != dataset_sha:
-                  note = "dataset changed since the last run; round robin restarted"
-              else:
-                  cursor = int(state["next_cursor"]) % n
-                  batch = int(state["batches"]) + 1
-                  note = "resumed from cache-memory"
-          except FileNotFoundError:
-              pass
-          except (ValueError, KeyError, TypeError) as exc:
-              note = f"unreadable round-robin state ({type(exc).__name__}); round robin restarted"
-
-          size = min(int(os.environ["NFV_BATCH_PAIRS"]), n)
-          chosen = [tasks[(cursor + i) % n] for i in range(size)]
-          keep = set(chosen)
-          picked = [e for e in entries if e["task_id"] in keep]
-          num_correct = sum(e["label"] == "correct" for e in picked)
-          num_incorrect = sum(e["label"] == "incorrect" for e in picked)
-          if num_correct != size or num_incorrect != size:
-              raise SystemExit(f"expected {size}/{size} correct/incorrect, got {num_correct}/{num_incorrect}")
-
-          out = pathlib.Path(os.environ["NFV_BENCHMARK_DIR"])
-          (out / "batch_data.json").write_text(json.dumps({
-              "description": f"round-robin batch {batch} of paper/data/nl2post_safe.json",
-              "total": len(picked), "num_correct": num_correct,
-              "num_incorrect": num_incorrect, "entries": picked,
-          }, indent=2), encoding="utf-8")
-          meta = {
-              "batch": batch, "cursor": cursor, "next_cursor": (cursor + size) % n,
-              "pairs": size, "total_pairs": n, "task_ids": chosen,
-              "wrapped": cursor + size > n, "state_note": note,
-              "dataset_sha256": dataset_sha, "ref": os.environ["NFV_REF"],
-              "ref_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
-              "model": os.environ["NFV_MODEL"],
-          }
-          (out / "batch.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-          print(json.dumps(meta, indent=2))
-          PY
-      - name: Run Dafny verify, Dafny refute and CBMC on the batch
+      - name: Run one configuration on the entire paper benchmark
         env:
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-          NFV_MODEL: ${{ vars.NFV_BENCHMARK_MODEL || 'gpt-5.6-sol' }}
           NFV_EXPECTED_LOGIN: ${{ vars.NFV_EXPECTED_LOGIN }}
           NFV_ALLOW_EMU: ${{ vars.NFV_ALLOW_EMU }}
-          NFV_CONCURRENCY: ${{ vars.NFV_BENCHMARK_CONCURRENCY || '10' }}
         run: |
           set -uo pipefail
           data="$NFV_BENCHMARK_DIR/batch_data.json"
@@ -167,11 +171,45 @@ jobs:
               2>&1 | tee "$NFV_BENCHMARK_DIR/$name.log"
             echo "${PIPESTATUS[0]}" > "$NFV_BENCHMARK_DIR/$name.exit"
           }
-          run_phase lemma4_verify --backend dafny-theory-lemma4 --phase unbounded
-          run_phase lemma4_refute --backend dafny-theory-lemma4 --phase refute
-          run_phase cbmc_theory --backend cbmc-theory --phase bounded --llm-timeout 300
+          case "$NFV_CONFIGURATION" in
+            lemma4_verify) run_phase lemma4_verify --backend dafny-theory-lemma4 --phase unbounded ;;
+            lemma4_refute) run_phase lemma4_refute --backend dafny-theory-lemma4 --phase refute ;;
+            cbmc_theory) run_phase cbmc_theory --backend cbmc-theory --phase bounded --llm-timeout 300 ;;
+            *) exit 1 ;;
+          esac
+      - name: Upload configuration evidence
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: nfv-paper-benchmark-${{ matrix.configuration }}
+          path: |
+            nfv-benchmark/${{ matrix.configuration }}.jsonl
+            nfv-benchmark/${{ matrix.configuration }}.log
+            nfv-benchmark/${{ matrix.configuration }}.exit
+          retention-days: 30
+  summarize:
+    name: Summarize full paper benchmark
+    needs: [prepare, benchmark]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    env:
+      NFV_BENCHMARK_DIR: ${{ github.workspace }}/nfv-benchmark
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.ref_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Download all configuration evidence and inputs
+        uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: nfv-paper-benchmark-*
+          merge-multiple: true
+          path: nfv-benchmark
       - name: Summarize batch against retained paper results
-        if: always() && steps.select.outcome == 'success'
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -227,7 +265,6 @@ jobs:
               print(f"{name}: exit={phase['exit_code']} completed={phase['completed']}/{len(batch)}")
           PY
       - name: Upload batch evidence
-        if: always() && steps.select.outcome == 'success'
         uses: actions/upload-artifact@v7.0.2
         with:
           name: nfv-paper-benchmark
@@ -239,7 +276,7 @@ steps:
     with:
       name: nfv-paper-benchmark
       path: /tmp/gh-aw/agent/nfv-benchmark
-  - name: Advance round-robin state in cache-memory
+  - name: Record full benchmark run in cache-memory
     env:
       NFV_MEMORY_DIR: /tmp/gh-aw/cache-memory/nfv-paper-benchmark
       NFV_SUMMARY: /tmp/gh-aw/agent/nfv-benchmark/summary.json
@@ -251,15 +288,11 @@ steps:
 
       mem = pathlib.Path(os.environ["NFV_MEMORY_DIR"])
       s = json.loads(pathlib.Path(os.environ["NFV_SUMMARY"]).read_text(encoding="utf-8"))
-      (mem / "state.json").write_text(json.dumps({
-          "batches": s["batch"], "next_cursor": s["next_cursor"],
-          "total_pairs": s["total_pairs"], "dataset_sha256": s["dataset_sha256"],
-      }, indent=2), encoding="utf-8")
       keys = ("total", "tp", "fp", "tn", "fn", "abstain_incorrect", "abstain_correct")
       record = {
           "run_id": os.environ["GITHUB_RUN_ID"],
           "date": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-          "batch": s["batch"], "cursor": s["cursor"], "pairs": s["pairs"],
+          "batch": s["batch"], "pairs": s["pairs"],
           "total_pairs": s["total_pairs"], "task_ids": s["task_ids"],
           "ref_sha": s["ref_sha"], "model": s["model"],
           "phases": {name: {"exit_code": p["exit_code"], "completed": p["completed"],
@@ -271,18 +304,18 @@ steps:
       PY
 ---
 
-# NFV paper benchmark: daily round-robin report
+# NFV paper benchmark: weekly full report
 
-You are reporting one batch of the paper benchmark of *Neuro-Formal
+You are reporting one full run of the paper benchmark of *Neuro-Formal
 Verification* (arXiv:2608.21516, `paper/` on the `dev` branch). A trusted job
-has already run the batch through the GitHub Copilot SDK before you started;
+has already run every entry through the GitHub Copilot SDK with gpt-5.6-sol before you started;
 **do not run the benchmark, install software, or re-run any verifier
 yourself**. Your only job is to read the evidence and publish one issue.
 
 ## Inputs
 
-- `/tmp/gh-aw/agent/nfv-benchmark/summary.json` — this batch: batch number,
-  round-robin cursor, the 10 task IDs (10 `correct` references + 10 `incorrect`
+- `/tmp/gh-aw/agent/nfv-benchmark/summary.json` — this run: run number,
+  all task IDs (103 `correct` references + 103 `incorrect`
   mutants), source commit, model, and for each paper configuration
   (`lemma4_verify` = Dafny verification, `lemma4_refute` = Dafny refutation,
   `cbmc_theory` = CBMC bounded refutation): exit code, completed entries, new
@@ -290,23 +323,23 @@ yourself**. Your only job is to read the evidence and publish one issue.
   per-entry table.
 - `/tmp/gh-aw/agent/nfv-benchmark/<configuration>.log` — raw runner logs. Read
   only the tail, and only when a configuration has a nonzero exit code or
-  fewer than 20 completed entries.
+  fewer completed entries than `entries` in `summary.json`.
 - `/tmp/gh-aw/cache-memory/nfv-paper-benchmark/history.jsonl` — one line per
-  batch run so far (it already includes this batch). On a cold start it holds
-  only this batch; that is expected, not an error. Do not modify cache-memory.
+  run so far (it already includes this run). Older records may cover partial
+  batches. On a cold start it holds only this run; that is expected, not an
+  error. Do not modify cache-memory.
 
 ## Issue to create
 
 Create exactly one issue with `create_issue`, titled
-`Batch <batch>: <first task id> … <last task id> (<UTC date>)`. Older issues
+`Full benchmark <batch>: gpt-5.6-sol (<UTC date>)`. Older issues
 from this workflow are closed automatically. The body must contain:
 
-1. **Summary** — batch number, round-robin position (`cursor`, `pairs`,
-   `total_pairs`, and how many daily batches make one full pass), model,
-   `ref` and `ref_sha`, and `state_note`.
+1. **Summary** — run number, total pairs and entries, model,
+   `ref` and `ref_sha`.
 2. **Results** — a table with one row per configuration: TP, FP, TN, FN,
    abstentions (correct / incorrect), coverage, precision, recall and
-   soundness violations, each shown as `new (paper)` for the same 20 entries.
+   soundness violations, each shown as `new (paper)` for the entire dataset.
 3. **Changes vs. paper** — per configuration, the entries whose new
    prediction differs from the retained paper prediction. List every FP
    (`correct` entry predicted `incorrect`) and FN (`incorrect` entry predicted

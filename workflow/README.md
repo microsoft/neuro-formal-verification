@@ -191,12 +191,14 @@ path does not require the model client.
    its lock, and `.github\aw\packages\`. The checked-in lock is compiled with
    **gh aw v0.88.7**.
 
-The scheduled paper benchmark runs the dataset under `paper/`. Recompile its
+The weekly paper benchmark runs every entry under `paper/` with `gpt-5.6-sol`,
+using parallel Dafny verification, Dafny refutation and CBMC configurations
+and one combined issue report. Recompile its
 lock with `gh aw compile nfv-paper-benchmark --action-mode action --action-tag
-v0.88.7 --approve` using gh aw v0.88.7. Keep the generated setup actions
+v0.91.12 --approve` using gh aw v0.91.12. Keep the generated setup actions
 SHA-pinned and remote; local `./actions/…` references are only for gh-aw development.
 
-Everything runs in the agent job; there is no custom safe-output job. Before
+For the PR reviewer, everything runs in the agent job; there is no custom safe-output job. Before
 the agent starts, trusted steps check out the pinned release, install it, download
 official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
 `a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179`), select its

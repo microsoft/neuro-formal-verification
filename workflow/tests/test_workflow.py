@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
+import textwrap
 import unittest
 import uuid
 from unittest.mock import patch
@@ -793,7 +795,90 @@ class TemplateTests(unittest.TestCase):
         for action in setup_actions:
             with self.subTest(action=action):
                 self.assertRegex(action,
-                                 r"^uses: github/gh-aw-actions/setup@[0-9a-f]{40} # v0\.88\.7$")
+                                 r"^uses: github/gh-aw-actions/setup@[0-9a-f]{40} # v0\.91\.12$")
+
+    def benchmark_script(self, name):
+        source = (self.template / "nfv-paper-benchmark.md").read_text(encoding="utf-8")
+        step = source.split(f"      - name: {name}\n", 1)[1]
+        return textwrap.dedent(step.split("        run: |\n", 1)[1]
+                               .split("      - name:", 1)[0])
+
+    def test_paper_benchmark_selects_the_entire_dataset(self):
+        root = self.template.parents[1]
+        dataset = json.loads((root / "paper/data/nl2post_safe.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            env = {**os.environ, "NFV_BENCHMARK_DIR": directory, "NFV_MODEL": "gpt-5.6-sol",
+                   "NFV_REF": "dev", "GITHUB_RUN_NUMBER": "42",
+                   "GITHUB_OUTPUT": str(out / "outputs")}
+            result = subprocess.run(
+                ["bash", "-c", self.benchmark_script("Select every paper benchmark entry")],
+                cwd=root, env=env, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads((out / "batch_data.json").read_text()), dataset)
+            meta = json.loads((out / "batch.json").read_text())
+            self.assertEqual((meta["entries"], meta["pairs"], meta["batch"]), (206, 103, 42))
+            self.assertEqual(meta["model"], "gpt-5.6-sol")
+            self.assertEqual((out / "outputs").read_text(), f"ref_sha={meta['ref_sha']}\n")
+
+    def test_paper_benchmark_runs_each_configuration_once_and_records_failures(self):
+        script = self.benchmark_script("Run one configuration on the entire paper benchmark")
+        for name, phase in (("lemma4_verify", "unbounded"), ("lemma4_refute", "refute"),
+                            ("cbmc_theory", "bounded")):
+            with self.subTest(configuration=name), tempfile.TemporaryDirectory() as directory:
+                env = {**os.environ, "NFV_BENCHMARK_DIR": directory,
+                       "NFV_MODEL": "gpt-5.6-sol", "NFV_CONCURRENCY": "24",
+                       "NFV_CONFIGURATION": name}
+                result = subprocess.run(
+                    ["bash", "-c", 'python() { printf "%s\\n" "$*"; return 7; }\n' + script],
+                    env=env, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.count("-m nfv.run"), 1)
+                self.assertIn(f"--phase {phase}", result.stdout)
+                self.assertIn("--model gpt-5.6-sol", result.stdout)
+                self.assertIn("--concurrency 24 --entry-deadline 1800", result.stdout)
+                self.assertEqual((Path(directory) / f"{name}.exit").read_text(), "7\n")
+
+    def test_paper_benchmark_is_weekly_and_reports_all_parallel_configurations(self):
+        source = (self.template / "nfv-paper-benchmark.md").read_text(encoding="utf-8")
+        lock = (self.template / "nfv-paper-benchmark.lock.yml").read_text(encoding="utf-8")
+        self.assertIn("schedule: weekly\n", source)
+        self.assertNotIn("NFV_BATCH_PAIRS", source)
+        self.assertNotIn("NFV_BENCHMARK_MODEL", source)
+        self.assertIn("configuration: [lemma4_verify, lemma4_refute, cbmc_theory]", source)
+        self.assertIn("fail-fast: false", source)
+        self.assertIn("needs: [prepare, benchmark]", source)
+        self.assertIn("ref: ${{ needs.prepare.outputs.ref_sha }}", lock)
+        self.assertIn("name: nfv-paper-benchmark-${{ matrix.configuration }}", lock)
+        self.assertIn("merge-multiple: true", lock)
+        self.assertIn("fewer completed entries than `entries`", source)
+
+    def test_paper_benchmark_summary_covers_every_entry_and_missing_results(self):
+        root = self.template.parents[1]
+        dataset = (root / "paper/data/nl2post_safe.json").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            (out / "batch_data.json").write_text(dataset, encoding="utf-8")
+            (out / "batch.json").write_text('{"entries": 206, "pairs": 103}', encoding="utf-8")
+            shutil.copyfile(root / "paper/results/lemma4_verify.jsonl",
+                            out / "lemma4_verify.jsonl")
+            (out / "lemma4_verify.exit").write_text("0\n", encoding="utf-8")
+            result = subprocess.run(
+                ["bash", "-c", self.benchmark_script("Summarize batch against retained paper results")],
+                cwd=root, env={**os.environ, "NFV_BENCHMARK_DIR": directory},
+                text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            phases = json.loads((out / "summary.json").read_text())["phases"]
+            self.assertEqual(phases["lemma4_verify"]["completed"], 206)
+            self.assertEqual(phases["lemma4_verify"]["new"],
+                             phases["lemma4_verify"]["retained_paper"])
+            for phase in phases.values():
+                self.assertEqual(len(phase["entries"]), 206)
+                self.assertEqual(phase["retained_paper"]["total"], 206)
+            self.assertIsNone(phases["lemma4_refute"]["exit_code"])
+            self.assertEqual(phases["lemma4_refute"]["completed"], 0)
+            self.assertTrue(all(e["prediction"] == "missing"
+                                for e in phases["lemma4_refute"]["entries"]))
 
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
