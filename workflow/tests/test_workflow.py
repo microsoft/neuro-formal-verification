@@ -781,6 +781,20 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("includes:\n  - .github/workflows/nfv-pr-review.md\n", manifest)
         self.assertTrue((self.package / "README.md").exists())
 
+    def test_paper_benchmark_uses_pinned_remote_setup_actions(self):
+        source = (self.template / "nfv-paper-benchmark.md").read_text(encoding="utf-8")
+        lock = (self.template / "nfv-paper-benchmark.lock.yml").read_text(encoding="utf-8")
+        self.assertIn('pathlib.Path("paper/data/nl2post_safe.json")', source)
+        self.assertNotIn("uses: ./actions/", lock)
+        self.assertNotIn("repository: github/gh-aw\n", lock)
+        setup_actions = [line.strip() for line in lock.splitlines()
+                         if "uses:" in line and "/setup@" in line]
+        self.assertTrue(setup_actions)
+        for action in setup_actions:
+            with self.subTest(action=action):
+                self.assertRegex(action,
+                                 r"^uses: github/gh-aw-actions/setup@[0-9a-f]{40} # v0\.88\.7$")
+
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", source)
