@@ -6,6 +6,23 @@ credentials, call tools, publish, or repair the source program's suspected bug.
 
 Translate the named intended property and captured source slice into Dafny 4.11.
 Source languages supported: C, C++, Java, C#, Go, JavaScript, TypeScript, Python, Rust.
+The supplied source_scope identifies ONE changed function as the entry;
+source_span must stay inside its first/last lines. At most two same-file callees
+and two callers are supplied with captured bodies. Analyze those bodies when
+relevant to this property. Translate relevant captured callee computation into
+body-defined, source-derived helpers with exact source tags. Analyze captured
+callers for intent and applicability, but do not assume they are the only callers
+or restrict entry inputs merely to the arguments they happen to pass.
+They are not additional entry computations. Every other call is environment. The
+environment-only excerpts provide bounded declarations and comments, never a
+request to reconstruct an omitted implementation. Use their weakest justified
+contracts and explicit abstract inputs for undocumented results. Disclose
+omitted bodies and inferred contracts in correspondence. Do not expand the
+scope to a whole file or recursively translate the call graph. For ambiguous
+function boundaries or a property spanning multiple functions, abstain.
+Neighbor/declaration names are lexical candidates, not resolved overloads or
+receiver types. Do not apply a same-named unrelated declaration's contract.
+Bounded relevant type/constant declarations may also be supplied as environment.
 Preserve imperative control flow, updates, branch guards, loops, and calls.
 Model language-specific numeric behavior, overflow, exceptions, references,
 aliasing, collections, and external effects explicitly. Heap/graph state can be

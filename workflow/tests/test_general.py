@@ -8,7 +8,7 @@ import unittest
 import uuid
 from unittest.mock import patch
 
-from nfv_workflow.general import (LANGUAGE_GUIDES, Limits, environment_order, reachable, run,
+from nfv_workflow.general import (LANGUAGE_GUIDES, Limits, reachable, run,
                                   select_properties, validate_finding)
 from nfv_workflow.general_gates import annotate, validate_translation
 from nfv_workflow.github import Abstain
@@ -108,20 +108,17 @@ class FailingVerifier:
 
 
 class GeneralTests(unittest.TestCase):
-    def test_environment_files_precede_unrelated_context(self):
-        bundle = {"sources": {
-            "a.cpp": {"text": "void g() {\n  ctx.mk_axiom(l1, l2);\n}\n"},
-            "unrelated.h": {"text": "int other(int);\n"},
-            "ctx.h": {"text": "void mk_axiom(int a, int b);\n"},
-            "ctx.cpp": {"text": "void context::mk_axiom(int a, int b) {\n}\n"},
-        }}
-        order = environment_order(bundle, {"path": "a.cpp", "lines": [2]})
-        self.assertEqual(["a.cpp", "ctx.cpp", "ctx.h", "unrelated.h"], order)
-
     def test_prompt_models_missing_callees_as_environment(self):
         prompt = (Path(__file__).parents[1] / "src/nfv_workflow/general_prompt.txt").read_text(encoding="utf-8")
         self.assertNotIn("Missing referenced files mean abstention", prompt)
         self.assertIn("Do not abstain merely because a callee is implemented elsewhere", prompt)
+
+    def test_prompt_analyzes_captured_neighbors_without_narrowing_entry_inputs(self):
+        prompt = (Path(__file__).parents[1] / "src/nfv_workflow/general_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Analyze those bodies", prompt)
+        self.assertIn("source-derived helpers", prompt)
+        self.assertIn("do not assume they are the only callers", prompt)
+        self.assertIn("or restrict entry inputs merely to the arguments they happen to pass", prompt)
 
     def setUp(self):
         self.directory = Path(__file__).parent / ".general-scratch" / uuid.uuid4().hex
@@ -143,7 +140,7 @@ class GeneralTests(unittest.TestCase):
     def test_default_repair_budgets(self):
         self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
 
-    def test_context_budget_keeps_claim_and_nearest_files(self):
+    def test_context_omits_unrelated_files(self):
         bundle, claim, _ = fixture()
         sources = {claim["path"]: bundle["sources"][claim["path"]],
                    "near.h": {"text": "int near;\n"},
@@ -153,10 +150,22 @@ class GeneralTests(unittest.TestCase):
         chat = Chat([{"abstain": "stop after inspecting the prompt"}])
         report = self.execute(bundle, claim, chat)
         prompt = chat.prompts[0]
-        self.assertLess(len(prompt), 600100)
-        self.assertIn('"near.h"', prompt)
-        self.assertIn("far.h: omitted by per-property context budget", prompt)
+        self.assertLess(len(prompt.encode("utf-8")), 32000)
+        self.assertNotIn('"near.h"', prompt)
+        self.assertNotIn('"far.h"', prompt)
+        self.assertIn("All other function bodies and files are omitted", prompt)
         self.assertIn("stop after inspecting", report["abstentions"][0]["reason"])
+
+    def test_large_unrelated_file_content_does_not_block_changed_function(self):
+        bundle, claim, _ = fixture()
+        bundle["sources"][claim["path"]]["text"] += "x" * 130000
+        chat = Chat([{"abstain": "scoped function reached model"}])
+
+        report = self.execute(bundle, claim, chat)
+
+        self.assertEqual(len(chat.prompts), 1)
+        self.assertNotIn("x" * 1000, chat.prompts[0])
+        self.assertIn("scoped function reached model", report["abstentions"][0]["reason"])
 
     def test_reachability_probe_ignores_braces_in_provenance_comments(self):
         model = ("method Target(x: int) returns (r: int)\n  ensures r == x\n{\n"
@@ -292,8 +301,10 @@ class GeneralTests(unittest.TestCase):
     def test_quoted_entry_cannot_redirect_goal_inversion(self):
         bundle, claim, translation = fixture()
         source = bundle["sources"][claim["path"]]["text"]
-        bundle["sources"][claim["path"]]["text"] = source.replace("int f(int n) {", "// method Target(n: int)")
-        translation["model"] = translation["model"].replace("| int f(int n) {", "| // method Target(n: int)")
+        bundle["sources"][claim["path"]]["text"] = source.replace(
+            "int f(int n) {", "int f(int n) { // method Target(n: int)")
+        translation["model"] = translation["model"].replace(
+            "| int f(int n) {", "| int f(int n) { // method Target(n: int)")
         verifier = FailingVerifier()
         report = self.execute(bundle, claim, Chat([translation]), verifier=verifier)
         self.assertFalse(report["findings"])
@@ -551,9 +562,39 @@ class GeneralTests(unittest.TestCase):
         self.assertEqual(len(report["findings"]), 1, report)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_captured_same_file_callee_body_is_checked_with_caller_context(self):
+        bundle, claim, translation = fixture()
+        path = claim["path"]
+        bundle["sources"][path]["text"] = bundle["sources"][path]["text"].replace(
+            "return r + 1;", "return bump(r);")
+        bundle["sources"][path]["text"] += (
+            "int bump(int x) {\n  return x + 1;\n}\n"
+            "int wrapper() {\n  return f(100);\n}\n")
+        model = translation["model"].replace("| return r + 1;", "| return bump(r);")
+        position = model.rfind("r := r + 1;")
+        model = model[:position] + "r := Bump(r);" + model[position + len("r := r + 1;"):]
+        translation["model"] = (
+            f"// src: {path}:6 | int bump(int x) {{\n"
+            "function Bump(x: int): int\n// synth: helper body\n{\n"
+            f"// src: {path}:7 | return x + 1;\n"
+            "  x + 1\n// synth: helper end\n}\n" + model)
+        translation["environment"] = [{
+            "name": "Bump", "kind": "source-derived", "description": "Captured increment helper.",
+            "source": {"path": path, "lines": [6, 7]}}]
+        report = self.execute(bundle, claim, Chat([translation]), limits=Limits(proof_rounds=0))
+        self.assertEqual(len(report["findings"]), 1, report)
+        finding = report["findings"][0]
+        self.assertTrue(any(row["path"] == path and row["line"] == 7 for row in finding["source_map"]))
+        self.assertEqual({"n": 2}, finding["translation"]["witness"])
+        self.assertEqual([1, 5], finding["translation"]["source_span"])
+        context = json.loads((self.directory / finding["candidate"]["id"] / "source-context.json").read_text())
+        self.assertEqual({("bump", "callee"), ("wrapper", "caller")},
+                         {(item["name"], item["role"]) for item in context["related_functions"]})
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_general_external_environment_body_is_checked(self):
         bundle, claim, translation = fixture()
-        helper = "int bump(int x) {\n  return x + 1;\n}\n"
+        helper = "// Returns x + 1.\nint bump(int x) {\n  return x + 1;\n}\n"
         bundle["sources"]["src/helper.c"] = {"text": helper}
         bundle["sources"][claim["path"]]["text"] = bundle["sources"][claim["path"]]["text"].replace(
             "return r + 1;", "return bump(r);")
@@ -561,15 +602,15 @@ class GeneralTests(unittest.TestCase):
         position = model.rfind("r := r + 1;")
         model = model[:position] + "r := Bump(r);" + model[position + len("r := r + 1;"):]
         translation["model"] = (
-            "// src: src/helper.c:1 | int bump(int x) {\n"
+            "// src: src/helper.c:2 | int bump(int x) {\n"
             "function Bump(x: int): int\n"
             "// synth: helper body\n{\n"
-            "// src: src/helper.c:2 | return x + 1;\n"
+            "// src: src/helper.c:1 | // Returns x + 1.\n"
             "  x + 1\n// synth: helper end\n}\n" + model)
         translation["required_context"].append("src/helper.c")
         translation["environment"] = [{
-            "name": "Bump", "kind": "source-derived", "description": "Modeled external increment",
-            "source": {"path": "src/helper.c", "lines": [1, 2, 3]}}]
+            "name": "Bump", "kind": "inferred", "description": "External contract: returns x + 1.",
+            "source": {"path": "src/helper.c", "lines": [1, 2]}}]
         report = self.execute(bundle, claim, Chat([translation]), limits=Limits(proof_rounds=0))
         self.assertEqual(len(report["findings"]), 1, report)
         self.assertTrue(any(x["path"] == "src/helper.c" for x in report["findings"][0]["source_map"]))

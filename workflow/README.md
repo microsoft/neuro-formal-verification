@@ -103,15 +103,35 @@ correctness. Each new push hides the previous NFV comment. Verifier models, repa
    sibling/import context. Context is fetched nearest-first: files named after
    identifiers on changed lines, then direct includes and imports, then their
    dependencies, with headers ahead of implementations and same-directory neighbours
-   last. Each property's prompt keeps this order and drops (and discloses) the
-   farthest files when over budget. Record omissions and a complete regular-file inventory.
+   last. Retain this immutable collection for evidence, with omissions and a
+   complete regular-file inventory.
    PR source is never checked out for execution, compiled, imported, or tested.
 2. **Extract intention, not suspicion.** Exact comment/review/commit quotes and
    changed-line anchors are mandatory. Deduplicate and select at most ten
-   intended properties. No likelihood-based triage is applied.
+   intended properties. Process the selected properties caller-first in the
+   captured same-file lexical call graph, including paths through unchanged
+   functions. Recursive groups and equal-depth properties retain extraction
+   order. This orders requests; it does not change a property's entry function
+   or claim anchors, and is not a resolved cross-file/runtime call order.
+   No likelihood-based triage is applied.
 3. **Translate and resolve.** The tool-free NFV `CopilotChat` client produces a
    canonical verifier model (Dafny), original `ensures`, source mappings, concrete witness,
-   environment descriptions, and inferred input conditions. Up to six repair
+   environment descriptions, and inferred input conditions. Each property's
+   context contains one identifiable changed function, at most two direct
+   same-file callers and two callees, and bounded declaration/comment excerpts
+   for other calls and referenced types/constants. These are lexical candidates,
+   not resolved overloads or receiver types. It does not recursively expand the
+   call graph. Original repository line numbers are preserved; omitted bodies
+   are environment. Relevant captured callee bodies are translated as checked,
+   source-derived helpers. Captured callers inform intent and applicability,
+   without automatically restricting the entry's input domain to those calls.
+   Ambiguous boundaries, anchors spanning separate functions, or a changed
+   function exceeding the 32,000-byte source-context budget cause abstention.
+   Every translation and repair request checks the entire system and user
+   payload against an 80,000-byte UTF-8 budget, leaving output headroom.
+   Large verifier diagnostics are explicitly shortened in repair prompts;
+   full logs and frozen models remain in the evidence. Oversized immutable
+   model/metadata requests abstain before inference. Up to six repair
    requests may fix syntax/types before freezing computation. Each attempt uses
    the real NFV `type_check` / `dafny resolve` interface—**not verification of the
    original property**. The recorded goal and metadata cannot change during repair.
@@ -148,15 +168,18 @@ Every generated computation line must have an exact
 `// src: path:line | source excerpt` tag. All significant lines in the declared
 source slice and changed anchors must be covered. Synthetic tags are allowed only
 on structural syntax and verification annotations. Required files and every
-environment helper's captured anchors are checked. This is **provenance coverage,
-not semantic equivalence**.
+environment helper's captured anchors are checked. New translations cannot cite
+computation or environment contracts outside their supplied excerpts. This is
+**provenance coverage, not semantic equivalence**.
 
 Helpers must have checked bodies and explicit source/inferred environment
 descriptions. Code the slice calls but does not translate is environment: the
 translator models it from the callee's captured implementation, declaration and
 comments, preferring the weakest contract those lines justify, and leaves
-undocumented results as entry inputs. The translator's context puts files that
-declare or define calls near the claim first. No axioms, `assume`, `expect`, bodyless callable contracts,
+undocumented results as entry inputs. Omitted implementations are not
+reconstructed; the captured declarations/comments justify the weakest
+environment contracts, or the property abstains when needed behavior is
+undocumented. No axioms, `assume`, `expect`, bodyless callable contracts,
 verification-disabling attributes, includes/imports, opaque definitions, or
 termination escapes are allowed. No model-authored shell command is executed.
 Canonical callable signatures/contracts are complete single lines and their
@@ -230,7 +253,14 @@ official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
 unique bundled `z3-4.12.1`, and collect the PR source with the read-only
 `GITHUB_TOKEN`. Dafny and the bundle live under `$RUNNER_TEMP/gh-aw`, which the
 AWF sandbox mounts **read-only**, and are exported as `NFV_DAFNY_PATH`,
-`NFV_Z3_PATH` and `NFV_BUNDLE`.
+`NFV_Z3_PATH` and `NFV_BUNDLE`. Trusted collection also writes `nfv-input.json`
+in the workspace: a non-secret extraction index containing PR signals,
+changed-line anchors, captured source paths, and omissions, without duplicating
+the source bodies. The agent reads this fixed path and captured `nfv-src/` files;
+it does not need to inspect environment variables to locate extraction inputs.
+An input/access/tool failure stops extraction with a specific `noop` error,
+not an empty audit. An empty proposal list is reserved for successful inspection
+that finds no grounded intended property.
 
 The agent may only read files, write `nfv-proposals.json`, and run
 `nfv-workflow audit --proposals nfv-proposals.json`; every other audit input is

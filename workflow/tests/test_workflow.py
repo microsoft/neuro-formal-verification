@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import unittest
 import uuid
 from unittest.mock import patch
@@ -814,6 +815,24 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", source)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 
+    def test_extraction_reads_fixed_non_secret_index_and_changed_sources(self):
+        source, lock = self.source(), self.lock()
+        self.assertIn('Path("nfv-input.json").write_text', source)
+        self.assertIn(r'Path(\"nfv-input.json\").write_text', lock)
+        prompt = source.split("## 1. Extract intended properties", 1)[1]
+        self.assertIn("read `nfv-input.json` with the file", prompt)
+        self.assertIn("requires no environment or credential access", prompt)
+        self.assertNotIn('cat "$NFV_BUNDLE"', prompt)
+        self.assertIn("Listing files is not source inspection", prompt)
+
+    def test_extraction_failure_cannot_be_reported_as_no_properties(self):
+        prompt = self.source().split("## 1. Extract intended properties", 1)[1]
+        self.assertIn("call\n`noop` with the specific extraction error and stop", prompt)
+        self.assertIn("Do not submit an empty array", prompt)
+        self.assertIn("or run the audit as a fallback for an input/access/tool failure", prompt)
+        self.assertIn("`[]` only after reading the input and relevant changed source", prompt)
+        self.assertIn("Explicit behavioral claims in the PR description", prompt)
+
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
         source = self.source()
         self.assertIn("a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179", source)
@@ -822,6 +841,50 @@ class TemplateTests(unittest.TestCase):
         self.assertIn('echo "NFV_DAFNY_PATH=$dafny_dir/dafny" >> "$GITHUB_ENV"', source)
         self.assertIn('echo "COPILOT_CLI_PATH=$RUNNER_TEMP/gh-aw/bin/copilot"', source)
         self.assertNotIn("setup-dafny-action", source)
+
+
+class ExtractionInputTests(ScratchTest):
+    def script(self):
+        source = TemplateTests().source()
+        block = source.split('      python - "$bundle" <<\'PY\'\n', 1)[1].split("\n      PY", 1)[0]
+        return "\n".join(line[6:] for line in block.splitlines()) + "\n"
+
+    def test_index_preserves_grounding_without_copying_source_or_environment(self):
+        data = bundle()
+        data["sources"]["src/f.cpp"]["text"] += "source-only marker\n" * 50000
+        data["context_omissions"] = ["src/other.cpp: unavailable"]
+        before = copy.deepcopy(data)
+        captured = self.directory / "bundle.json"
+        captured.write_text(json.dumps(data), encoding="utf-8")
+        with patch.dict(os.environ, {"NFV_TEST_ENV_VALUE": "environment-only marker"}):
+            result = subprocess.run([sys.executable, "-", str(captured.resolve())],
+                                    input=self.script(), cwd=self.directory,
+                                    capture_output=True, text=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        path = self.directory / "nfv-input.json"
+        index = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual({"identity", "signals", "changed", "captured_paths", "context_omissions"}, set(index))
+        for key in ("identity", "signals", "changed", "context_omissions"):
+            self.assertEqual(data[key], index[key])
+        self.assertEqual(sorted(data["sources"]), index["captured_paths"])
+        self.assertLess(path.stat().st_size, 2000)
+        self.assertNotIn("source-only marker", path.read_text(encoding="utf-8"))
+        self.assertNotIn("environment-only marker", path.read_text(encoding="utf-8"))
+        self.assertNotIn(b"\r\n", path.read_bytes())
+        self.assertEqual(before, json.loads(captured.read_text(encoding="utf-8")))
+
+    def test_missing_or_invalid_bundle_fails_without_empty_input(self):
+        captured = self.directory / "bundle.json"
+        for value in (None, "{invalid", json.dumps({"signals": []})):
+            with self.subTest(value=value):
+                if value is not None:
+                    captured.write_text(value, encoding="utf-8")
+                result = subprocess.run([sys.executable, "-", str(captured.resolve())],
+                                        input=self.script(), cwd=self.directory,
+                                        capture_output=True, text=True)
+                self.assertNotEqual(0, result.returncode)
+                self.assertTrue(result.stderr)
+                self.assertFalse((self.directory / "nfv-input.json").exists())
 
 
 class AuditTests(ScratchTest):

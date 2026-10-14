@@ -88,6 +88,15 @@ under `workflow/tests/.general-scratch/`; never commit them.
   code and comments with the weakest justified contract; abstain only when the
   behaviour is undocumented. Invalid extracted claims become per-claim
   abstentions instead of failing the batch.
+- Per-property translation context contains one changed function and at most
+  two same-file callers and two callees; other bodies are environment.
+  Analyze relevant captured callee bodies as source-derived helpers and callers
+  for context, without treating those callers as the entry's entire input domain.
+  Order selected properties caller-first in the captured same-file lexical
+  graph; retain extraction order for recursion/ties and keep each entry fixed.
+  Keep the full immutable bundle for evidence and original line numbers in
+  excerpts. Bound the full system/user payload for translation and both repair
+  stages, not only source text (`source_context.py`).
 - The `nfv-merged-pr:` prefix of the report dedup marker is kept deliberately
   for continuity; do not rename it.
 
@@ -97,10 +106,13 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
 - Flow: trusted pre-agent `steps:` install the pinned release, Dafny and the
-  plugin and collect the PR bundle; the agent writes `nfv-proposals.json`, runs
+  plugin and collect the PR bundle; the agent reads the non-secret
+  `nfv-input.json` index and `nfv-src/` text, writes `nfv-proposals.json`, runs
   `nfv-workflow audit --proposals nfv-proposals.json`, and posts the generated
   `comment.md` with one `add-comment` (also when nothing is refuted, listing the
   formalized intents). `hide-older-comments` collapses earlier reports.
+  Input/access/tool failures stop extraction with an explicit `noop` error,
+  never an empty proposal array masquerading as a successful review.
 - Configuration: repository variables `NFV_RELEASE_SHA` (40-hex commit of this
   repo) and `NFV_MODEL`; secret `COPILOT_GITHUB_TOKEN`; optional
   `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
