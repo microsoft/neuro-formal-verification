@@ -40,8 +40,33 @@ under `workflow/tests/.general-scratch/`; never commit them.
 ## Invariants
 
 - A finding is a **conditional MODEL refutation**, never a confirmed source bug;
-  failure to refute is not evidence of correctness. Keep this wording in reports
-  and docs.
+  failure to refute is not evidence of correctness. Keep this wording in docs.
+- Report UX (`publish.general_section`): a one-line NFV intro linking the paper
+  (arXiv:2608.21516) before the issue count, instead of explaining the
+  model/source distinction; per finding normal-sized "Intended property" and
+  quote, "Input on which it fails", and "Sketch of the failure". Collapsed
+  "Details" shows changed code (`source_span`) and helpers with natural-language
+  specifications overlaid as comments (retained assumptions as Requires,
+  the intent as Ensures, helper descriptions as Spec). Typed `source_notes`
+  (`kind`: `invariant` or `spec`) annotate loops or declarations; never fabricate
+  missing loop descriptions for saved evidence. A
+  refutation is a counterexample input, not an execution, so never render a
+  trace. Derive static caller/helper/call-site links from the validated
+  `source_map`, identify functions by their source declarations, and mark the
+  call sites in the snippets; do not imply that a displayed call was executed.
+  Repairs and the minimized Dafny are collapsed; `correspondence` stays in
+  the evidence only. `general_prompt.txt` (REPORT UX) tells the translator to
+  write these texts in source terms, without model details.
+- Source presentation is agent-authored report-only metadata, separate from
+  verifier inputs/goals/computation. Each witness key has an exact captured
+  source-expression anchor or an explicit abstract-input label and reason;
+  the failure prose references an anchored source condition/call, not ghost
+  output flags. `nfv-workflow present` refreshes accepted saved evidence via
+  tool-free `CopilotChat`, without audits/proof reruns, writing a separate
+  hash-bound `presentation.json` and deterministic `comment.md`. Invalid
+  mappings fail rendering; agents never manually edit generated report text.
+  Source anchors and artifact hashes are provenance, not semantic proof or
+  authentication. Presentation validity does not change proof acceptance.
 - PR content is untrusted data. Never check out or execute PR code; sources are
   read as Git blobs by immutable SHA. Rendered text goes through
   `publish.text()` escaping.
