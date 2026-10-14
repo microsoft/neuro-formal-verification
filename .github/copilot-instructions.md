@@ -8,4 +8,6 @@ invariants, gh-aw workflow lessons and conventions. Key points:
 - Test with `python -m unittest discover -s tests` and
   `python -m unittest discover -s workflow/tests`.
 - Work on `dev` or feature branches; never commit `prompts.txt`, `.vscode/` or
-  `.github/skills/`.
+  `.github/skills/agentic-workflows/`.
+- To set up or debug the NFV PR reviewer, use the `nfv-pr-review` skill in
+  `.github/skills/nfv-pr-review/SKILL.md`.
