@@ -72,6 +72,23 @@ Saved reports without typed natural-language invariant/spec notes still show
 the retained input conditions, intended property, and helper specifications;
 missing loop descriptions are not fabricated during publication.
 
+The translator also supplies report-only **source presentation** metadata. It
+reverse-maps each witness key to an expression copied from captured source,
+with exact line anchors, and explains the failure using a source condition or
+call instead of ghost Boolean results. The verifier's parameter names, values,
+computation, goal and acceptance do not change. State without a justified direct
+mapping is explicitly labeled **abstract input**, with a reason; it is not
+presented as a reconstructed source object or concrete source value. Captured
+anchors establish provenance, not semantic equivalence. Invalid presentation
+metadata stops rendering rather than silently dropping inputs or mappings.
+Source-expression values come first; unmappable values use short source-oriented
+labels under **abstract state**. Their reasons and verifier-name mappings stay
+with the nested minimized-Dafny evidence. Reports without this metadata retain
+their original presentation.
+Sequences summarizing separate source predicate queries use anchored
+**abstract per-element results**, not a claim that one source call returns that
+sequence.
+
 Otherwise the comment says no property was refuted and lists each extracted
 property with its quoted claim, its formalized Dafny `ensures` (when the
 translation got that far), and its status, plus abstention and error reasons; this is not evidence of
@@ -225,6 +242,31 @@ GitHub-hosted runners.
 Authenticate Copilot CLI with an approved credential, then select a model ID
 available to that credential. For GitHub Actions, configure `NFV_MODEL` and the
 `COPILOT_GITHUB_TOKEN` secret as described above.
+
+To refresh the presentation of an existing accepted general report, without
+rerunning an audit or verifier:
+
+```powershell
+nfv-workflow present --report .\nfv-evidence\report.json `
+  --bundle .\nfv-evidence\bundle.json --model APPROVED_MODEL `
+  --evidence-url https://github.com/OWNER/REPO/actions/runs/RUN_ID `
+  --out .\nfv-presentation
+```
+
+This billable, tool-free agent pass validates the saved evidence before making
+at most one request per finding (maximum ten; `--model-timeout` defaults to 240
+seconds per request, bounded at 600). It writes a separate `presentation.json`
+bound to hashes of the complete report and bundle, records agent-output hashes
+and call provenance, and deterministically generates `comment.md`. The original
+report and bundle are untouched; no source is executed, no proof is rerun, and
+nothing is published. Invalid or unsupported mappings fail the command.
+The agent receives the files used by the checked source mappings and helper
+anchors; other captured context is omitted explicitly.
+The artifact can be rendered again without inference using
+`nfv_workflow.publish.render(report, bundle, evidence_url, presentation=artifact)`;
+the trusted renderer revalidates its bindings, source anchors and coverage.
+Use only evidence and artifacts produced by trusted tooling: hashes detect
+mismatches but do not authenticate authorship or prove reverse-mapping fidelity.
 
 ```powershell
 # Read-only collection of a real PR event payload (open or merged). Optional --sources-dir

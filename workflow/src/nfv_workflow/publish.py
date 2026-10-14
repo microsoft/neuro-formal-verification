@@ -176,23 +176,62 @@ def relevant_code(claim, translation, finding, bundle, repo, commit):
     return out
 
 
-def general_section(index, finding, bundle, repo, commit):
+def general_section(index, finding, bundle, repo, commit, presentation=None):
     from .general import validate_finding
     validate_finding(finding, bundle)
     claim, translation = finding["candidate"], finding["translation"]
-    inputs = ", ".join(code_span(f"{k} = {json.dumps(v)}") for k, v in sorted(translation["witness"].items()))
+    has_presentation = presentation is not None or "presentation" in translation
+    presentation = presentation if presentation is not None else translation.get("presentation")
+    explanation = translation["explanation"]
+    mapping_details = []
+    if has_presentation:
+        from .presentation import validate
+        validate(presentation, translation, bundle)
+        mapped_inputs, abstract_inputs = [], []
+        for key, value in sorted(translation["witness"].items()):
+            item = presentation["inputs"][key]
+            if item["kind"] in ("expression", "per-element"):
+                shown = code_span(f"{item['expression']} = {json.dumps(value)}")
+                if item["kind"] == "per-element":
+                    abstract_inputs.append("per-element results of " + shown)
+                else:
+                    mapped_inputs.append(shown)
+                links = [source_link(row["path"], row["line"], row["line"], repo, commit)
+                         for row in item["anchors"]]
+                mapping_details.append(f"- {code_span(key)} maps to {code_span(item['expression'])}: "
+                                       + ", ".join(links)
+                                       + (" (abstract per-element predicate results)" if item["kind"] == "per-element" else ""))
+            else:
+                abstract_inputs.append(f"{text(item['label'])} = {code_span(json.dumps(value))}")
+                mapping_details.append(f"- {code_span(key)}: abstract input, {text(item['label'])} "
+                                       f"= {code_span(json.dumps(value))}. {text(item['reason'])}")
+        if abstract_inputs:
+            mapped_inputs.append("abstract state: " + "; ".join(abstract_inputs))
+        inputs = "; ".join(mapped_inputs)
+        explanation = presentation["explanation"]
+        failure = presentation["failure"]
+        mapping_details.extend([
+            f"Source-level failure expression: {code_span(failure['expression'])}; "
+            + ", ".join(source_link(row["path"], row["line"], row["line"], repo, commit)
+                        for row in failure["anchors"]),
+            "The checked witness and proof evidence are unchanged.",
+        ])
+    else:
+        inputs = ", ".join(code_span(f"{k} = {json.dumps(v)}") for k, v in sorted(translation["witness"].items()))
     lines = [
         f"\n### {index}. Potential issue",
         f"**Intended property:** {text(claim['property'])}",
         "> " + text(" ".join(str(claim["quote"]).split())),
         f"**Input on which it fails:** {inputs}",
-        f"**Sketch of the failure:** {text(translation['explanation'])}",
+        f"**Sketch of the failure:** {text(explanation)}",
         "<details><summary>Details</summary>\n",
         *relevant_code(claim, translation, finding, bundle, repo, commit),
     ]
     removed = [value["description"] for i, value in enumerate(translation["assumptions"])
                if i not in finding["retained_assumptions"]]
     details = ["<details><summary>Minimized Dafny</summary>\n"]
+    if has_presentation:
+        details.extend(["**Source presentation (agent-inferred)**", *mapping_details])
     if removed:
         details.append("Dropped while minimizing: " + text("; ".join(removed)))
     details.extend([
@@ -236,9 +275,9 @@ def preamble(ident, evidence_url):
     return [line]
 
 
-def finding_lines(index, finding, bundle, repo, commit):
+def finding_lines(index, finding, bundle, repo, commit, presentation=None):
     if finding.get("kind") == "conditional-model-refutation":
-        return general_section(index, finding, bundle, repo, commit)
+        return general_section(index, finding, bundle, repo, commit, presentation)
     out = []
     candidate, model = finding["candidate"], finding["candidate"]["model"]
     if select_candidates([candidate], bundle)[0]["id"] != candidate["id"]:
@@ -308,7 +347,11 @@ def finding_lines(index, finding, bundle, repo, commit):
     return out
 
 
-def render(report, bundle, evidence_url):
+def render(report, bundle, evidence_url, presentation=None):
+    mappings = {}
+    if presentation is not None:
+        from .presentation import validate_artifact
+        mappings = validate_artifact(presentation, report, bundle)
     findings = checked_findings(report, bundle, evidence_url)
     if findings is None:
         return None
@@ -318,7 +361,8 @@ def render(report, bundle, evidence_url):
     header = [marker(ident), INTRO, f"# NFV: {count} in PR #{ident['number']}",
               *preamble(ident, evidence_url)]
     for index, finding in enumerate(findings, 1):
-        header.extend(finding_lines(index, finding, bundle, repo, commit))
+        header.extend(finding_lines(index, finding, bundle, repo, commit,
+                                    mappings.get(finding["candidate"]["id"])))
     header.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     body = "\n\n".join(header)
     if len(body) > 60000:

@@ -56,6 +56,16 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Repairs and the minimized Dafny are collapsed; `correspondence` stays in
   the evidence only. `general_prompt.txt` (REPORT UX) tells the translator to
   write these texts in source terms, without model details.
+- Source presentation is agent-authored report-only metadata, separate from
+  verifier inputs/goals/computation. Each witness key has an exact captured
+  source-expression anchor or an explicit abstract-input label and reason;
+  the failure prose references an anchored source condition/call, not ghost
+  output flags. `nfv-workflow present` refreshes accepted saved evidence via
+  tool-free `CopilotChat`, without audits/proof reruns, writing a separate
+  hash-bound `presentation.json` and deterministic `comment.md`. Invalid
+  mappings fail rendering; agents never manually edit generated report text.
+  Source anchors and artifact hashes are provenance, not semantic proof or
+  authentication. Presentation validity does not change proof acceptance.
 - PR content is untrusted data. Never check out or execute PR code; sources are
   read as Git blobs by immutable SHA. Rendered text goes through
   `publish.text()` escaping.
