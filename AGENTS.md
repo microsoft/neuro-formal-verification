@@ -88,6 +88,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   code and comments with the weakest justified contract; abstain only when the
   behaviour is undocumented. Invalid extracted claims become per-claim
   abstentions instead of failing the batch.
+- Per-property translation context contains one changed function and at most
+  two same-file callers and two callees; other bodies are environment.
+  Keep the full immutable bundle for evidence and original line numbers in
+  excerpts. Bound the full system/user payload for translation and both repair
+  stages, not only source text (`source_context.py`).
 - The `nfv-merged-pr:` prefix of the report dedup marker is kept deliberately
   for continuity; do not rename it.
 
