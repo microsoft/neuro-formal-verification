@@ -153,10 +153,20 @@ class GeneralTests(unittest.TestCase):
         chat = Chat([{"abstain": "stop after inspecting the prompt"}])
         report = self.execute(bundle, claim, chat)
         prompt = chat.prompts[0]
-        self.assertLess(len(prompt), 600100)
+        self.assertLess(len(prompt), 120100)
         self.assertIn('"near.h"', prompt)
         self.assertIn("far.h: omitted by per-property context budget", prompt)
         self.assertIn("stop after inspecting", report["abstentions"][0]["reason"])
+
+    def test_context_rejects_oversized_claim_file_before_model_call(self):
+        bundle, claim, _ = fixture()
+        bundle["sources"][claim["path"]]["text"] += "x" * 130000
+        chat = Chat([])
+
+        report = self.execute(bundle, claim, chat)
+
+        self.assertEqual(chat.prompts, [])
+        self.assertIn("Captured context exceeds", report["abstentions"][0]["reason"])
 
     def test_reachability_probe_ignores_braces_in_provenance_comments(self):
         model = ("method Target(x: int) returns (r: int)\n  ensures r == x\n{\n"

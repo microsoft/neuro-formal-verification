@@ -223,13 +223,13 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     for path in environment_order(bundle, claim):
         record = numbered(bundle["sources"][path])
         cost = len(json.dumps({path: record})) + 2
-        if path != claim["path"] and size + cost > 560000:
+        if path != claim["path"] and size + cost > 100000:
             context["context_omissions"].append(f"{path}: omitted by per-property context budget")
             continue
         context["sources"][path] = record
         size += cost
     encoded_context = json.dumps(context)
-    if len(encoded_context) > 600000:
+    if len(encoded_context) > 120000:
         raise Abstain("Captured context exceeds the per-property model context budget")
     counters["translation_calls"] += 1
     translation = await ask("translation", "Translate this intended property. No triage or original-property proof.\n" + encoded_context)
