@@ -34,6 +34,8 @@ safe-outputs:
     close-older-issues: true
     max: 1
 jobs:
+  agent:
+    if: "!cancelled() && needs.prepare.result == 'success' && needs.summarize.result == 'success'"
   prepare:
     name: Select full paper benchmark
     runs-on: ubuntu-22.04
@@ -190,6 +192,7 @@ jobs:
   summarize:
     name: Summarize full paper benchmark
     needs: [prepare, benchmark]
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
     runs-on: ubuntu-22.04
     permissions:
       contents: read

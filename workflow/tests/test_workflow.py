@@ -853,6 +853,14 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("merge-multiple: true", lock)
         self.assertIn("fewer completed entries than `entries`", source)
 
+    def test_paper_benchmark_reports_partial_results_after_configuration_failure(self):
+        lock = (self.template / "nfv-paper-benchmark.lock.yml").read_text(encoding="utf-8")
+        agent = lock.split("\n  agent:\n", 1)[1].split("\n  benchmark:\n", 1)[0]
+        summarize = lock.split("\n  summarize:\n", 1)[1].split("\n  update_cache_memory:\n", 1)[0]
+        self.assertIn("!cancelled() && needs.prepare.result == 'success'", summarize)
+        self.assertIn("!cancelled() && needs.prepare.result == 'success'", agent)
+        self.assertIn("needs.summarize.result == 'success'", agent)
+
     def test_paper_benchmark_summary_covers_every_entry_and_missing_results(self):
         root = self.template.parents[1]
         dataset = (root / "paper/data/nl2post_safe.json").read_text(encoding="utf-8")
