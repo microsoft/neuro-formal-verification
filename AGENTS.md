@@ -106,10 +106,13 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
 - Flow: trusted pre-agent `steps:` install the pinned release, Dafny and the
-  plugin and collect the PR bundle; the agent writes `nfv-proposals.json`, runs
+  plugin and collect the PR bundle; the agent reads the non-secret
+  `nfv-input.json` index and `nfv-src/` text, writes `nfv-proposals.json`, runs
   `nfv-workflow audit --proposals nfv-proposals.json`, and posts the generated
   `comment.md` with one `add-comment` (also when nothing is refuted, listing the
   formalized intents). `hide-older-comments` collapses earlier reports.
+  Input/access/tool failures stop extraction with an explicit `noop` error,
+  never an empty proposal array masquerading as a successful review.
 - Configuration: repository variables `NFV_RELEASE_SHA` (40-hex commit of this
   repo) and `NFV_MODEL`; secret `COPILOT_GITHUB_TOKEN`; optional
   `NFV_RELEASE_TOKEN` when this repo is private to the consumer.

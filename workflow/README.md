@@ -253,7 +253,14 @@ official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
 unique bundled `z3-4.12.1`, and collect the PR source with the read-only
 `GITHUB_TOKEN`. Dafny and the bundle live under `$RUNNER_TEMP/gh-aw`, which the
 AWF sandbox mounts **read-only**, and are exported as `NFV_DAFNY_PATH`,
-`NFV_Z3_PATH` and `NFV_BUNDLE`.
+`NFV_Z3_PATH` and `NFV_BUNDLE`. Trusted collection also writes `nfv-input.json`
+in the workspace: a non-secret extraction index containing PR signals,
+changed-line anchors, captured source paths, and omissions, without duplicating
+the source bodies. The agent reads this fixed path and captured `nfv-src/` files;
+it does not need to inspect environment variables to locate extraction inputs.
+An input/access/tool failure stops extraction with a specific `noop` error,
+not an empty audit. An empty proposal list is reserved for successful inspection
+that finds no grounded intended property.
 
 The agent may only read files, write `nfv-proposals.json`, and run
 `nfv-workflow audit --proposals nfv-proposals.json`; every other audit input is
