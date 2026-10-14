@@ -113,6 +113,13 @@ class GeneralTests(unittest.TestCase):
         self.assertNotIn("Missing referenced files mean abstention", prompt)
         self.assertIn("Do not abstain merely because a callee is implemented elsewhere", prompt)
 
+    def test_prompt_analyzes_captured_neighbors_without_narrowing_entry_inputs(self):
+        prompt = (Path(__file__).parents[1] / "src/nfv_workflow/general_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Analyze those bodies", prompt)
+        self.assertIn("source-derived helpers", prompt)
+        self.assertIn("do not assume they are the only callers", prompt)
+        self.assertIn("or restrict entry inputs merely to the arguments they happen to pass", prompt)
+
     def setUp(self):
         self.directory = Path(__file__).parent / ".general-scratch" / uuid.uuid4().hex
         self.directory.mkdir(parents=True)
@@ -553,6 +560,36 @@ class GeneralTests(unittest.TestCase):
             "source_notes": [{"path": claim["path"], "line": 6, "note": "The modeled object field is incremented."}]}
         report = self.execute(bundle, claim, Chat([translation]), limits=Limits(proof_rounds=0))
         self.assertEqual(len(report["findings"]), 1, report)
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_captured_same_file_callee_body_is_checked_with_caller_context(self):
+        bundle, claim, translation = fixture()
+        path = claim["path"]
+        bundle["sources"][path]["text"] = bundle["sources"][path]["text"].replace(
+            "return r + 1;", "return bump(r);")
+        bundle["sources"][path]["text"] += (
+            "int bump(int x) {\n  return x + 1;\n}\n"
+            "int wrapper() {\n  return f(100);\n}\n")
+        model = translation["model"].replace("| return r + 1;", "| return bump(r);")
+        position = model.rfind("r := r + 1;")
+        model = model[:position] + "r := Bump(r);" + model[position + len("r := r + 1;"):]
+        translation["model"] = (
+            f"// src: {path}:6 | int bump(int x) {{\n"
+            "function Bump(x: int): int\n// synth: helper body\n{\n"
+            f"// src: {path}:7 | return x + 1;\n"
+            "  x + 1\n// synth: helper end\n}\n" + model)
+        translation["environment"] = [{
+            "name": "Bump", "kind": "source-derived", "description": "Captured increment helper.",
+            "source": {"path": path, "lines": [6, 7]}}]
+        report = self.execute(bundle, claim, Chat([translation]), limits=Limits(proof_rounds=0))
+        self.assertEqual(len(report["findings"]), 1, report)
+        finding = report["findings"][0]
+        self.assertTrue(any(row["path"] == path and row["line"] == 7 for row in finding["source_map"]))
+        self.assertEqual({"n": 2}, finding["translation"]["witness"])
+        self.assertEqual([1, 5], finding["translation"]["source_span"])
+        context = json.loads((self.directory / finding["candidate"]["id"] / "source-context.json").read_text())
+        self.assertEqual({("bump", "callee"), ("wrapper", "caller")},
+                         {(item["name"], item["role"]) for item in context["related_functions"]})
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_general_external_environment_body_is_checked(self):

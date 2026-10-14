@@ -8,8 +8,9 @@ import uuid
 
 from nfv_workflow.general import Limits, run
 from nfv_workflow.github import Abstain
-from nfv_workflow.source_context import (CONTEXT_BYTES, REQUEST_BYTES, check_request,
-                                         diagnostics, scoped_context, size)
+from nfv_workflow.source_context import (CONTEXT_BYTES, REQUEST_BYTES, Function,
+                                         caller_first, check_request, diagnostics,
+                                         root_levels, scoped_context, size)
 from test_general import Chat, FailingVerifier, SOURCES, fixture
 
 
@@ -182,6 +183,25 @@ class RequestIntegrationTests(unittest.TestCase):
     def execute(self, bundle, claim, chat, verifier, **kwargs):
         return asyncio.run(run(bundle, [claim], self.directory, chat, verifier=verifier, **kwargs))
 
+    def test_caller_property_runs_first_without_changing_its_entry_or_callee_claim(self):
+        bundle, claim, _ = fixture()
+        path = claim["path"]
+        bundle["sources"][path]["text"] = (
+            "int leaf(int n) {\n return n;\n}\n"
+            "int root(int n) {\n return leaf(n);\n}\n")
+        bundle["changed"][path] = [2, 5]
+        bundle["signals"][0]["text"] = "Leaf returns n. Root returns n."
+        leaf = {**claim, "lines": [2], "quote": "Leaf returns n.", "property": "Leaf returns n."}
+        root = {**claim, "lines": [5], "quote": "Root returns n.", "property": "Root returns n."}
+        chat = Chat([{"abstain": "caller inspected"}, {"abstain": "callee inspected"}])
+        report = asyncio.run(run(bundle, [leaf, root], self.directory, chat, verifier=FailingVerifier()))
+        self.assertEqual([[5], [2]], [item["lines"] for item in report["properties"]])
+        self.assertEqual(["Root returns n.", "Leaf returns n."],
+                         [item["property"] for item in report["properties"]])
+        scopes = [json.loads(prompt.split("\n", 1)[1])["source_scope"]["function"]
+                  for prompt in chat.prompts]
+        self.assertEqual(["root", "leaf"], scopes)
+
     def test_large_metadata_stops_syntax_repair_before_inference(self):
         bundle, claim, translation = fixture()
         translation["correspondence"] += "x" * REQUEST_BYTES
@@ -285,3 +305,53 @@ class RequestIntegrationTests(unittest.TestCase):
         report = self.execute(bundle, claim, Chat([translation]), verifier)
         self.assertIn("Environment contract cites source outside", report["abstentions"][0]["reason"])
         self.assertFalse(verifier.operations)
+
+
+class CallerOrderTests(unittest.TestCase):
+    def order(self, source, lines):
+        bundle = {"sources": {"main.cpp": {"text": source}}}
+        claims = [{"path": "main.cpp", "lines": [line], "language": "cpp"} for line in lines]
+        original = copy.deepcopy(claims)
+        ordered = caller_first(bundle, claims)
+        self.assertEqual(original, claims)
+        return [item["lines"][0] for item in ordered]
+
+    def test_caller_first_through_unchanged_intermediary(self):
+        source = ("int leaf() {\n return 1;\n}\n"
+                  "int middle() {\n return leaf();\n}\n"
+                  "int root() {\n return middle();\n}\n")
+        self.assertEqual([8, 2], self.order(source, [2, 8]))
+
+    def test_multiple_roots_stable_ties_and_recursion(self):
+        source = ("int a() {\n return b();\n}\n"
+                  "int b() {\n return a();\n}\n"
+                  "int root() {\n return a();\n}\n"
+                  "int independent() {\n return 1;\n}\n")
+        self.assertEqual([11, 8, 5, 2], self.order(source, [5, 11, 2, 8]))
+
+    def test_shortcut_does_not_move_callee_before_changed_caller(self):
+        source = ("int leaf() {\n return 1;\n}\n"
+                  "int parent() {\n return leaf();\n}\n"
+                  "int middle() {\n return parent();\n}\n"
+                  "int root() {\n return middle() + leaf();\n}\n")
+        self.assertEqual([5, 2], self.order(source, [2, 5]))
+
+    def test_unscopable_property_remains_for_explicit_abstention(self):
+        source = "int leaf() {\n return 1;\n}\nint root() {\n return leaf();\n}\n"
+        self.assertEqual([5, 2, 999], self.order(source, [999, 2, 5]))
+
+    def test_same_names_in_different_files_do_not_create_edges(self):
+        bundle = {"sources": {
+            "one.cpp": {"text": "int caller() {\n return callee();\n}\n"},
+            "two.cpp": {"text": "int callee() {\n return 1;\n}\n"},
+        }}
+        claims = [{"path": path, "lines": [2], "language": "cpp"} for path in ("two.cpp", "one.cpp")]
+        self.assertEqual(claims, caller_first(bundle, claims))
+
+    def test_deep_graph_does_not_depend_on_python_recursion_limit(self):
+        definitions = [Function(f"f{i}", i + 1, i + 1, i + 1, i + 1,
+                                frozenset({f"f{i + 1}"}) if i < 1499 else frozenset())
+                       for i in range(1500)]
+        levels = root_levels(definitions)
+        self.assertEqual(0, levels[definitions[0]])
+        self.assertEqual(1499, levels[definitions[-1]])

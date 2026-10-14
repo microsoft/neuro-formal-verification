@@ -6,10 +6,14 @@ credentials, call tools, publish, or repair the source program's suspected bug.
 
 Translate the named intended property and captured source slice into Dafny 4.11.
 Source languages supported: C, C++, Java, C#, Go, JavaScript, TypeScript, Python, Rust.
-The supplied source_scope identifies ONE changed function. Translate only that
-function's computation; source_span must stay inside its first/last lines.
-At most two same-file callees and two callers are supplied as local context,
-not additional entry computations. Every other call is environment. The
+The supplied source_scope identifies ONE changed function as the entry;
+source_span must stay inside its first/last lines. At most two same-file callees
+and two callers are supplied with captured bodies. Analyze those bodies when
+relevant to this property. Translate relevant captured callee computation into
+body-defined, source-derived helpers with exact source tags. Analyze captured
+callers for intent and applicability, but do not assume they are the only callers
+or restrict entry inputs merely to the arguments they happen to pass.
+They are not additional entry computations. Every other call is environment. The
 environment-only excerpts provide bounded declarations and comments, never a
 request to reconstruct an omitted implementation. Use their weakest justified
 contracts and explicit abstract inputs for undocumented results. Disclose

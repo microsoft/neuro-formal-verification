@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import re
 import textwrap
+from collections import defaultdict, deque
 from dataclasses import dataclass
 
 from .github import Abstain
@@ -132,13 +133,10 @@ def size(value):
     return len(json.dumps(value, ensure_ascii=False).encode("utf-8"))
 
 
-def scoped_context(bundle, claim):
-    path = claim["path"]
-    record = bundle["sources"][path]
-    local = functions(record, claim["language"])
+def entry_function(definitions, anchors):
     targets = set()
-    for line in claim["lines"]:
-        enclosing = sorted((fn for fn in local if fn.first <= line <= fn.last),
+    for line in anchors:
+        enclosing = sorted((fn for fn in definitions if fn.first <= line <= fn.last),
                            key=lambda fn: fn.last - fn.first)
         if not enclosing:
             raise Abstain("Changed anchors must belong to one identifiable function")
@@ -147,7 +145,87 @@ def scoped_context(bundle, claim):
         targets.add(enclosing[0])
     if len(targets) != 1:
         raise Abstain("Changed anchors must belong to one identifiable function")
-    target = targets.pop()
+    return targets.pop()
+
+
+def root_levels(definitions):
+    """Caller-first levels of the lexical graph, with recursive groups kept together."""
+    names = defaultdict(list)
+    for index, fn in enumerate(definitions):
+        names[fn.name].append(index)
+    graph = [set(other for name in fn.calls for other in names[name]) for fn in definitions]
+    reverse = [set() for _ in definitions]
+    for node, edges in enumerate(graph):
+        for other in edges:
+            reverse[other].add(node)
+    seen, finished = set(), []
+    for start in range(len(graph)):
+        stack = [(start, False)]
+        while stack:
+            node, done = stack.pop()
+            if done:
+                finished.append(node)
+            elif node not in seen:
+                seen.add(node)
+                stack.append((node, True))
+                stack.extend((other, False) for other in sorted(graph[node], reverse=True))
+    groups, group_count = {}, 0
+    for start in reversed(finished):
+        if start in groups:
+            continue
+        group = group_count
+        group_count += 1
+        stack = [start]
+        groups[start] = group
+        while stack:
+            node = stack.pop()
+            for other in reverse[node]:
+                if other not in groups:
+                    groups[other] = group
+                    stack.append(other)
+    edges = [set() for _ in range(group_count)]
+    incoming = [0] * len(edges)
+    for node, children in enumerate(graph):
+        for child in children:
+            if groups[node] != groups[child]:
+                edges[groups[node]].add(groups[child])
+    for children in edges:
+        for child in children:
+            incoming[child] += 1
+    levels = [0] * len(edges)
+    ready = deque(index for index, count in enumerate(incoming) if not count)
+    while ready:
+        group = ready.popleft()
+        for child in edges[group]:
+            levels[child] = max(levels[child], levels[group] + 1)
+            incoming[child] -= 1
+            if incoming[child] == 0:
+                ready.append(child)
+    return {fn: levels[groups[index]] for index, fn in enumerate(definitions)}
+
+
+def caller_first(bundle, claims):
+    """Order selected properties; unscopable claims still abstain in run_property."""
+    files, ranks = {}, {}
+    for index, claim in enumerate(claims):
+        key = (claim["path"], claim["language"])
+        try:
+            if key not in files:
+                definitions = functions(bundle["sources"][claim["path"]], claim["language"])
+                files[key] = (definitions, root_levels(definitions))
+            definitions, levels = files[key]
+            ranks[index] = levels[entry_function(definitions, claim["lines"])]
+        except Abstain:
+            # The same boundary check is repeated by scoped_context and reported per claim.
+            ranks[index] = float("inf")
+    return [claim for index, claim in sorted(enumerate(claims), key=lambda item: ranks[item[0]])]
+
+
+def scoped_context(bundle, claim):
+    path = claim["path"]
+    record = bundle["sources"][path]
+    local = functions(record, claim["language"])
+    target = entry_function(local, claim["lines"])
     selected = [target]
     captured_omissions = bundle.get("context_omissions", [])
     omissions = list(captured_omissions[:30])

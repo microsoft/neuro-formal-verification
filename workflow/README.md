@@ -108,7 +108,12 @@ correctness. Each new push hides the previous NFV comment. Verifier models, repa
    PR source is never checked out for execution, compiled, imported, or tested.
 2. **Extract intention, not suspicion.** Exact comment/review/commit quotes and
    changed-line anchors are mandatory. Deduplicate and select at most ten
-   intended properties. No likelihood-based triage is applied.
+   intended properties. Process the selected properties caller-first in the
+   captured same-file lexical call graph, including paths through unchanged
+   functions. Recursive groups and equal-depth properties retain extraction
+   order. This orders requests; it does not change a property's entry function
+   or claim anchors, and is not a resolved cross-file/runtime call order.
+   No likelihood-based triage is applied.
 3. **Translate and resolve.** The tool-free NFV `CopilotChat` client produces a
    canonical verifier model (Dafny), original `ensures`, source mappings, concrete witness,
    environment descriptions, and inferred input conditions. Each property's
@@ -117,7 +122,9 @@ correctness. Each new push hides the previous NFV comment. Verifier models, repa
    for other calls and referenced types/constants. These are lexical candidates,
    not resolved overloads or receiver types. It does not recursively expand the
    call graph. Original repository line numbers are preserved; omitted bodies
-   are environment.
+   are environment. Relevant captured callee bodies are translated as checked,
+   source-derived helpers. Captured callers inform intent and applicability,
+   without automatically restricting the entry's input domain to those calls.
    Ambiguous boundaries, anchors spanning separate functions, or a changed
    function exceeding the 32,000-byte source-context budget cause abstention.
    Every translation and repair request checks the entire system and user

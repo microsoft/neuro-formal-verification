@@ -15,7 +15,7 @@ from .general_gates import (BACKEND, annotate, clean_code, final_gate,
                             remove_requirement, validate_translation, witness_bridge)
 from .github import Abstain
 from .model import normalize, validate_claim
-from .source_context import check_request, diagnostics, scoped_context
+from .source_context import caller_first, check_request, diagnostics, scoped_context
 
 LANGUAGES = {
     ".c": "c", ".h": "cpp", ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
@@ -126,7 +126,7 @@ def select_properties(raw, bundle, rejected=None):
         selected.append(claim)
         if len(selected) == 10:
             break
-    return selected
+    return caller_first(bundle, selected)
 
 
 def save(path, value):

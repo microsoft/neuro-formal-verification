@@ -90,6 +90,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
   abstentions instead of failing the batch.
 - Per-property translation context contains one changed function and at most
   two same-file callers and two callees; other bodies are environment.
+  Analyze relevant captured callee bodies as source-derived helpers and callers
+  for context, without treating those callers as the entry's entire input domain.
+  Order selected properties caller-first in the captured same-file lexical
+  graph; retain extraction order for recursion/ties and keep each entry fixed.
   Keep the full immutable bundle for evidence and original line numbers in
   excerpts. Bound the full system/user payload for translation and both repair
   stages, not only source text (`source_context.py`).
