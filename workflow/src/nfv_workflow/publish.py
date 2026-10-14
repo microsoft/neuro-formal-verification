@@ -8,7 +8,6 @@ import json
 import base64
 import os
 import re
-import textwrap
 from urllib.parse import quote
 
 from .check import accepted
@@ -82,56 +81,87 @@ def fenced(language, body):
     return f"{fence}{language}\n{body.rstrip()}\n{fence}"
 
 
-def source_windows(claim, translation, bundle, notes):
-    """Source ranges to show: the translated span of the claim file, plus a little
-    context around every annotated line, merged per file."""
-    ranges = {}
-    span = translation.get("source_span") or [min(claim["lines"]), max(claim["lines"])]
-    ranges.setdefault(claim["path"], []).append([span[0], span[1]])
-    for path, line in notes:
-        ranges.setdefault(path, []).append([line - 2, line + 2])
-    windows = []
-    for path in sorted(ranges, key=lambda x: x != claim["path"]):
-        record = bundle["sources"][path]
-        first = record.get("line_start", 1)
-        last = first + len(record["text"].splitlines()) - 1
-        merged = []
-        for low, high in sorted(ranges[path]):
-            low, high = max(low, first), min(high, last)
-            if merged and low <= merged[-1][1] + 3:
-                merged[-1][1] = max(merged[-1][1], high)
-            else:
-                merged.append([low, high])
-        windows.extend((path, low, high) for low, high in merged if low <= high)
-    return windows
+def source_link(path, low, high, repo, commit):
+    url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{low}-L{high}"
+    return f"[{code_span(path)} lines {low}-{high}]({url})"
 
 
-def trace(claim, translation, bundle, repo, commit):
-    """The PR's own source with the intended property and the translator's notes overlaid as comments."""
-    notes = {}
-    for note in translation.get("source_notes", []):
-        notes.setdefault((note["path"], note["line"]), []).append(str(note["note"]))
-    anchor = min(claim["lines"])
-    notes.setdefault((claim["path"], anchor), []).insert(0, "intended: " + str(claim["property"]))
-    comment_mark = "#" if claim["language"] == "python" else "//"
-    out = []
-    for path, low, high in source_windows(claim, translation, bundle, notes):
-        record = bundle["sources"][path]
-        first = record.get("line_start", 1)
-        source = record["text"].splitlines()
-        high = min(high, low + 59)
-        width = len(str(high))
-        url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{low}-L{high}"
-        body = []
-        for number in range(low, high + 1):
-            code = source[number - first].rstrip()
-            body.append(f"{number:>{width}}  {code}")
+def source_block(bundle, path, low, high, language, repo, commit, notes=None):
+    """A linked, line-numbered excerpt of the PR's own source."""
+    record = bundle["sources"][path]
+    first = record.get("line_start", 1)
+    source = record["text"].splitlines()
+    low, high = max(low, first), min(high, first + len(source) - 1)
+    width = len(str(high))
+    body = []
+    comment = "#" if language == "python" else "//"
+    for n in range(low, high + 1):
+        code = source[n - first].rstrip()
+        body.append(f"{n:>{width}}  {code}")
+        for note in (notes or {}).get((path, n), []):
             indent = " " * (width + 2 + len(code) - len(code.lstrip()))
-            for note in notes.get((path, number), []):
-                for i, part in enumerate(textwrap.wrap(" ".join(note.split()), 90) or [""]):
-                    body.append(f"{indent}{comment_mark} {'^ ' if i == 0 else '  '}{part}")
-        out.append(f"[{code_span(path)} lines {low}-{high}]({url})")
-        out.append(fenced(FENCES.get(claim["language"], ""), "\n".join(body)))
+            body.append(f"{indent}{comment} NFV: {note}")
+    return source_link(path, low, high, repo, commit), fenced(language, "\n".join(body))
+
+
+def source_calls(finding):
+    """Connect helper calls to their source-tagged declarations, without executing code."""
+    declarations, calls = {}, []
+    owner = None
+    for row in finding["source_map"]:
+        declaration = re.match(r"(?:ghost\s+)?(?:method|function|predicate|lemma)\s+(\w+)\s*\(",
+                               row["model"])
+        if declaration:
+            owner = declaration[1]
+            declarations[owner] = row
+        else:
+            calls.append((owner, row))
+    helpers = {item["name"] for item in finding["translation"].get("environment", [])}
+    result, seen = [], set()
+    for owner, row in calls:
+        code = re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*', "", row["model"])
+        if re.match(r"\s*(?:assert|invariant|decreases|requires|ensures)\b", code):
+            continue
+        for name in sorted(helpers):
+            key = (owner, row["path"], row["line"], name)
+            if re.search(r"\b" + re.escape(name) + r"\s*\(", code) and key not in seen:
+                result.append((declarations[owner], row, declarations[name]))
+                seen.add(key)
+    return declarations, result
+
+
+def relevant_code(claim, translation, finding, bundle, repo, commit):
+    """The changed code and each called helper the check relied on, each headed by its
+    natural-language specification. The refutation is a counterexample input, not a trace."""
+    language = FENCES.get(claim["language"], "")
+    declarations, calls = source_calls(finding)
+    out, notes = ["**Relevant code**"], {}
+    if calls:
+        out.append("**Call relationships (static call sites):**")
+        for caller, site, callee in calls:
+            caller_link = source_link(caller["path"], caller["line"], caller["line"], repo, commit)
+            callee_link = source_link(callee["path"], callee["line"], callee["line"], repo, commit)
+            site_link = source_link(site["path"], site["line"], site["line"], repo, commit)
+            out.append(f"- {code_span(caller['source'])} ({caller_link}) calls "
+                       f"{code_span(callee['source'])} ({callee_link}); call site: {site_link}.")
+            notes.setdefault((site["path"], site["line"]), []).append(
+                f"Call site for the helper at {callee['path']}:{callee['line']}; see helper definition.")
+    span = translation.get("source_span") or [min(claim["lines"]), max(claim["lines"])]
+    link, block = source_block(bundle, claim["path"], span[0], span[1], language, repo, commit, notes)
+    spec = ["Requires: " + text(translation["assumptions"][i]["description"])
+            for i in finding["retained_assumptions"]]
+    spec.append("Ensures (intended): " + text(claim["property"]))
+    entry = declarations[translation["entry_point"]]
+    out.extend([f"**Changed code** — {link}\n"
+                f"Function: {code_span(entry['source'])}\n" + "\n".join("- " + x for x in spec), block])
+    for helper in translation.get("environment", []):
+        origin = helper["source"]
+        lines = origin.get("lines") or []
+        link, block = source_block(bundle, origin["path"], min(lines), max(lines), language, repo, commit, notes)
+        declaration = declarations[helper["name"]]
+        out.extend([f"**Helper definition** — {link}\n"
+                    f"Function: {code_span(declaration['source'])}\n- Spec: {text(helper['description'])}",
+                    block])
     return out
 
 
@@ -139,24 +169,17 @@ def general_section(index, finding, bundle, repo, commit):
     from .general import validate_finding
     validate_finding(finding, bundle)
     claim, translation = finding["candidate"], finding["translation"]
+    inputs = ", ".join(code_span(f"{k} = {json.dumps(v)}") for k, v in sorted(translation["witness"].items()))
     lines = [
         f"\n## {index}. {text(claim['property'])}",
         "> " + text(" ".join(str(claim["quote"]).split())),
-        f"**Why it can fail:** {text(translation['explanation'])}",
+        f"**Input:** {inputs}",
+        f"**Why it fails:** {text(translation['explanation'])}",
+        *relevant_code(claim, translation, finding, bundle, repo, commit),
     ]
-    retained = [translation["assumptions"][i]["description"] for i in finding["retained_assumptions"]]
-    if retained:
-        lines.append("**Assuming:**\n" + "\n".join("- " + text(x) for x in retained))
-    lines.append("**Trace**")
-    lines.extend(trace(claim, translation, bundle, repo, commit))
     removed = [value["description"] for i, value in enumerate(translation["assumptions"])
                if i not in finding["retained_assumptions"]]
-    details = [
-        "<details><summary>Minimized Dafny</summary>\n",
-        "Inputs: " + code_span(json.dumps(translation["witness"], sort_keys=True)),
-    ]
-    details.extend("Helper " + code_span(x["name"]) + ": " + text(x["description"])
-                   for x in translation.get("environment", []))
+    details = ["<details><summary>Minimized Dafny</summary>\n"]
     if removed:
         details.append("Dropped while minimizing: " + text("; ".join(removed)))
     details.extend([

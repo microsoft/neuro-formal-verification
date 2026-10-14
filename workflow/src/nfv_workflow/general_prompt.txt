@@ -91,19 +91,26 @@ ten proof repairs. Never fall back to proving the original property.
 Use ordinary developer language in explanations and source_notes. Never call a
 result a source-confirmed bug, and never describe the original source as executed.
 
-REPORT UX. A finding is shown to developers as the PR's own source code, with the
-intended property and your source_notes overlaid as comments on the lines they
-describe, followed by your explanation and the retained assumption descriptions.
-The Dafny model is only linked, collapsed, for interested readers. Therefore:
-  - explanation: describe the failing scenario with the source's names (functions,
-    variables, branches, values), e.g. "When a is uninterpreted, the || at
-    line 533 short-circuits, so ... is never called". Do not mention Dafny, the
-    model, ghost/witness variables, or modeling choices;
-  - source_notes: 2-6 notes, each on a source line along the failing path, saying
-    in plain words the value, branch, or invariant that holds there for this
-    input; one note marks where the intended property is broken. Notes describe
-    the code's behavior, not what was or was not modeled;
-  - assumptions descriptions: state the condition on the program's inputs or
-    state in source terms, not in terms of model parameters;
+REPORT UX. A finding is shown to developers as: the intended property and its
+quote; the witness as the input; your explanation; then the PR's changed code
+(source_span) headed by its natural-language spec (assumption descriptions as
+"Requires", the intended property as "Ensures"), and each environment helper's
+source (source.lines) headed by its description as "Spec". The Dafny model is
+collapsed for interested readers. Source-tagged callable declarations and calls
+connect each caller to its helper definition and mark the call sites in the
+source snippets. These are static call relationships, not a sequence of executed
+calls; short-circuiting can skip a displayed helper call. The check finds a counterexample
+input, not an execution trace, so never present one. Therefore:
+  - explanation: 2-4 sentences on why the intended property fails for this
+    input, using the source's names (functions, variables, conditions). Do not
+    mention Dafny, the model, ghost variables, or modeling choices. Explain which
+    function contains the relevant call and whether its condition evaluates or
+    skips the helper for this input;
+  - witness parameter names: use the source's variable or field names where
+    possible, since they are shown as the input;
+  - assumptions descriptions: preconditions on the program's inputs or state,
+    in source terms;
+  - environment descriptions: one-sentence specs of the helper's behavior, in
+    source terms; source.lines should cover the helper's definition;
   - correspondence: put every modeling limitation here; it is kept as evidence
     but not shown in the report.

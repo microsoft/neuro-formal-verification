@@ -12,7 +12,7 @@ from nfv_workflow.general import (LANGUAGE_GUIDES, Limits, environment_order, re
                                   select_properties, validate_finding)
 from nfv_workflow.general_gates import annotate
 from nfv_workflow.github import Abstain
-from nfv_workflow.publish import dafny_block, render
+from nfv_workflow.publish import dafny_block, render, source_block, source_calls
 
 
 SOURCES = {
@@ -350,14 +350,26 @@ class GeneralTests(unittest.TestCase):
             self.assertEqual(cli.main(["evaluate", "--event", str(event), "--submission", str(submitted),
                                        "--out", str(self.directory / "out"), "--model", "fake-model"]), 0)
 
-    def test_report_overlays_intent_and_notes_on_source(self):
+    def test_report_shows_input_and_code_with_natural_language_specs(self):
         bundle, claim, translation = fixture("cpp")
         bundle["identity"]["source_kind"] = "pull-request-head"
+        text = bundle["sources"][claim["path"]]["text"].splitlines()
+        text[1] += "  // ``` @someone"
+        text[3] = "  return r + g();"
+        bundle["sources"][claim["path"]]["text"] = "\n".join(text + ["int g() {", "  return 1;", "}"]) + "\n"
         claim["id"] = "p1"
-        translation["source_notes"].append(
-            {"path": claim["path"], "line": 3, "note": "`r` counts loop iterations ``` @someone"})
+        translation["environment"] = [{"name": "G", "description": "g always returns one.",
+                                       "kind": "source-derived",
+                                       "source": {"path": claim["path"], "lines": [6, 8]}}]
         finding = {
             "kind": "conditional-model-refutation", "candidate": claim, "translation": translation,
+            "source_map": [
+                {"path": claim["path"], "line": 1, "source": text[0],
+                 "model": "method Target(n: int) returns (r: int)"},
+                {"path": claim["path"], "line": 4, "source": text[3], "model": "r := r + G();"},
+                {"path": claim["path"], "line": 6, "source": "int g() {",
+                 "model": "function G(): int"},
+            ],
             "retained_assumptions": [0], "counters": {"syntax_repairs": 1, "proof_repairs": 0},
             "evidence": "p1/final/model.dfy", "dafny_sha256": "0" * 64, "dafny": "method M()\n{\n}\n",
             "result": {"outcome": "verified", "exit_code": 0, "mode": "unbounded",
@@ -368,20 +380,59 @@ class GeneralTests(unittest.TestCase):
         self.assertIn("# NFV: 1 potential issue in PR #1", body)
         self.assertIn("(https://arxiv.org/abs/2608.21516)", body)
         self.assertIn("> The result equals n.", body)
-        self.assertIn("**Assuming:**\n- Nonnegative iteration count", body)
+        self.assertIn("**Input:** `n = 2`", body)
+        self.assertIn("**Why it fails:** The loop counts to the input and then adds one more.", body)
         self.assertNotIn("Source correspondence is not established", body)
-        url = "https://github.com/local/synthetic/blob/" + "a" * 40 + "/src/example.cpp#L1-L5"
-        self.assertIn(f"[`src/example.cpp` lines 1-5]({url})", body)
-        trace = body[body.index("````cpp\n"):body.index("<details>")]
-        self.assertIn("1  int f(int n) {", trace)
-        self.assertIn("4    return r + 1;\n     // ^ intended: The result equals n.\n"
-                      "     // ^ The modeled return includes the extra increment.", trace)
-        # Untrusted note text stays inside a longer fence, so it cannot close the block.
-        self.assertIn("// ^ `r` counts loop iterations ``` @someone", trace)
-        self.assertTrue(trace.rstrip().endswith("````"))
+        self.assertNotIn("modeled return", body)
+        base = "https://github.com/local/synthetic/blob/" + "a" * 40 + "/src/example.cpp"
+        self.assertIn(f"**Changed code** — [`src/example.cpp` lines 1-5]({base}#L1-L5)\n"
+                      "Function: `int f(int n) {`\n"
+                      "- Requires: Nonnegative iteration count\n"
+                      "- Ensures (intended): The result equals n.", body)
+        changed = body[body.index("````cpp\n"):body.index("**Helper definition**")]
+        self.assertIn("1  int f(int n) {\n2    int r = 0;  // ``` @someone\n", changed)
+        # Untrusted source text stays inside a longer fence, so it cannot close the block.
+        self.assertTrue(changed.rstrip().endswith("````"))
+        self.assertIn(f"**Helper definition** — [`src/example.cpp` lines 6-8]({base}#L6-L8)\n"
+                      "Function: `int g() {`\n"
+                      "- Spec: g always returns one.\n\n```cpp\n6  int g() {\n7    return 1;\n8  }\n```", body)
+        self.assertIn("**Call relationships (static call sites):**", body)
+        self.assertIn(f"`int f(int n) {{` ([`src/example.cpp` lines 1-1]({base}#L1-L1))", body)
+        self.assertIn(f"call site: [`src/example.cpp` lines 4-4]({base}#L4-L4)", body)
+        self.assertIn("// NFV: Call site for the helper at src/example.cpp:6; see helper definition.", changed)
+        self.assertNotIn("**Trace**", body)
         details = body[body.index("<details>"):]
-        self.assertIn('Inputs: `{"n": 2}`', details)
         self.assertIn("```dafny\nmethod M()", details)
+
+    def test_source_calls_connect_nested_helpers_and_deduplicate_sites(self):
+        def row(name, line, code):
+            return {"path": "src/example.cpp", "line": line, "source": name, "model": code}
+        finding = {
+            "translation": {"environment": [{"name": "G"}, {"name": "H"}]},
+            "source_map": [
+                row("int f() {", 1, "method Target()"),
+                row("return g();", 2, "r := G();"),
+                row("return g();", 2, "r := G();"),
+                row('const char* s = "H()";', 3, 'var s := "H()"; // G()'),
+                row("return g();", 2, "assert H() == 1;"),
+                row("int g() {", 4, "function G(): int"),
+                row("return h();", 5, "H()"),
+                row("int h() {", 7, "function H(): int"),
+                row("return 1;", 8, "1"),
+            ],
+        }
+        _, calls = source_calls(finding)
+        self.assertEqual([(a["line"], site["line"], b["line"]) for a, site, b in calls],
+                         [(1, 2, 4), (4, 5, 7)])
+
+    def test_source_block_keeps_late_call_sites_and_excerpt_line_numbers(self):
+        bundle = {"sources": {"src/example.py": {
+            "line_start": 100, "text": "\n".join("    f()" for _ in range(70))}}}
+        link, block = source_block(bundle, "src/example.py", 100, 169, "python",
+                                  "local/synthetic", "a" * 40,
+                                  {("src/example.py", 169): ["Call site for helper."]})
+        self.assertIn("#L100-L169", link)
+        self.assertIn("169      f()\n         # NFV: Call site for helper.", block)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_all_languages_with_fake_translation_and_real_dafny(self):
@@ -403,16 +454,11 @@ class GeneralTests(unittest.TestCase):
                 report["identity"] = publish_bundle["identity"]
                 body = render(report, publish_bundle, "https://github.com/local/synthetic/actions/runs/123")
                 self.assertIn("[Neuro-formal verification (NFV)](https://arxiv.org/abs/2608.21516)", body)
-                self.assertIn("**Why it can fail:** The loop counts to the input and then adds one more.", body)
+                self.assertIn("**Why it fails:** The loop counts to the input and then adds one more.", body)
                 self.assertNotIn("Source correspondence is not established", body)
-                fence = "```" + {"c": "c", "cpp": "cpp", "csharp": "csharp"}.get(language, language)
-                trace = body[body.index(fence):body.index("<details>")]
-                anchor = claim["lines"][0]
-                source_line = bundle["sources"][claim["path"]]["text"].splitlines()[anchor - 1]
-                mark = "#" if language == "python" else "//"
-                self.assertIn(f"{anchor}  {source_line.rstrip()}", trace)
-                self.assertIn(f"{mark} ^ intended: The result equals n.", trace)
-                self.assertIn(f"{mark} ^ The modeled return includes the extra increment.", trace)
+                self.assertIn("- Ensures (intended): The result equals n.", body)
+                source_line = bundle["sources"][claim["path"]]["text"].splitlines()[claim["lines"][0] - 1]
+                self.assertIn(f"{claim['lines'][0]}  {source_line.rstrip()}", body)
                 self.assertIn("<summary>Minimized Dafny</summary>", body)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")

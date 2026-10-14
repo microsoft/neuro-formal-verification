@@ -58,11 +58,15 @@ When accepted refutations exist, the agent posts **one PR comment** (never a
 review approval or change request). It opens with a one-line description of NFV
 linking the [paper](https://arxiv.org/abs/2608.21516), the analyzed head and
 base, and the run link. Each finding shows the intended property and its quote,
-why it can fail in plain language, the retained assumptions, and a **trace**:
-the PR's own source lines with the intended property and the translator's notes
-overlaid as comments. Concrete inputs, helpers, repairs and the minimized Dafny
-are in one collapsed section; the translator's modeling caveats stay in the
-evidence artifact.
+the counterexample **input**, why the property fails for it, and the
+**relevant code**: the PR's changed lines headed by their natural-language spec
+(Requires: the retained assumptions; Ensures: the intended property), and each
+called helper's source headed by its natural-language spec. Repairs and the
+minimized Dafny are in a collapsed section; the translator's modeling caveats
+stay in the evidence artifact. Linked call relationships identify the caller,
+the helper definition, and the call-site line, which is also marked in the
+source snippet. These are static call sites, not an execution trace; a displayed
+call may be skipped by a branch or short-circuit condition.
 
 Otherwise the comment says no property was refuted and lists each extracted
 property with its quoted claim, its formalized Dafny `ensures` (when the
