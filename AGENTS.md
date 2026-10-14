@@ -41,11 +41,14 @@ under `workflow/tests/.general-scratch/`; never commit them.
 - A finding is a **conditional MODEL refutation**, never a confirmed source bug;
   failure to refute is not evidence of correctness. Keep this wording in docs.
 - Report UX (`publish.general_section`): a one-line NFV intro linking the paper
-  (arXiv:2608.21516) instead of explaining the model/source distinction; per
-  finding the intent and quote, the counterexample input, a plain-language
-  "why it fails", then the changed code (`source_span`) headed by its
-  natural-language spec (retained assumptions as Requires, the intent as
-  Ensures) and each called helper's source headed by its description. A
+  (arXiv:2608.21516) before the issue count, instead of explaining the
+  model/source distinction; per finding normal-sized "Intended property" and
+  quote, "Input on which it fails", and "Sketch of the failure". Collapsed
+  "Details" shows changed code (`source_span`) and helpers with natural-language
+  specifications overlaid as comments (retained assumptions as Requires,
+  the intent as Ensures, helper descriptions as Spec). Typed `source_notes`
+  (`kind`: `invariant` or `spec`) annotate loops or declarations; never fabricate
+  missing loop descriptions for saved evidence. A
   refutation is a counterexample input, not an execution, so never render a
   trace. Derive static caller/helper/call-site links from the validated
   `source_map`, identify functions by their source declarations, and mark the

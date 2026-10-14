@@ -31,7 +31,8 @@ Only Dafny is allowed. Return JSON:
  "required_context":["every captured file whose declarations/semantics are needed"],
  "correspondence":"Explicit statement that source correspondence is not established, and limitations",
  "explanation":"2-4 sentences: the concrete scenario and why the intended property fails, in source terms",
- "source_notes":[{"path":"captured file","line":1,"note":"what holds or happens at this source line in the scenario"}]
+ "source_notes":[{"path":"captured file","line":1,"kind":"invariant or spec",
+                  "note":"natural-language loop invariant or function/environment specification"}]
 }
 
 The entry is a non-ghost top-level METHOD with one or more returned values.
@@ -91,12 +92,15 @@ ten proof repairs. Never fall back to proving the original property.
 Use ordinary developer language in explanations and source_notes. Never call a
 result a source-confirmed bug, and never describe the original source as executed.
 
-REPORT UX. A finding is shown to developers as: the intended property and its
-quote; the witness as the input; your explanation; then the PR's changed code
-(source_span) headed by its natural-language spec (assumption descriptions as
-"Requires", the intended property as "Ensures"), and each environment helper's
-source (source.lines) headed by its description as "Spec". The Dafny model is
-collapsed for interested readers. Source-tagged callable declarations and calls
+REPORT UX. The NFV introduction and paper link precede the issue count. Each
+finding shows "Intended property" in normal-sized text and its quote, "Input on
+which it fails" with the witness, and "Sketch of the failure" with your explanation.
+A collapsed "Details" section contains the relevant code and call sites, with
+natural-language specifications and loop invariants overlaid as source comments,
+followed by the collapsed minimized Dafny. Retained assumption descriptions appear
+as "Spec (requires)", the intended property as "Spec (ensures, intended)", and
+each environment helper's description as "Spec" at its declaration.
+Source-tagged callable declarations and calls
 connect each caller to its helper definition and mark the call sites in the
 source snippets. These are static call relationships, not a sequence of executed
 calls; short-circuiting can skip a displayed helper call. The check finds a counterexample
@@ -112,5 +116,11 @@ input, not an execution trace, so never present one. Therefore:
     in source terms;
   - environment descriptions: one-sentence specs of the helper's behavior, in
     source terms; source.lines should cover the helper's definition;
+  - source_notes: give natural-language versions of the checked loop invariants
+    (kind="invariant", anchored at the source loop) and any additional function
+    or environment contracts (kind="spec", anchored at the source declaration).
+    Describe the invariant across iterations, not a claimed execution trace.
+    Use source identifiers, not Dafny helper names or auxiliary proof variables.
+    Keep abstraction and translation caveats in correspondence, not these notes;
   - correspondence: put every modeling limitation here; it is kept as evidence
     but not shown in the report.

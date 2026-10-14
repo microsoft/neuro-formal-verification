@@ -56,17 +56,21 @@ head and cancels the older run.
 
 When accepted refutations exist, the agent posts **one PR comment** (never a
 review approval or change request). It opens with a one-line description of NFV
-linking the [paper](https://arxiv.org/abs/2608.21516), the analyzed head and
-base, and the run link. Each finding shows the intended property and its quote,
-the counterexample **input**, why the property fails for it, and the
-**relevant code**: the PR's changed lines headed by their natural-language spec
-(Requires: the retained assumptions; Ensures: the intended property), and each
-called helper's source headed by its natural-language spec. Repairs and the
-minimized Dafny are in a collapsed section; the translator's modeling caveats
-stay in the evidence artifact. Linked call relationships identify the caller,
+linking the [paper](https://arxiv.org/abs/2608.21516), before the issue count,
+the analyzed head and base, and the run link. Each finding shows **Intended
+property** in normal-sized text and its quote, **Input on which it fails**, and
+**Sketch of the failure**. A collapsed **Details** section shows the relevant
+code and call sites with natural-language loop invariants and specifications
+overlaid as comments: retained assumptions as Requires, the intended property
+as Ensures, and each helper's behavior as Spec. The minimized Dafny and repair
+information follow in a nested collapsed section. Modeling caveats stay in the
+evidence artifact. Linked call relationships identify the caller,
 the helper definition, and the call-site line, which is also marked in the
 source snippet. These are static call sites, not an execution trace; a displayed
 call may be skipped by a branch or short-circuit condition.
+Saved reports without typed natural-language invariant/spec notes still show
+the retained input conditions, intended property, and helper specifications;
+missing loop descriptions are not fabricated during publication.
 
 Otherwise the comment says no property was refuted and lists each extracted
 property with its quoted claim, its formalized Dafny `ensures` (when the

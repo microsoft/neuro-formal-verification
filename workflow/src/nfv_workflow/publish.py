@@ -100,7 +100,7 @@ def source_block(bundle, path, low, high, language, repo, commit, notes=None):
         body.append(f"{n:>{width}}  {code}")
         for note in (notes or {}).get((path, n), []):
             indent = " " * (width + 2 + len(code) - len(code.lstrip()))
-            body.append(f"{indent}{comment} NFV: {note}")
+            body.append(f"{indent}{comment} NFV: {' '.join(note.split())}")
     return source_link(path, low, high, repo, commit), fenced(language, "\n".join(body))
 
 
@@ -136,6 +136,10 @@ def relevant_code(claim, translation, finding, bundle, repo, commit):
     language = FENCES.get(claim["language"], "")
     declarations, calls = source_calls(finding)
     out, notes = ["**Relevant code**"], {}
+    for note in translation.get("source_notes", []):
+        if note.get("kind") in ("invariant", "spec"):
+            label = "Invariant" if note["kind"] == "invariant" else "Spec"
+            notes.setdefault((note["path"], note["line"]), []).append(f"{label}: {note['note']}")
     if calls:
         out.append("**Call relationships (static call sites):**")
         for caller, site, callee in calls:
@@ -147,20 +151,27 @@ def relevant_code(claim, translation, finding, bundle, repo, commit):
             notes.setdefault((site["path"], site["line"]), []).append(
                 f"Call site for the helper at {callee['path']}:{callee['line']}; see helper definition.")
     span = translation.get("source_span") or [min(claim["lines"]), max(claim["lines"])]
-    link, block = source_block(bundle, claim["path"], span[0], span[1], language, repo, commit, notes)
-    spec = ["Requires: " + text(translation["assumptions"][i]["description"])
+    spec = ["Spec (requires): " + translation["assumptions"][i]["description"]
             for i in finding["retained_assumptions"]]
-    spec.append("Ensures (intended): " + text(claim["property"]))
+    spec.append("Spec (ensures, intended): " + claim["property"])
+    notes.setdefault((claim["path"], span[0]), [])[:0] = spec
+    link, block = source_block(bundle, claim["path"], span[0], span[1], language, repo, commit, notes)
     entry = declarations[translation["entry_point"]]
     out.extend([f"**Changed code** — {link}\n"
-                f"Function: {code_span(entry['source'])}\n" + "\n".join("- " + x for x in spec), block])
+                f"Function: {code_span(entry['source'])}", block])
     for helper in translation.get("environment", []):
         origin = helper["source"]
         lines = origin.get("lines") or []
-        link, block = source_block(bundle, origin["path"], min(lines), max(lines), language, repo, commit, notes)
         declaration = declarations[helper["name"]]
+        low, high = min(lines), max(lines)
+        spec_line = low
+        if declaration["path"] == origin["path"]:
+            low, high = min(low, declaration["line"]), max(high, declaration["line"])
+            spec_line = declaration["line"]
+        notes.setdefault((origin["path"], spec_line), []).insert(0, "Spec: " + helper["description"])
+        link, block = source_block(bundle, origin["path"], low, high, language, repo, commit, notes)
         out.extend([f"**Helper definition** — {link}\n"
-                    f"Function: {code_span(declaration['source'])}\n- Spec: {text(helper['description'])}",
+                    f"Function: {code_span(declaration['source'])}",
                     block])
     return out
 
@@ -171,10 +182,12 @@ def general_section(index, finding, bundle, repo, commit):
     claim, translation = finding["candidate"], finding["translation"]
     inputs = ", ".join(code_span(f"{k} = {json.dumps(v)}") for k, v in sorted(translation["witness"].items()))
     lines = [
-        f"\n## {index}. {text(claim['property'])}",
+        f"\n### {index}. Potential issue",
+        f"**Intended property:** {text(claim['property'])}",
         "> " + text(" ".join(str(claim["quote"]).split())),
-        f"**Input:** {inputs}",
-        f"**Why it fails:** {text(translation['explanation'])}",
+        f"**Input on which it fails:** {inputs}",
+        f"**Sketch of the failure:** {text(translation['explanation'])}",
+        "<details><summary>Details</summary>\n",
         *relevant_code(claim, translation, finding, bundle, repo, commit),
     ]
     removed = [value["description"] for i, value in enumerate(translation["assumptions"])
@@ -187,6 +200,7 @@ def general_section(index, finding, bundle, repo, commit):
         f"{finding['counters']['proof_repairs']} annotation. "
         f"{code_span(finding['evidence'])}, SHA-256 {code_span(finding['dafny_sha256'])}.",
         dafny_block(finding["dafny"]),
+        "</details>",
         "</details>",
     ])
     return lines + details
@@ -301,7 +315,7 @@ def render(report, bundle, evidence_url):
     ident = report["identity"]
     repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
     count = f"{len(findings)} potential issue{'' if len(findings) == 1 else 's'}"
-    header = [marker(ident), f"# NFV: {count} in PR #{ident['number']}", INTRO,
+    header = [marker(ident), INTRO, f"# NFV: {count} in PR #{ident['number']}",
               *preamble(ident, evidence_url)]
     for index, finding in enumerate(findings, 1):
         header.extend(finding_lines(index, finding, bundle, repo, commit))
@@ -319,7 +333,7 @@ def comment(report, bundle, evidence_url, proposed):
         return body
     ident = report["identity"]
     abstentions, errors = report.get("abstentions", []), report.get("errors", [])
-    lines = [marker(ident), f"# NFV: no refutations in PR #{ident['number']}", INTRO,
+    lines = [marker(ident), INTRO, f"# NFV: no refutations in PR #{ident['number']}",
              *preamble(ident, evidence_url),
              f"Extracted {proposed} intended propert{'y' if proposed == 1 else 'ies'}; "
              f"{len(abstentions)} abstained and {len(errors)} errored. None was refuted, "
