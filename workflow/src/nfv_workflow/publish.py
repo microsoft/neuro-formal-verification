@@ -8,6 +8,7 @@ import json
 import base64
 import os
 import re
+import textwrap
 from urllib.parse import quote
 
 from .check import accepted
@@ -62,65 +63,110 @@ def publication_allowed(api):
     return all(mode == "false" for mode in modes)
 
 
+PAPER = "https://arxiv.org/abs/2608.21516"
+INTRO = (f"[Neuro-formal verification (NFV)]({PAPER}) extracts the intended properties stated "
+         "in a PR, translates the changed code to Dafny, and asks the verifier for a concrete "
+         "input that violates each property. See the paper for how to read its findings.")
+FENCES = {"c": "c", "cpp": "cpp", "java": "java", "csharp": "csharp", "go": "go",
+          "javascript": "javascript", "typescript": "typescript", "python": "python", "rust": "rust"}
+
+
+def code_span(value):
+    # Code spans render literally; only backticks and line breaks could escape them.
+    return "`" + " ".join(str(value).replace("`", "'").split()) + "`"
+
+
+def fenced(language, body):
+    longest = max((len(x) for x in re.findall(r"`+", body)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return f"{fence}{language}\n{body.rstrip()}\n{fence}"
+
+
+def source_windows(claim, translation, bundle, notes):
+    """Source ranges to show: the translated span of the claim file, plus a little
+    context around every annotated line, merged per file."""
+    ranges = {}
+    span = translation.get("source_span") or [min(claim["lines"]), max(claim["lines"])]
+    ranges.setdefault(claim["path"], []).append([span[0], span[1]])
+    for path, line in notes:
+        ranges.setdefault(path, []).append([line - 2, line + 2])
+    windows = []
+    for path in sorted(ranges, key=lambda x: x != claim["path"]):
+        record = bundle["sources"][path]
+        first = record.get("line_start", 1)
+        last = first + len(record["text"].splitlines()) - 1
+        merged = []
+        for low, high in sorted(ranges[path]):
+            low, high = max(low, first), min(high, last)
+            if merged and low <= merged[-1][1] + 3:
+                merged[-1][1] = max(merged[-1][1], high)
+            else:
+                merged.append([low, high])
+        windows.extend((path, low, high) for low, high in merged if low <= high)
+    return windows
+
+
+def trace(claim, translation, bundle, repo, commit):
+    """The PR's own source with the intended property and the translator's notes overlaid as comments."""
+    notes = {}
+    for note in translation.get("source_notes", []):
+        notes.setdefault((note["path"], note["line"]), []).append(str(note["note"]))
+    anchor = min(claim["lines"])
+    notes.setdefault((claim["path"], anchor), []).insert(0, "intended: " + str(claim["property"]))
+    comment_mark = "#" if claim["language"] == "python" else "//"
+    out = []
+    for path, low, high in source_windows(claim, translation, bundle, notes):
+        record = bundle["sources"][path]
+        first = record.get("line_start", 1)
+        source = record["text"].splitlines()
+        high = min(high, low + 59)
+        width = len(str(high))
+        url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{low}-L{high}"
+        body = []
+        for number in range(low, high + 1):
+            code = source[number - first].rstrip()
+            body.append(f"{number:>{width}}  {code}")
+            indent = " " * (width + 2 + len(code) - len(code.lstrip()))
+            for note in notes.get((path, number), []):
+                for i, part in enumerate(textwrap.wrap(" ".join(note.split()), 90) or [""]):
+                    body.append(f"{indent}{comment_mark} {'^ ' if i == 0 else '  '}{part}")
+        out.append(f"[{code_span(path)} lines {low}-{high}]({url})")
+        out.append(fenced(FENCES.get(claim["language"], ""), "\n".join(body)))
+    return out
+
+
 def general_section(index, finding, bundle, repo, commit):
     from .general import validate_finding
     validate_finding(finding, bundle)
     claim, translation = finding["candidate"], finding["translation"]
-    clauses = " and ".join(translation["original_ensures"])
     lines = [
         f"\n## {index}. {text(claim['property'])}",
-        "**Checked conditional MODEL refutation — source correspondence is not established.** "
-        "This is not a source-confirmed bug.",
-        f"**Quoted intended behavior:** {text(claim['quote'])}",
-        f"**Checked expectation:** {text(clauses)}",
-        f"**Proposed concrete inputs:** {text(json.dumps(translation['witness'], sort_keys=True))}",
-        "Dafny checked the model's failure of that expectation and a concrete call satisfying "
-        "its input conditions. It also checked termination; a separate returning-case check passed.",
-        f"**Model-based explanation (not an independent source diagnosis):** {text(translation['explanation'])}",
-        f"**Conditional on the translation/environment choices:** {text(translation['correspondence'])}",
-        "**Retained inferred input/environment conditions:**",
+        "> " + text(" ".join(str(claim["quote"]).split())),
+        f"**Why it can fail:** {text(translation['explanation'])}",
     ]
-    retained = finding["retained_assumptions"]
-    lines.extend("- " + text(translation["assumptions"][i]["description"]) for i in retained)
-    if not retained:
-        lines.append("- No additional entry conditions remain; translation correspondence is still unproved.")
-    for environment in translation.get("environment", []):
-        origin = environment["source"]
-        lines.append("- " + text(environment["name"]) + ": " + text(environment["description"])
-                     + " (modeler-labelled " + text(environment["kind"]) + "; captured context "
-                     + text(origin["path"]) + "). These definitions are checked in the model, "
-                     "not certified as equivalent to the external implementation.")
-    lines.append("\n**Annotated immutable source overlay:**")
-    notes = {(x["path"], x["line"]): x["note"] for x in translation.get("source_notes", [])}
-    selected, seen = [], set()
-    for mapping in finding["source_map"]:
-        key = (mapping["path"], mapping["line"])
-        if key not in seen:
-            seen.add(key)
-            selected.append(mapping)
-    selected.sort(key=lambda x: (x["path"] != claim["path"], x["line"] not in claim["lines"], x["line"]))
-    for mapping in selected[:16]:
-        path, line = mapping["path"], mapping["line"]
-        url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{line}"
-        lines.append(f"- [{text(path)}:{line}]({url}): {text(mapping['source'])}")
-        lines.append("  - Checked-model mapping: " + text(mapping["model"]))
-        if (path, line) in notes:
-            lines.append("  - Modeler's annotation: " + text(notes[(path, line)]))
-    lines.extend([
-        "<details><summary>Dafny evidence, repairs, and assumptions</summary>\n",
-        f"Artifact file: `{finding['evidence']}`; SHA-256 `{finding['dafny_sha256']}`.",
-        f"Syntax repairs used: {finding['counters']['syntax_repairs']}/{finding['limits']['syntax_rounds']}. "
-        f"Annotation-only repairs used: {finding['counters']['proof_repairs']}/{finding['limits']['proof_rounds']}.",
-        "Optional restrictions were deleted one at a time only when the complete negative check, "
-        "concrete-call consistency, and returning-case check still passed. Required conditions, "
-        "the witness, goal, and computation were not repaired. Source fidelity is not established.",
-        "Removed optional restrictions: " + text("; ".join(
-            value["description"] for i, value in enumerate(translation["assumptions"])
-            if i not in retained) or "none"),
+    retained = [translation["assumptions"][i]["description"] for i in finding["retained_assumptions"]]
+    if retained:
+        lines.append("**Assuming:**\n" + "\n".join("- " + text(x) for x in retained))
+    lines.append("**Trace**")
+    lines.extend(trace(claim, translation, bundle, repo, commit))
+    removed = [value["description"] for i, value in enumerate(translation["assumptions"])
+               if i not in finding["retained_assumptions"]]
+    details = [
+        "<details><summary>Minimized Dafny</summary>\n",
+        "Inputs: " + code_span(json.dumps(translation["witness"], sort_keys=True)),
+    ]
+    details.extend("Helper " + code_span(x["name"]) + ": " + text(x["description"])
+                   for x in translation.get("environment", []))
+    if removed:
+        details.append("Dropped while minimizing: " + text("; ".join(removed)))
+    details.extend([
+        f"Repairs: {finding['counters']['syntax_repairs']} syntax, "
+        f"{finding['counters']['proof_repairs']} annotation. "
+        f"{code_span(finding['evidence'])}, SHA-256 {code_span(finding['dafny_sha256'])}.",
         dafny_block(finding["dafny"]),
         "</details>",
     ])
-    return lines
+    return lines + details
 
 
 def checked_findings(report, bundle, evidence_url):
@@ -145,18 +191,12 @@ def checked_findings(report, bundle, evidence_url):
 
 
 def preamble(ident, evidence_url):
-    commit = sha(ident["source_sha"])
-    lines = [f"Analyzed PR head `{commit}` against base `{sha(ident['base_sha'])}`."]
+    line = (f"PR head `{sha(ident['source_sha'])[:12]}`, base `{sha(ident['base_sha'])[:12]}`"
+            f" · [run and evidence]({evidence_url})")
     if ident.get("merged"):
-        lines.append(f"The PR was merged as `{sha(ident['merge_sha'])}`; this analyzes its saved head, "
-                     "**not** the merge result.")
-    return lines + [
-        "Dafny checked that the stated expectation fails for the concrete inputs in the "
-        "translated model. This is **not** an execution of the original program or a "
-        "machine-checked guarantee that the translation matches it. Each finding is "
-        "conditional on the source-to-model correspondence and environment choices below.",
-        f"[Dafny files, verifier logs, and minimization rechecks]({evidence_url})",
-    ]
+        line += (f" · merged as `{sha(ident['merge_sha'])}`; this analyzes the saved head, "
+                 "not the merge result")
+    return [line]
 
 
 def finding_lines(index, finding, bundle, repo, commit):
@@ -237,12 +277,12 @@ def render(report, bundle, evidence_url):
         return None
     ident = report["identity"]
     repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
-    header = [marker(ident), f"# Conditional model findings for PR #{ident['number']}",
-              "This was found by a neuro-formal verifier.", *preamble(ident, evidence_url)]
+    count = f"{len(findings)} potential issue{'' if len(findings) == 1 else 's'}"
+    header = [marker(ident), f"# NFV: {count} in PR #{ident['number']}", INTRO,
+              *preamble(ident, evidence_url)]
     for index, finding in enumerate(findings, 1):
         header.extend(finding_lines(index, finding, bundle, repo, commit))
-    header.extend([f"\nGenerated by [Neuro-formal verification]({evidence_url}).",
-                   "<!-- gh-aw-workflow-id: nfv-pr-review -->"])
+    header.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     body = "\n\n".join(header)
     if len(body) > 60000:
         raise Abstain("Publication exceeds bounded size")
@@ -256,13 +296,11 @@ def comment(report, bundle, evidence_url, proposed):
         return body
     ident = report["identity"]
     abstentions, errors = report.get("abstentions", []), report.get("errors", [])
-    lines = [marker(ident), f"# Neuro-formal verification of PR #{ident['number']}: no refutations",
-             f"Analyzed PR head `{sha(ident['source_sha'])}` against base `{sha(ident['base_sha'])}`.",
+    lines = [marker(ident), f"# NFV: no refutations in PR #{ident['number']}", INTRO,
+             *preamble(ident, evidence_url),
              f"Extracted {proposed} intended propert{'y' if proposed == 1 else 'ies'}; "
-             f"{len(abstentions)} abstained and {len(errors)} errored. Dafny refuted none of "
-             "them in the translated models.",
-             "No refutation is **not** evidence that the code is correct: properties may be "
-             "missed, abstained on, or translated imperfectly."]
+             f"{len(abstentions)} abstained and {len(errors)} errored. None was refuted, "
+             "which is not evidence that the code is correct."]
     properties = report.get("properties", [])
     if properties:
         lines.append("## Intended properties checked")
@@ -278,8 +316,7 @@ def comment(report, bundle, evidence_url, proposed):
         lines.extend(f"- {text(x.get('id', '?'))}: {text(str(x.get('reason', ''))[:300])}" for x in abstentions[:10])
         lines.extend(f"- error: {text(str(x)[:300])}" for x in errors[:5])
         lines.append("</details>")
-    lines.extend([f"\nGenerated by [Neuro-formal verification]({evidence_url}).",
-                  "<!-- gh-aw-workflow-id: nfv-pr-review -->"])
+    lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     return "\n\n".join(lines)
 
 

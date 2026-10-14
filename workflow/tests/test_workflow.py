@@ -400,7 +400,7 @@ class PublicationTests(ScratchTest):
         data["identity"].update(merged=False, merge_sha=None)
         report["identity"] = data["identity"]
         body = render(report, data, self.url)
-        self.assertIn("# Conditional model findings", body)
+        self.assertIn("# NFV: 1 potential issue in PR #", body)
         self.assertNotIn("merged as", body)
 
     def test_merged_identity_without_merge_sha_cannot_publish(self):
@@ -412,9 +412,8 @@ class PublicationTests(ScratchTest):
 
     def test_clear_conditional_explanation(self):
         body = render(self.report(), bundle(), self.url)
-        self.assertIn("# Conditional model findings", body)
-        self.assertIn("This was found by a neuro-formal verifier.", body)
-        self.assertIn("not** an execution", body)
+        self.assertIn("# NFV: 1 potential issue in PR #", body)
+        self.assertIn("[Neuro-formal verification (NFV)](https://arxiv.org/abs/2608.21516)", body)
         self.assertIn("Source overlay", body)
         self.assertIn("merged as `" + "c" * 40 + "`", body)
         self.assertIn(self.url, body)

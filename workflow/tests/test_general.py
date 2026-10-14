@@ -350,6 +350,39 @@ class GeneralTests(unittest.TestCase):
             self.assertEqual(cli.main(["evaluate", "--event", str(event), "--submission", str(submitted),
                                        "--out", str(self.directory / "out"), "--model", "fake-model"]), 0)
 
+    def test_report_overlays_intent_and_notes_on_source(self):
+        bundle, claim, translation = fixture("cpp")
+        bundle["identity"]["source_kind"] = "pull-request-head"
+        claim["id"] = "p1"
+        translation["source_notes"].append(
+            {"path": claim["path"], "line": 3, "note": "`r` counts loop iterations ``` @someone"})
+        finding = {
+            "kind": "conditional-model-refutation", "candidate": claim, "translation": translation,
+            "retained_assumptions": [0], "counters": {"syntax_repairs": 1, "proof_repairs": 0},
+            "evidence": "p1/final/model.dfy", "dafny_sha256": "0" * 64, "dafny": "method M()\n{\n}\n",
+            "result": {"outcome": "verified", "exit_code": 0, "mode": "unbounded",
+                       "stdout": "Dafny program verifier finished with 2 verified, 0 errors"}}
+        report = {"identity": bundle["identity"], "findings": [finding], "errors": []}
+        with patch("nfv_workflow.general.validate_finding"):
+            body = render(report, bundle, "https://github.com/local/synthetic/actions/runs/1")
+        self.assertIn("# NFV: 1 potential issue in PR #1", body)
+        self.assertIn("(https://arxiv.org/abs/2608.21516)", body)
+        self.assertIn("> The result equals n.", body)
+        self.assertIn("**Assuming:**\n- Nonnegative iteration count", body)
+        self.assertNotIn("Source correspondence is not established", body)
+        url = "https://github.com/local/synthetic/blob/" + "a" * 40 + "/src/example.cpp#L1-L5"
+        self.assertIn(f"[`src/example.cpp` lines 1-5]({url})", body)
+        trace = body[body.index("````cpp\n"):body.index("<details>")]
+        self.assertIn("1  int f(int n) {", trace)
+        self.assertIn("4    return r + 1;\n     // ^ intended: The result equals n.\n"
+                      "     // ^ The modeled return includes the extra increment.", trace)
+        # Untrusted note text stays inside a longer fence, so it cannot close the block.
+        self.assertIn("// ^ `r` counts loop iterations ``` @someone", trace)
+        self.assertTrue(trace.rstrip().endswith("````"))
+        details = body[body.index("<details>"):]
+        self.assertIn('Inputs: `{"n": 2}`', details)
+        self.assertIn("```dafny\nmethod M()", details)
+
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_all_languages_with_fake_translation_and_real_dafny(self):
         for language in SOURCES:
@@ -369,8 +402,18 @@ class GeneralTests(unittest.TestCase):
                 publish_bundle["identity"]["source_kind"] = "pull-request-head"
                 report["identity"] = publish_bundle["identity"]
                 body = render(report, publish_bundle, "https://github.com/local/synthetic/actions/runs/123")
-                self.assertIn("not a source-confirmed bug", body)
-                self.assertIn("source correspondence is not established", body)
+                self.assertIn("[Neuro-formal verification (NFV)](https://arxiv.org/abs/2608.21516)", body)
+                self.assertIn("**Why it can fail:** The loop counts to the input and then adds one more.", body)
+                self.assertNotIn("Source correspondence is not established", body)
+                fence = "```" + {"c": "c", "cpp": "cpp", "csharp": "csharp"}.get(language, language)
+                trace = body[body.index(fence):body.index("<details>")]
+                anchor = claim["lines"][0]
+                source_line = bundle["sources"][claim["path"]]["text"].splitlines()[anchor - 1]
+                mark = "#" if language == "python" else "//"
+                self.assertIn(f"{anchor}  {source_line.rstrip()}", trace)
+                self.assertIn(f"{mark} ^ intended: The result equals n.", trace)
+                self.assertIn(f"{mark} ^ The modeled return includes the extra increment.", trace)
+                self.assertIn("<summary>Minimized Dafny</summary>", body)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_general_heap_state_model_is_checked(self):

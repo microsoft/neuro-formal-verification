@@ -39,8 +39,15 @@ under `workflow/tests/.general-scratch/`; never commit them.
 ## Invariants
 
 - A finding is a **conditional MODEL refutation**, never a confirmed source bug;
-  failure to refute is not evidence of correctness. Keep this wording in reports
-  and docs.
+  failure to refute is not evidence of correctness. Keep this wording in docs.
+- Report UX (`publish.general_section`): a one-line NFV intro linking the paper
+  (arXiv:2608.21516) instead of explaining the model/source distinction; per
+  finding the intent and quote, a plain-language "why it can fail", retained
+  assumptions, and a trace of the PR's own source with the intent and the
+  translator's `source_notes` overlaid as comments. Inputs, helpers, repairs and
+  the minimized Dafny go in one collapsed section; `correspondence` stays in the
+  evidence only. `general_prompt.txt` (REPORT UX) tells the translator to write
+  the explanation and notes in source terms, without model details.
 - PR content is untrusted data. Never check out or execute PR code; sources are
   read as Git blobs by immutable SHA. Rendered text goes through
   `publish.text()` escaping.

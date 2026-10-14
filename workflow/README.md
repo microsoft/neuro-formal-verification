@@ -55,11 +55,14 @@ moves during collection is rejected; the next `synchronize` run reviews the new
 head and cancels the older run.
 
 When accepted refutations exist, the agent posts **one PR comment** (never a
-review approval or change request). It states the analyzed head and base, the
-conditional nature of the findings, and the run link, then for each finding the
-developer quote, formalized expectation, concrete inputs, a conditional
-model-based explanation, an annotated source overlay, retained assumptions, and
-the Dafny model in a collapsed section.
+review approval or change request). It opens with a one-line description of NFV
+linking the [paper](https://arxiv.org/abs/2608.21516), the analyzed head and
+base, and the run link. Each finding shows the intended property and its quote,
+why it can fail in plain language, the retained assumptions, and a **trace**:
+the PR's own source lines with the intended property and the translator's notes
+overlaid as comments. Concrete inputs, helpers, repairs and the minimized Dafny
+are in one collapsed section; the translator's modeling caveats stay in the
+evidence artifact.
 
 Otherwise the comment says no property was refuted and lists each extracted
 property with its quoted claim, its formalized Dafny `ensures` (when the
