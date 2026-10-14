@@ -30,8 +30,16 @@ Only Dafny is allowed. Return JSON:
                  "source":{"path":"captured file","lines":[lineNumbers]}}],
  "required_context":["every captured file whose declarations/semantics are needed"],
  "correspondence":"Explicit statement that source correspondence is not established, and limitations",
- "explanation":"Why this proposed input should make the MODELED expectation fail; ordinary developer language, no proof/theorem jargon",
- "source_notes":[{"path":"captured file","line":1,"note":"developer-language model overlay"}]
+ "explanation":"2-4 sentences: the concrete scenario and why the intended property fails, in source terms",
+ "presentation":{
+   "inputs":{"EXACT_WITNESS_KEY":{"kind":"expression","expression":"exact source expression",
+     "anchors":[{"path":"captured file","line":1,"excerpt":"exact whole source line"}]}},
+   "failure":{"expression":"exact source condition or call",
+     "anchors":[{"path":"captured file","line":1,"excerpt":"exact whole source line"}]},
+   "explanation":"Conditional source-level explanation including failure.expression verbatim."
+ },
+ "source_notes":[{"path":"captured file","line":1,"kind":"invariant or spec",
+                  "note":"natural-language loop invariant or function/environment specification"}]
 }
 
 The entry is a non-ghost top-level METHOD with one or more returned values.
@@ -90,3 +98,58 @@ input/environment contracts are immutable. Budget defaults: six syntax repairs,
 ten proof repairs. Never fall back to proving the original property.
 Use ordinary developer language in explanations and source_notes. Never call a
 result a source-confirmed bug, and never describe the original source as executed.
+
+REPORT UX. The NFV introduction and paper link precede the issue count. Each
+finding shows "Intended property" in normal-sized text and its quote, "Input on
+which it fails" with the witness, and "Sketch of the failure" with your explanation.
+A collapsed "Details" section contains the relevant code and call sites, with
+natural-language specifications and loop invariants overlaid as source comments,
+followed by the collapsed minimized Dafny. Retained assumption descriptions appear
+as "Spec (requires)", the intended property as "Spec (ensures, intended)", and
+each environment helper's description as "Spec" at its declaration.
+Source-tagged callable declarations and calls
+connect each caller to its helper definition and mark the call sites in the
+source snippets. These are static call relationships, not a sequence of executed
+calls; short-circuiting can skip a displayed helper call. The check finds a counterexample
+input, not an execution trace, so never present one. Therefore:
+  - presentation: reverse-map every exact witness key to the source expression it
+    represents, with the SAME value and polarity. Copy expression verbatim from
+    a captured line; anchors.excerpt is that entire line (without the N| prefix,
+    preserving whitespace). Never rename verifier inputs or modify the witness.
+    Do not map ghost results as inputs. Use the actual source condition/call
+    for failure.expression, not a ghost Boolean property flag, and include it
+    verbatim in presentation.explanation. No model-only names in visible text.
+    If an input is abstract state without justified direct source/value mapping,
+    replace its entry with {"kind":"abstract","label":"source-oriented state",
+    "reason":"why no concrete source value can be reconstructed"}. Cover every
+    key; never fabricate source objects, pointers, values, or executions from
+    abstract predicates. Anchors are provenance, not proof of equivalence.
+    For sequences representing separate scalar source queries, use
+    {"kind":"per-element","expression":"exact scalar source predicate",
+    "anchors":[{"path":"captured file","line":1,"excerpt":"exact whole line"}]}.
+    These are displayed as abstract per-element results, not as one call
+    returning a sequence. Prefer the actual predicate over an inferred English
+    interpretation of its name.
+    This metadata is report-only and cannot change verification acceptance;
+    keep presentation.explanation concise and conditional ("If ..."), without
+    discussion of model/source distinctions or translation validation; readers
+    can consult the linked NFV paper for the methodology;
+  - explanation: 2-4 sentences on why the intended property fails for this
+    input, using the source's names (functions, variables, conditions). Do not
+    mention Dafny, the model, ghost variables, or modeling choices. Explain which
+    function contains the relevant call and whether its condition evaluates or
+    skips the helper for this input;
+  - witness parameter names: use the source's variable or field names where
+    possible, since they are shown as the input;
+  - assumptions descriptions: preconditions on the program's inputs or state,
+    in source terms;
+  - environment descriptions: one-sentence specs of the helper's behavior, in
+    source terms; source.lines should cover the helper's definition;
+  - source_notes: give natural-language versions of the checked loop invariants
+    (kind="invariant", anchored at the source loop) and any additional function
+    or environment contracts (kind="spec", anchored at the source declaration).
+    Describe the invariant across iterations, not a claimed execution trace.
+    Use source identifiers, not Dafny helper names or auxiliary proof variables.
+    Keep abstraction and translation caveats in correspondence, not these notes;
+  - correspondence: put every modeling limitation here; it is kept as evidence
+    but not shown in the report.

@@ -187,6 +187,8 @@ def validate_translation(translation, claim, bundle, model=None):
         anchor(bundle, note["path"], note["line"])
         if not isinstance(note.get("note"), str):
             raise Abstain("Invalid source overlay note")
+        if note.get("kind") not in (None, "invariant", "spec"):
+            raise Abstain("Source overlay kind must be invariant or spec")
     return mapped
 
 

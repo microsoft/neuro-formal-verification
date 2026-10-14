@@ -92,6 +92,22 @@ def awf_provider():
             "api_key": AWF_PLACEHOLDER_KEY}
 
 
+async def refresh_presentation(report, bundle, model, timeout):
+    from .presentation import refresh, validate_report
+    validate_report(report, bundle)
+    if not model:
+        raise Abstain("Presentation refresh requires an explicitly configured model")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        if not os.environ.get("COPILOT_GITHUB_TOKEN") and os.environ.get("GITHUB_AW") != "true":
+            raise Abstain("Actions presentation inference requires a dedicated COPILOT_GITHUB_TOKEN")
+        os.environ.pop("GH_TOKEN", None)
+        os.environ.pop("GITHUB_TOKEN", None)
+    from nfv.shared.copilot_client import CopilotChat
+    provider = awf_provider() if os.environ.get("GITHUB_AW") == "true" else None
+    async with CopilotChat(model=model, concurrency=1, provider=provider) as chat:
+        return await refresh(report, bundle, chat, timeout)
+
+
 def submission(path):
     data = load(path)
     items = [x for x in data.get("items", []) if x.get("type") == "nfv_submit"]
@@ -169,6 +185,13 @@ def main(argv=None):
     p.add_argument("--verifier-timeout", type=int, default=60)
     p = commands.add_parser("audit", help="Agent-sandbox run on the trusted bundle; writes a PR review")
     p.add_argument("--proposals", required=True)
+    p = commands.add_parser("present", help="Agent reverse-mapping of accepted evidence; no proof rerun or publication")
+    p.add_argument("--bundle", required=True)
+    p.add_argument("--report", required=True)
+    p.add_argument("--model", required=True)
+    p.add_argument("--out", required=True, help="Directory for presentation.json and deterministic comment.md")
+    p.add_argument("--evidence-url", required=True)
+    p.add_argument("--model-timeout", type=int, choices=range(1, 601), default=240, metavar="1..600")
     p = commands.add_parser("publish", help="Publish locally checked evidence; preview by default")
     p.add_argument("--bundle", required=True)
     p.add_argument("--report", required=True)
@@ -230,6 +253,26 @@ def main(argv=None):
             print(json.dumps(summary))
             if summary["errors"]:
                 return 1
+        elif args.command == "present":
+            from .presentation import validate_report
+            from .publish import checked_findings, render
+            bundle, report = load(args.bundle), load(args.report)
+            # Validate evidence and publication inputs before making a billable request.
+            validate_report(report, bundle)
+            if checked_findings(report, bundle, args.evidence_url) is None:
+                raise Abstain("No accepted findings to present")
+            output = Path(args.out)
+            targets = [output / "presentation.json", output / "comment.md"]
+            if any(target.resolve() in {Path(args.report).resolve(), Path(args.bundle).resolve()}
+                   for target in targets):
+                raise Abstain("Presentation output cannot overwrite original evidence")
+            artifact = asyncio.run(refresh_presentation(report, bundle, args.model, args.model_timeout))
+            body = render(report, bundle, args.evidence_url, presentation=artifact)
+            targets[0].parent.mkdir(parents=True, exist_ok=True)
+            targets[0].write_text(json.dumps(artifact, indent=2), encoding="utf-8", newline="\n")
+            targets[1].write_text(body, encoding="utf-8", newline="\n")
+            print(json.dumps({"presentation": str(targets[0]), "comment": str(targets[1]),
+                              "findings": len(artifact["findings"]), "proof_reruns": 0}))
         elif args.command == "publish":
             bundle, report = load(args.bundle), load(args.report)
             # The AW publisher only consumes files generated on its own trusted
