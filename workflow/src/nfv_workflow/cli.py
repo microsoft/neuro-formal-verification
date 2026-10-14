@@ -100,6 +100,27 @@ def submission(path):
     return json.loads(items[0]["proposals"])
 
 
+BUDGET_VARIABLES = (("NFV_SYNTAX_ROUNDS", "syntax_rounds"), ("NFV_PROOF_ROUNDS", "proof_rounds"),
+                    ("NFV_VERIFIER_TIMEOUT", "verifier_timeout"), ("NFV_PROPERTY_SECONDS", "entry_seconds"))
+
+
+def audit_limits(env=None):
+    """Repair/time budget from trusted-step environment variables; unset or empty keeps defaults."""
+    from .general import Limits
+    env = os.environ if env is None else env
+    values = {}
+    for variable, field in BUDGET_VARIABLES:
+        raw = (env.get(variable) or "").strip()
+        if raw:
+            if not raw.isdigit():
+                raise Abstain(f"{variable} must be a non-negative integer")
+            values[field] = int(raw)
+    try:
+        return Limits(**values)
+    except ValueError as exc:
+        raise Abstain(str(exc)) from exc
+
+
 def audit(proposals_path, limits):
     """Agent-sandbox entry point: every input except the proposals is fixed by trusted steps."""
     from .general import Limits
@@ -115,7 +136,8 @@ def audit(proposals_path, limits):
     bundle = load(bundle_path)
     save(output / "bundle.json", bundle)
     save(output / "proposals.json", proposals)
-    report = asyncio.run(run_general(bundle, proposals, output, model, Limits(*limits)))
+    limits = limits if isinstance(limits, Limits) else Limits(*limits)
+    report = asyncio.run(run_general(bundle, proposals, output, model, limits))
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
     summary = {"findings": len(report["findings"]), "abstentions": len(report.get("abstentions", [])),
@@ -226,7 +248,7 @@ def main(argv=None):
             if report["errors"]:
                 return 1
         elif args.command == "audit":
-            summary = audit(args.proposals, (6, 10, 60))
+            summary = audit(args.proposals, audit_limits())
             print(json.dumps(summary))
             if summary["errors"]:
                 return 1

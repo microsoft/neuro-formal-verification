@@ -11,7 +11,7 @@ import uuid
 from unittest.mock import patch
 
 from nfv_workflow.check import Dafny, accepted, check
-from nfv_workflow.cli import audit, awf_provider, submission, write_sources
+from nfv_workflow.cli import audit, audit_limits, awf_provider, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
@@ -876,6 +876,25 @@ class AuditTests(ScratchTest):
                                      "NFV_OUT": str(self.directory / "out")}):
             with self.assertRaises(Abstain):
                 audit(self.directory / "p.json", (6, 10, 60))
+
+    def test_budget_comes_from_trusted_environment(self):
+        from nfv_workflow.general import Limits
+        self.assertEqual(audit_limits({}), Limits())
+        self.assertEqual(audit_limits({"NFV_SYNTAX_ROUNDS": "", "NFV_PROOF_ROUNDS": " "}), Limits())
+        limits = audit_limits({"NFV_SYNTAX_ROUNDS": "10", "NFV_PROOF_ROUNDS": "20",
+                               "NFV_VERIFIER_TIMEOUT": "120", "NFV_PROPERTY_SECONDS": "2700"})
+        self.assertEqual((limits.syntax_rounds, limits.proof_rounds, limits.verifier_timeout,
+                          limits.entry_seconds, limits.model_timeout), (10, 20, 120, 2700, 240))
+        for bad in ({"NFV_PROOF_ROUNDS": "31"}, {"NFV_SYNTAX_ROUNDS": "-1"},
+                    {"NFV_VERIFIER_TIMEOUT": "0"}, {"NFV_PROPERTY_SECONDS": "1e3"}):
+            with self.assertRaises(Abstain):
+                audit_limits(bad)
+
+    def test_workflow_exports_budget_variables(self):
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-review.md").read_text(encoding="utf-8")
+        for name in ("NFV_SYNTAX_ROUNDS", "NFV_PROOF_ROUNDS", "NFV_VERIFIER_TIMEOUT", "NFV_PROPERTY_SECONDS"):
+            self.assertIn(f"{name}: ${{{{ vars.{name} }}}}", text)
+            self.assertIn(f'echo "{name}=${name}"', text)
 
 
 @unittest.skipUnless(shutil.which("dafny"), "Dafny integration requires installed Dafny")

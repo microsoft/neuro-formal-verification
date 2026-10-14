@@ -176,6 +176,10 @@ path does not require the model client.
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
    * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.
+   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
+     `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
+     call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
+     after another within the 240-minute job timeout.
 2. Configure the **`COPILOT_GITHUB_TOKEN`** secret used by the gh-aw Copilot
    engine: a fine-grained token owned by a Copilot-licensed user with
    *Copilot Requests: Read*. gh-aw rejects OAuth (`gho_`) tokens. The NFV
