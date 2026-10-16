@@ -15,6 +15,8 @@ CONTEXT_BYTES = 32000
 REQUEST_BYTES = 80000
 RELATED_LIMIT = 4
 ENVIRONMENT_LIMIT = 12
+CPP_OPERATOR_SYMBOL = (
+    r"(?:\(\)|\[\]|<<=?|>>=?|->\*?|<=>|[-+*/%&|^!=<>]=?|&&|\|\||\+\+|--|~|,)")
 CALL = re.compile(r"\b([A-Za-z_]\w*)\s*\(")
 CONTROL = {"if", "for", "while", "switch", "catch", "match", "with", "sizeof",
            "decltype", "noexcept", "return", "assert", "SASSERT", "VERIFY"}
@@ -24,6 +26,11 @@ LITERAL_PREFIX = (
 LITERALS = re.compile(LITERAL_PREFIX + r"|'(?:\\.|[^'\\])*'")
 RUST_LITERALS = re.compile(
     r'r(?P<hashes>#{0,16})"[\s\S]*?"(?P=hashes)|' + LITERAL_PREFIX + r"|'(?:\\.|[^'\\\n])'")
+
+
+def unqualified_name(name):
+    name = name.rsplit("::", 1)[-1]
+    return "operator" if re.fullmatch("operator" + CPP_OPERATOR_SYMBOL, name) else name
 
 
 @dataclass(frozen=True)
@@ -100,8 +107,10 @@ def functions(record, language):
         go = re.search(r"\bfunc\s+(?:\([^)]*\)\s*)?(\w+)\s*\(", header)
         arrow = re.search(r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?"
                           r"(?:\([^)]*\)|[A-Za-z_]\w*)\s*(?::\s*[^=]+)?=>\s*$", header)
+        operator = re.search(r"\b((?:[A-Za-z_]\w*::)*operator)\s*"
+                             + CPP_OPERATOR_SYMBOL + r"\s*\(", header)
         ordinary = re.search(r"\b([A-Za-z_]\w*(?:::\w+)*)\s*\(", header)
-        match = explicit or go or arrow or ordinary
+        match = explicit or go or arrow or operator or ordinary
         if not match or match[1].split("::")[-1] in CONTROL:
             continue
         if not (explicit or go or arrow):
@@ -116,7 +125,7 @@ def functions(record, language):
         declaration = clean.count("\n", 0, signature_start) + 1
         body = clean.count("\n", 0, opening) + 1
         last = clean.count("\n", 0, closing) + 1
-        result.append(Function(match[1].split("::")[-1],
+        result.append(Function(unqualified_name(match[1]),
                                first + comment_start(lines, declaration) - 1,
                                first + declaration - 1, first + body - 1, first + last - 1,
                                frozenset(CALL.findall(clean[opening + 1:closing])) - CONTROL))

@@ -130,8 +130,9 @@ Write `nfv-context.json` in the workspace:
 
 Select at most 16 regular source files and at most 8 relevant identifiers per
 file. Prefer unqualified identifier names, each at most 128 characters.
-C++ `::`-qualified names and `operator()`/`operator[]` are also accepted:
-trusted code normalizes them to the unqualified names used by lexical lookup.
+C++ `::`-qualified names and operator names such as `operator()` or `operator|=`
+are also accepted: trusted code normalizes them to the unqualified names used
+by lexical lookup (operator overloads use `operator`).
 Do not include argument lists, template arguments or other expressions.
 Prefer dependencies actually used by the changed functions; include
 classes, constructor validation, constant tables and helper implementations

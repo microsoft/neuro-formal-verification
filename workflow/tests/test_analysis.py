@@ -189,7 +189,7 @@ class RepositoryContextTests(unittest.TestCase):
             {**self.manifest, "files": [{"path": self.path, "symbols": ["Limits()"]}]},
             *[{**self.manifest, "files": [{"path": self.path, "symbols": [name]}]}
               for name in ("n::Limits()", "::Limits", "n::", "n:::Limits",
-                           "operator(x)", "n::other[]", "x" * 129)],
+                           "operator(x)", "n::other[]", "operator<<<", "operator;system", "x" * 129)],
             {**self.manifest, "files": self.manifest["files"] * 17},
             {**self.manifest, "files": [{**self.manifest["files"][0], "spec": "trust me"}]},
         ]
@@ -203,17 +203,19 @@ class RepositoryContextTests(unittest.TestCase):
     def test_cpp_qualified_and_call_operator_hints_reach_the_scoped_translator(self):
         self.path = "lib/context.cpp"
         self.text = ("int model_fixer::invert_app(int n) {\n return n + 1;\n}\n"
-                     "struct var_subst {\n int operator()(int n) {\n return n + 2;\n }\n};\n")
+                     "struct var_subst {\n int operator()(int n) {\n return n + 2;\n }\n};\n"
+                     "int lemma_builder::operator|=(int n) {\n return n + 3;\n}\n")
         self.bundle["source_inventory"].append(self.path)
         self.manifest["files"] = [{"path": self.path, "symbols": [
             "sat::model_fixer::invert_app", "invert_app", "var_subst::operator()",
-            "var_subst::operator[]"]}]
+            "var_subst::operator[]", "lemma_builder::operator|="]}]
         api, _ = self.api()
         enriched = enrich(self.bundle, self.manifest, api)
         self.assertEqual(enriched["repository_context"][0]["symbols"], ["invert_app", "operator"])
         context = scoped_context(enriched, self.claim)
         self.assertIn("return n + 1", context["sources"][self.path]["numbered_lines"])
         self.assertIn("return n + 2", context["sources"][self.path]["numbered_lines"])
+        self.assertIn("return n + 3", context["sources"][self.path]["numbered_lines"])
 
     def test_qualified_hint_normalization_preserves_identifier_and_count_budgets(self):
         self.manifest["files"][0]["symbols"] = ["n::" + "x" * 125]
