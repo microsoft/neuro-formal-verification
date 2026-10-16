@@ -656,6 +656,19 @@ class GeneralTests(unittest.TestCase):
         self.assertNotIn("ensures r != n", report["findings"][0]["translation"]["model"])
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_unrelated_type_repair_cannot_drop_a_valid_goal(self):
+        bundle, claim, correct = fixture()
+        initial = copy.deepcopy(correct)
+        initial["model"] = initial["model"].replace("r := 0;", "r := false;")
+        missing = correct["model"].replace(
+            "// synth: modeled contract or structural syntax\n  ensures r == n\n", "")
+        report = self.execute(bundle, claim, Chat([initial, {"model": missing}]),
+                              limits=Limits(proof_rounds=0))
+        self.assertEqual(len(report["findings"]), 1, report)
+        self.assertEqual(report["findings"][0]["translation"]["original_ensures"], ["r == n"])
+        self.assertEqual(report["findings"][0]["counters"]["syntax_repairs"], 1)
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_holding_modeled_property_is_verified_without_a_witness(self):
         bundle, claim, translation = fixture()
         bundle["identity"]["source_kind"] = "pull-request-head"

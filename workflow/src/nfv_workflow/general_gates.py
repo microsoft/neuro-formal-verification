@@ -88,13 +88,20 @@ def conjuncts(expression):
 
 def with_postconditions(model, entry, goals):
     from nfv.agent import refute
+    replacement = "\n".join("// synth: independent original postcondition\n  ensures " + goal
+                            for goal in goals)
     inverse = refute.invert_entry_spec(model, entry, BACKEND)
     if not inverse.ok:
+        span = refute._split_signature(model, entry, "dafny")
+        if span is not None and not clauses(model, entry, "ensures"):
+            start, end = span
+            header, _, tail = model[start:end].partition("\n")
+            result = model[:start] + header + "\n" + replacement + "\n" + tail + model[end:]
+            if clauses(result, entry, "ensures") == [normalized(goal) for goal in goals]:
+                return result
         raise Abstain("Cannot isolate an original postcondition: " + inverse.reason)
     start, end = refute._split_signature(inverse.model, entry, "dafny")
     signature = inverse.model[start:end]
-    replacement = "\n".join("// synth: independent original postcondition\n  ensures " + goal
-                            for goal in goals)
     frozen_goal = ("// synth: refutation goal: negation of the translated postcondition\n"
                    "  ensures " + inverse.inverted)
     if signature.count(frozen_goal) != 1:

@@ -13,7 +13,7 @@ from nfv_workflow.outcomes import EXHAUSTED, INVALID, OUTCOMES, REFUTED, VERIFIE
 from nfv_workflow.outcomes import ResourcesExhausted
 from nfv_workflow.publish import render
 from nfv_workflow.repository_context import enrich, sanitize_manifest, validate_manifest
-from nfv_workflow.general_gates import SRC, conjuncts, validate_translation
+from nfv_workflow.general_gates import SRC, clauses, conjuncts, validate_translation, with_postconditions
 from nfv_workflow.source_context import function_catalog, quoted_context, scoped_context
 from test_general import Chat, FailingVerifier, fixture
 
@@ -211,6 +211,21 @@ class AnalysisTests(unittest.TestCase):
         assignment = [row for row in mapped if row["model"] == "r := 0;"]
         self.assertEqual([row["line"] for row in assignment], [2, 4])
         self.assertEqual(len({row["model_line"] for row in assignment}), 1)
+
+    def test_restoring_omitted_goals_preserves_inputs_and_computation(self):
+        original = self.translation["model"]
+        missing = original.replace(
+            "// synth: modeled contract or structural syntax\n  ensures r == n\n", "")
+        for goals in [["r == n"], ["r == n", "r >= n"]]:
+            with self.subTest(goals=goals):
+                restored = with_postconditions(missing, "Target", goals)
+                self.assertEqual(clauses(restored, "Target", "ensures"), goals)
+                self.assertEqual(clauses(restored, "Target", "requires"), ["n >= 0"])
+                self.assertEqual(restored.split("\n{\n", 1)[1], original.split("\n{\n", 1)[1])
+                validate_translation({**self.translation, "original_ensures": goals,
+                                      "model": restored}, self.claim, self.bundle)
+        with self.assertRaises(Abstain):
+            with_postconditions(missing, "Absent", ["true"])
 
     def test_repair_context_deduplication_is_lossless_and_keeps_cross_file_sources(self):
         text = "\t  " + "long_quoted_source_expression" * 40 + " \t"
