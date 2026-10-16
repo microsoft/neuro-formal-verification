@@ -30,10 +30,12 @@ def validate_manifest(manifest, bundle):
         if path not in inventory or Path(path).suffix.lower() not in SUFFIXES or path in seen:
             raise Abstain("Repository context must name distinct regular source files in the snapshot")
         if (not isinstance(symbols, list) or not 1 <= len(symbols) <= 8
-                or any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z_]\w{0,127}", name)
+                or any(not isinstance(name, str) or len(name) > 128 or not re.fullmatch(
+                    r"(?:[A-Za-z_]\w*::)*(?:[A-Za-z_]\w*|operator\(\)|operator\[\])", name)
                        for name in symbols)):
             raise Abstain("Repository context requires bounded source identifier names")
-        selected.append({"path": path, "symbols": sorted(set(symbols))})
+        selected.append({"path": path, "symbols": sorted({
+            name.rsplit("::", 1)[-1].removesuffix("()").removesuffix("[]") for name in symbols})})
         seen.add(path)
     return {"identity": bundle["identity"], "files": selected}
 

@@ -113,7 +113,9 @@ NFV comment. Verifier models, repair logs and hashes are in the run's
    PR source is never checked out for execution, compiled, imported, or tested.
    Before analysis, a separate source-only AW session shallowly checks out the
    immutable base and inspects changed-head text. It selects at most 16 source
-   paths and eight identifiers per file. Trusted code validates this manifest,
+   paths and eight identifiers per file. C++ qualified names and call/subscript
+   operator hints are normalized to unqualified lexical lookup names.
+   Trusted code validates this manifest,
    fetches the corresponding head blobs and verifies their hashes; agent prose
    is never a semantic contract. Additional source is limited to 2 MB.
 2. **Postulate nontrivial properties.** Exact intent or captured-source quotes

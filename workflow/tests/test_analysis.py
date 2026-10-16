@@ -187,6 +187,9 @@ class RepositoryContextTests(unittest.TestCase):
             {**self.manifest, "files": [{"path": "../secret.py", "symbols": ["Limits"]}]},
             {**self.manifest, "files": [{"path": "missing.py", "symbols": ["Limits"]}]},
             {**self.manifest, "files": [{"path": self.path, "symbols": ["Limits()"]}]},
+            *[{**self.manifest, "files": [{"path": self.path, "symbols": [name]}]}
+              for name in ("n::Limits()", "::Limits", "n::", "n:::Limits",
+                           "operator(x)", "n::other[]", "x" * 129)],
             {**self.manifest, "files": self.manifest["files"] * 17},
             {**self.manifest, "files": [{**self.manifest["files"][0], "spec": "trust me"}]},
         ]
@@ -196,6 +199,30 @@ class RepositoryContextTests(unittest.TestCase):
         api, _ = self.api(mode="120000")
         with self.assertRaises(Abstain):
             enrich(self.bundle, self.manifest, api)
+
+    def test_cpp_qualified_and_call_operator_hints_reach_the_scoped_translator(self):
+        self.path = "lib/context.cpp"
+        self.text = ("int model_fixer::invert_app(int n) {\n return n + 1;\n}\n"
+                     "struct var_subst {\n int operator()(int n) {\n return n + 2;\n }\n};\n")
+        self.bundle["source_inventory"].append(self.path)
+        self.manifest["files"] = [{"path": self.path, "symbols": [
+            "sat::model_fixer::invert_app", "invert_app", "var_subst::operator()",
+            "var_subst::operator[]"]}]
+        api, _ = self.api()
+        enriched = enrich(self.bundle, self.manifest, api)
+        self.assertEqual(enriched["repository_context"][0]["symbols"], ["invert_app", "operator"])
+        context = scoped_context(enriched, self.claim)
+        self.assertIn("return n + 1", context["sources"][self.path]["numbered_lines"])
+        self.assertIn("return n + 2", context["sources"][self.path]["numbered_lines"])
+
+    def test_qualified_hint_normalization_preserves_identifier_and_count_budgets(self):
+        self.manifest["files"][0]["symbols"] = ["n::" + "x" * 125]
+        self.assertEqual(validate_manifest(self.manifest, self.bundle)["files"][0]["symbols"],
+                         ["x" * 125])
+        for names in (["n::" + "x" * 126], ["n::helper"] * 9):
+            self.manifest["files"][0]["symbols"] = names
+            with self.subTest(names=names), self.assertRaises(Abstain):
+                validate_manifest(self.manifest, self.bundle)
 
     def test_cpp_type_and_constant_bodies_are_captured_from_hints(self):
         self.path = "lib/context.hpp"
