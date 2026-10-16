@@ -137,6 +137,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
 
 ### gh-aw sandbox lessons
 
+- With `checkout: false` and checkouts only in subdirectories, initialize an
+  empty Git repository and origin at `$GITHUB_WORKSPACE` in pre-agent steps.
+  gh-aw's generated credential setup requires workspace-root Git metadata;
+  do not satisfy this by checking out PR-head code.
 - Use pre-agent `steps:`, not `post-steps:`; post-steps run after agent output
   is ingested. The source-context worker deliberately uses trusted `post-steps`
   only to sanitize and upload its path/symbol manifest, not to run NFV analysis.

@@ -74,6 +74,10 @@ steps:
       persist-credentials: false
       submodules: false
       lfs: false
+  - name: Initialize empty workspace repository (no PR code is checked out)
+    run: |
+      git init -q "$GITHUB_WORKSPACE"
+      git -C "$GITHUB_WORKSPACE" remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
   - name: Capture immutable PR changes as data
     env:
       GH_TOKEN: ${{ github.token }}

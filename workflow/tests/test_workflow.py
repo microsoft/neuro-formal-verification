@@ -4,10 +4,12 @@ import hashlib
 import json
 import os
 import re
+import shlex
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+from string import Template
 import unittest
 import uuid
 from unittest.mock import patch
@@ -866,6 +868,33 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("submodules: false", worker)
         self.assertIn("lfs: false", worker)
         self.assertTrue((self.template / "nfv-source-context.lock.yml").exists())
+
+    def test_source_context_initializes_workspace_before_generated_git_setup(self):
+        source = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
+        marker = "Initialize empty workspace repository (no PR code is checked out)"
+        self.assertLess(source.index(marker), source.index("Capture immutable PR changes as data"))
+        self.assertLess(lock.index(marker), lock.index("Configure Git credentials"))
+
+
+class WorkspaceBootstrapTests(ScratchTest):
+    def test_source_context_bootstrap_supports_local_git_without_checking_out_source(self):
+        source = (TemplateTests.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        block = source.split("  - name: Initialize empty workspace repository", 1)[1]
+        script = block.split("    run: |\n", 1)[1].split("  - name:", 1)[0]
+        variables = {"GITHUB_WORKSPACE": str(self.directory.resolve()),
+                     "GITHUB_SERVER_URL": "https://github.invalid", "GITHUB_REPOSITORY": "test/source"}
+        for line in script.strip().splitlines():
+            command = [Template(arg).substitute(variables) for arg in shlex.split(line.strip())]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "-C", str(self.directory), "config", "--local", "nfv.bootstrap", "ok"],
+                       check=True, capture_output=True, text=True)
+        origin = subprocess.run(["git", "-C", str(self.directory), "remote", "get-url", "origin"],
+                                check=True, capture_output=True, text=True)
+        self.assertEqual(origin.stdout.strip(), "https://github.invalid/test/source.git")
+        tracked = subprocess.run(["git", "-C", str(self.directory), "ls-files"],
+                                 check=True, capture_output=True, text=True)
+        self.assertEqual(tracked.stdout, "")
 
 
 class ExtractionInputTests(ScratchTest):
