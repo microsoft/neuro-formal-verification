@@ -15,6 +15,9 @@ engine:
   driver: nfv-plugin/workflow/sandbox_driver.cjs
   env:
     GH_AW_HARNESS_MAX_RETRIES: "0"
+max-turns: 500
+# Independent, tool-free sessions need not reuse a cached prompt.
+max-turn-cache-misses: 500
 timeout-minutes: 360
 checkout: false
 concurrency:

@@ -15,7 +15,7 @@ from .general_gates import (BACKEND, annotate, clauses, clean_code, conjuncts, f
                             remove_requirement, validate_translation, with_postconditions, witness_bridge)
 from .github import Abstain
 from .model import normalize, validate_claim
-from .outcomes import EXHAUSTED, INVALID, REFUTED, VERIFIED, ResourcesExhausted
+from .outcomes import EXHAUSTED, INVALID, REFUTED, VERIFIED, InferenceFailure, ResourcesExhausted
 from .source_context import (LANGUAGES, caller_first, check_request, diagnostics,
                              function_catalog, quoted_context, scoped_context)
 ALIASES = {"c++": "cpp", "c#": "csharp", "js": "javascript", "ts": "typescript", "py": "python",
@@ -497,7 +497,7 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
         except Exception as exc:
             entry["status"] = EXHAUSTED if isinstance(exc, (ResourcesExhausted, TimeoutError)) else INVALID
             entry["diagnostic"] = str(exc)[:3000]
-            if isinstance(exc, ToolFailure):
+            if isinstance(exc, (ToolFailure, InferenceFailure)):
                 report["errors"].append(str(exc))
             failure = {"id": claim["id"], "reason": entry["status"], "diagnostic": entry["diagnostic"]}
             report["failures"].append(failure)
@@ -507,10 +507,12 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
             if translation.exists():
                 entry["formalized"] = json.loads(translation.read_text(encoding="utf-8")).get("original_ensures")
             save(output / "report.json", report)
+        if report["errors"]:
+            return report
         print(json.dumps({"event": "property_completed", "property": claim["id"], "status": entry["status"],
                           "properties_completed": checked, "properties_total": total,
                           "properties_remaining": total - checked}), flush=True)
-    report["completed"] = True
+    report["completed"] = not report["errors"]
     save(output / "report.json", report)
     return report
 

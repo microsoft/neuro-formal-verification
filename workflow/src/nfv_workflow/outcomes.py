@@ -11,3 +11,7 @@ OUTCOMES = (REFUTED, VERIFIED, EXHAUSTED, INVALID)
 
 class ResourcesExhausted(Abstain):
     pass
+
+
+class InferenceFailure(RuntimeError):
+    """Provider or SDK failure, not a property-analysis outcome."""

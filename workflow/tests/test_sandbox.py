@@ -137,12 +137,15 @@ class SandboxTests(unittest.TestCase):
         self.assertNotIn("submit", self.calls)
 
     def test_process_failure_is_nonzero_with_an_explicit_diagnostic(self):
+        from nfv_workflow.outcomes import InferenceFailure
         stdout, stderr = io.StringIO(), io.StringIO()
-        with patch.object(sandbox, "review", side_effect=Abstain("incomplete")), \
-                redirect_stdout(stdout), redirect_stderr(stderr):
-            self.assertEqual(sandbox.main(), 1)
+        for error in (Abstain("incomplete"), InferenceFailure("Provider HTTP 403")):
+            with patch.object(sandbox, "review", side_effect=error), \
+                    redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(sandbox.main(), 1)
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("NFV sandbox audit failed: incomplete", stderr.getvalue())
+        self.assertIn("NFV sandbox audit failed: Provider HTTP 403", stderr.getvalue())
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is not installed")
     def test_sdk_shim_strips_platform_auth_preserving_sidecar_token_output_and_exit_status(self):

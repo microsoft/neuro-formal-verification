@@ -122,6 +122,12 @@ labeled separately from quoted intentions. Each new push hides the previous
 NFV comment. Verifier models, repair logs and hashes are in the run's
 `nfv-evidence` artifact. Interrupted audits retain incremental evidence marked
 incomplete; it cannot be published as a finished review.
+Provider/SDK failures and verifier infrastructure failures stop the audit,
+retain incomplete evidence, and fail the job without submitting a review.
+An individual model-request timeout remains a property resource-exhaustion
+outcome. The sandbox allows at most 500 inference requests and 500 consecutive
+cache misses: independent sessions are not required to hit a prompt cache.
+The existing AI-credit and wall-time budgets still apply.
 
 ## Verification/refutation pipeline and gates
 

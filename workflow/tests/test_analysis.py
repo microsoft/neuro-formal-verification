@@ -14,7 +14,7 @@ from unittest.mock import patch
 from nfv_workflow.general import Limits, run, select_properties, validate_verification
 from nfv_workflow.github import Abstain
 from nfv_workflow.outcomes import EXHAUSTED, INVALID, OUTCOMES, REFUTED, VERIFIED
-from nfv_workflow.outcomes import ResourcesExhausted
+from nfv_workflow.outcomes import InferenceFailure, ResourcesExhausted
 from nfv_workflow.publish import render
 from nfv_workflow.repository_context import enrich, sanitize_manifest, validate_manifest
 from nfv_workflow.general_gates import SRC, clauses, conjuncts, validate_translation, with_postconditions
@@ -101,6 +101,32 @@ class AnalysisTests(unittest.TestCase):
         self.assertIs(partial["completed"], False)
         with self.assertRaisesRegex(Abstain, "incomplete"):
             render(partial, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+
+    def test_infrastructure_failure_stops_review_without_false_completion(self):
+        from nfv_workflow.general import ToolFailure
+        second = {**self.claim, "property": "The result is at least n."}
+        for error in (InferenceFailure("Provider HTTP 403"), ToolFailure("Dafny unavailable")):
+            progress = io.StringIO()
+            with self.subTest(error=type(error).__name__), \
+                    patch("nfv_workflow.general.run_property", side_effect=error) as analyze, \
+                    redirect_stdout(progress):
+                report = asyncio.run(run(self.bundle, [self.claim, second], self.directory,
+                                         None, Limits(), Verifier()))
+            analyze.assert_awaited_once()
+            self.assertIs(report["completed"], False)
+            self.assertEqual(report["errors"], [str(error)])
+            self.assertEqual(len(report["properties"]), 1)
+            self.assertEqual(progress.getvalue(), "")
+            self.assertEqual(json.loads((self.directory / "report.json").read_text()), report)
+            with self.assertRaisesRegex(Abstain, "incomplete"):
+                render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+
+    def test_model_timeout_is_not_an_infrastructure_failure(self):
+        with patch("nfv_workflow.general.run_property", side_effect=TimeoutError("model deadline")):
+            report = self.execute([], Verifier())
+        self.assertIs(report["completed"], True)
+        self.assertEqual(report["errors"], [])
+        self.assertEqual(report["properties"][0]["status"], EXHAUSTED)
 
     def test_worker_applies_requested_budget_and_preserves_internal_timeout_evidence(self):
         from nfv_workflow.worker import main

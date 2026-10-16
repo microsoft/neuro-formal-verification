@@ -161,6 +161,8 @@ def audit(proposals_path, limits):
     save(output / "proposals.json", proposals)
     limits = limits if isinstance(limits, Limits) else Limits(*limits)
     report = asyncio.run(run_general(bundle, proposals, output, model, limits))
+    if report["errors"] or report.get("completed") is not True:
+        raise Abstain("NFV audit incomplete: " + "; ".join(report["errors"] or ["analysis interrupted"]))
     presentation = None
     if report["findings"]:
         from .presentation import validate, validate_report

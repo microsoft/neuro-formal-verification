@@ -11,6 +11,7 @@ import sys
 
 from .cli import audit, audit_limits, awf_provider, load, propose, save
 from .github import Abstain
+from .outcomes import InferenceFailure
 
 
 def review():
@@ -60,7 +61,7 @@ def review():
 def main():
     try:
         print(json.dumps(review()), flush=True)
-    except (Abstain, OSError, ValueError, subprocess.SubprocessError) as exc:
+    except (Abstain, InferenceFailure, OSError, ValueError, subprocess.SubprocessError) as exc:
         print(f"NFV sandbox audit failed: {exc}", file=sys.stderr, flush=True)
         return 1
     return 0

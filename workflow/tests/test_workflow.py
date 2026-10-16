@@ -848,6 +848,16 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("APPROVE", source)
         self.assertIn("allowed: [defaults, arxiv.org]", source)
 
+    def test_independent_sessions_have_a_bounded_cache_miss_allowance(self):
+        source, lock = self.source(), self.lock()
+        reviewer = lock.split("\n  detection:", 1)[0]
+        self.assertIn("max-turns: 500\n", source)
+        self.assertIn("max-turn-cache-misses: 500\n", source)
+        self.assertIn(r'\"maxRuns\":500', reviewer)
+        self.assertIn(r'\"maxCacheMisses\":500', reviewer)
+        self.assertNotIn(r'\"maxCacheMisses\":5,', reviewer)
+        self.assertIn(r'\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}', reviewer)
+
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
         source, lock = self.source(), self.lock()
         self.assertIn('bundle="$RUNNER_TEMP/gh-aw/nfv/bundle.json"', source)
@@ -994,6 +1004,27 @@ class ExtractionInputTests(ScratchTest):
 
 
 class AuditTests(ScratchTest):
+    def test_infrastructure_errors_preserve_evidence_without_rendering_a_review(self):
+        from unittest.mock import AsyncMock
+        proposals, captured, out = (self.directory / name for name in ("p.json", "b.json", "out"))
+        proposals.write_text("[]")
+        captured.write_text(json.dumps(bundle()))
+        for completed, errors in ((False, ["Model inference failed: HTTP 403"]),
+                                  (False, []), (True, ["Dafny unavailable"])):
+            report = {"completed": completed, "errors": errors}
+            async def failed(*args):
+                (out / "report.json").write_text(json.dumps(report))
+                return report
+            with self.subTest(completed=completed, errors=errors), \
+                    patch.dict(os.environ, {"NFV_BUNDLE": str(captured), "NFV_OUT": str(out)}), \
+                    patch("nfv_workflow.cli.run_general", new=AsyncMock(side_effect=failed)), \
+                    patch("nfv_workflow.publish.comment") as render_comment:
+                with self.assertRaisesRegex(Abstain, "NFV audit incomplete"):
+                    audit(proposals, (6, 10, 60))
+            render_comment.assert_not_called()
+            self.assertEqual(json.loads((out / "report.json").read_text()), report)
+            self.assertFalse((out / "comment.md").exists())
+
     def test_failed_restart_cannot_leave_stale_publishable_outputs(self):
         proposals, captured = self.directory / "p.json", self.directory / "b.json"
         proposals.write_text("[]")

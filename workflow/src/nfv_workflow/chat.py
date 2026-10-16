@@ -4,13 +4,22 @@ import os
 
 from copilot import CopilotClient, RuntimeConnection
 
-from nfv.shared.copilot_client import CopilotChat
+from nfv.shared.copilot_client import CopilotChat, LLMResponse
 from nfv.shared.account import Account, AccountError, check_account
 
 from .github import Abstain
+from .outcomes import InferenceFailure
 
 
 class WorkflowChat(CopilotChat):
+    async def ask(self, system: str, prompt: str, timeout: float = 180.0) -> LLMResponse:
+        try:
+            return await super().ask(system, prompt, timeout=timeout)
+        except TimeoutError:
+            raise
+        except Exception as exc:
+            raise InferenceFailure(f"Model inference failed: {exc}") from exc
+
     async def start(self):
         if not self._provider and os.environ.get("GITHUB_ACTIONS") != "true":
             return await super().start()

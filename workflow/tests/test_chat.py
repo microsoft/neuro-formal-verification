@@ -8,6 +8,25 @@ from unittest.mock import AsyncMock, patch
 
 
 class WorkflowChatTests(unittest.TestCase):
+    def test_provider_errors_fail_infrastructure_without_retrying_a_denial(self):
+        from nfv_workflow.chat import WorkflowChat
+        from nfv_workflow.outcomes import InferenceFailure
+        chat = WorkflowChat(model="test-model")
+        chat._client = object()
+        error = RuntimeError("Authentication failed with provider (HTTP 403)")
+        with patch.object(chat, "_ask_once", new=AsyncMock(side_effect=error)) as ask:
+            with self.assertRaisesRegex(InferenceFailure, "HTTP 403"):
+                asyncio.run(chat.ask("system", "property"))
+        ask.assert_awaited_once()
+
+    def test_request_timeouts_remain_property_resource_exhaustion(self):
+        from nfv_workflow.chat import WorkflowChat
+        chat = WorkflowChat(model="test-model")
+        chat._client = object()
+        with patch.object(chat, "_ask_once", new=AsyncMock(side_effect=TimeoutError("model deadline"))):
+            with self.assertRaisesRegex(TimeoutError, "model deadline"):
+                asyncio.run(chat.ask("system", "property"))
+
     def test_sandbox_clients_connect_to_the_harness_owned_sidecar_without_spawning_cli(self):
         from nfv_workflow.chat import WorkflowChat
         client = SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
