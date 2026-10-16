@@ -97,6 +97,50 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(body.count("**Intended property:** " + self.claim["property"]), 1)
         self.assertIn("Outcome: refuted", body)
 
+    def test_large_verified_model_preserves_results_and_links_full_evidence(self):
+        self.translation["model"] += "// " + "large model comment " * 4000 + "\n"
+        report = self.execute([self.translation], Verifier(positive=True))
+        before = copy.deepcopy(report)
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertLessEqual(len(body), 60000)
+        self.assertIn("**Outcome: verified**", body)
+        self.assertIn(self.claim["property"], body)
+        self.assertIn("Nonnegative iteration count", body)
+        self.assertIn("ensures r == n", body)
+        self.assertIn(report["verified"][0]["dafny_sha256"], body)
+        self.assertIn("full verified Dafny", body)
+        self.assertEqual(report, before)
+
+    def test_large_refutation_preserves_witness_conditions_and_source_links(self):
+        self.translation["model"] += "// " + "large model comment " * 4000 + "\n"
+        report = self.execute([self.translation], Verifier())
+        before = copy.deepcopy(report)
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertLessEqual(len(body), 60000)
+        self.assertIn("**Outcome: refuted**", body)
+        self.assertIn("n = 2", body)
+        self.assertIn("Nonnegative iteration count", body)
+        self.assertIn(self.claim["path"], body)
+        self.assertIn(report["findings"][0]["dafny_sha256"], body)
+        self.assertIn("full Dafny", body)
+        self.assertEqual(report, before)
+
+    def test_verified_model_compaction_starts_only_above_the_exact_comment_limit(self):
+        report = self.execute([self.translation], Verifier(positive=True))
+        url = "https://github.com/local/synthetic/actions/runs/123"
+        padding = "x" * (60000 - len(render(report, self.bundle, url)) - 3)
+        self.translation["model"] += "//" + padding + "\n"
+        report = self.execute([self.translation], Verifier(positive=True))
+        body = render(report, self.bundle, url)
+        self.assertEqual(len(body), 60000)
+        self.assertIn(padding, body)
+        self.translation["model"] = self.translation["model"][:-1] + "x\n"
+        report = self.execute([self.translation], Verifier(positive=True))
+        body = render(report, self.bundle, url)
+        self.assertLessEqual(len(body), 60000)
+        self.assertNotIn(padding, body)
+        self.assertIn("full verified Dafny", body)
+
     def test_failed_properties_use_short_headers_and_normal_sized_statements(self):
         properties = [
             {"id": "first", "property": "The source-derived result preserves its bounds.",

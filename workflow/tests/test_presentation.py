@@ -1,6 +1,7 @@
 import asyncio
 import copy
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -10,7 +11,7 @@ from unittest.mock import patch
 
 from test_general import Chat, FailingVerifier, fixture
 from nfv_workflow import cli
-from nfv_workflow.general import run
+from nfv_workflow.general import Limits, run
 from nfv_workflow.github import Abstain
 from nfv_workflow.presentation import refresh, validate, validate_artifact
 from nfv_workflow.publish import render
@@ -58,6 +59,66 @@ class PresentationTests(unittest.TestCase):
                                  Chat([translation or self.translation]), verifier=verifier))
         self.assertEqual(len(report["findings"]), 1, report)
         return report, verifier
+
+    def audit(self, report, responses=None):
+        report = copy.deepcopy(report)
+        bundle_path, proposals_path = self.directory / "bundle.json", self.directory / "proposals.json"
+        bundle_path.write_text(json.dumps(self.bundle), encoding="utf-8")
+        proposals_path.write_text(json.dumps([self.claim]), encoding="utf-8")
+        output = self.directory / "audit"
+        async def saved_run(bundle, proposals, out, model, limits):
+            (out / "report.json").write_text(json.dumps(report), encoding="utf-8")
+            return report
+        async def agent_refresh(saved_report, bundle, model, timeout):
+            if responses is None:
+                raise AssertionError("Unexpected presentation inference")
+            return await refresh(saved_report, bundle, Chat(responses), timeout)
+        with patch.dict(os.environ, {
+            "NFV_BUNDLE": str(bundle_path), "NFV_OUT": str(output), "NFV_MODEL": "approved-model",
+            "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "local/synthetic",
+            "GITHUB_RUN_ID": "1",
+        }), patch.object(cli, "run_general", side_effect=saved_run), \
+                patch.object(cli, "refresh_presentation", side_effect=agent_refresh) as refreshed:
+            summary = cli.audit(proposals_path, Limits())
+        return summary, refreshed
+
+    def test_audit_refreshes_invalid_inline_presentation_without_rerunning_proof(self):
+        invalid = copy.deepcopy(self.value)
+        invalid["inputs"]["n"]["value"] = 2
+        report, verifier = self.report({**self.translation, "presentation": invalid})
+        before = copy.deepcopy((report, self.bundle, verifier.operations))
+        summary, refreshed = self.audit(report, [self.value])
+        self.assertEqual(refreshed.call_count, 1)
+        self.assertEqual((report, self.bundle, verifier.operations), before)
+        self.assertIn(self.value["explanation"], Path(summary["comment"]).read_text())
+        output = Path(summary["comment"]).parent
+        artifact = json.loads((output / "presentation.json").read_text())
+        validate_artifact(artifact, report, self.bundle)
+        self.assertTrue((output / "presentation-diagnostics.json").exists())
+        self.assertEqual(json.loads((output / "report.json").read_text()), report)
+
+    def test_audit_uses_valid_inline_presentation_without_another_agent_call(self):
+        report, _ = self.report({**self.translation, "presentation": self.value})
+        summary, refreshed = self.audit(report)
+        self.assertEqual(refreshed.call_count, 0)
+        self.assertIn(self.value["explanation"], Path(summary["comment"]).read_text())
+
+    def test_audit_does_not_refresh_invalid_proof_evidence(self):
+        report, _ = self.report()
+        report["findings"][0]["dafny"] += "// tampered"
+        with self.assertRaises(Abstain):
+            self.audit(report)
+        self.assertFalse((self.directory / "audit" / "presentation.json").exists())
+        self.assertFalse((self.directory / "audit" / "comment.md").exists())
+
+    def test_audit_preserves_evidence_when_presentation_refresh_fails(self):
+        report, _ = self.report()
+        with self.assertRaises(Abstain):
+            self.audit(report, [{}])
+        output = self.directory / "audit"
+        self.assertEqual(json.loads((output / "report.json").read_text()), report)
+        self.assertTrue((output / "presentation-diagnostics.json").exists())
+        self.assertFalse((output / "comment.md").exists())
 
     def test_translator_metadata_renders_without_changing_proof(self):
         original, _ = self.report()

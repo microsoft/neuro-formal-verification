@@ -164,13 +164,29 @@ def audit(proposals_path, limits):
     save(output / "proposals.json", proposals)
     limits = limits if isinstance(limits, Limits) else Limits(*limits)
     report = asyncio.run(run_general(bundle, proposals, output, model, limits))
+    presentation = None
+    if report["findings"]:
+        from .presentation import validate, validate_report
+        validate_report(report, bundle)
+        diagnostics = []
+        for finding in report["findings"]:
+            translation = finding["translation"]
+            try:
+                validate(translation.get("presentation"), translation, bundle)
+            except Abstain as exc:
+                diagnostics.append({"id": finding["candidate"]["id"], "diagnostic": str(exc)})
+        if diagnostics:
+            save(output / "presentation-diagnostics.json", diagnostics)
+            presentation = asyncio.run(refresh_presentation(report, bundle, model, limits.model_timeout))
+            save(output / "presentation.json", presentation)
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
     summary = {"findings": len(report["findings"]), "verified": len(report.get("verified", [])),
                "outcomes": {status: sum(item["status"] == status for item in report.get("properties", []))
                             for status in ("refuted", "verified", "resources exhausted", "type-check/audit failure")},
                "errors": report["errors"]}
-    (output / "comment.md").write_text(comment(report, bundle, evidence, len(proposals)), encoding="utf-8")
+    (output / "comment.md").write_text(
+        comment(report, bundle, evidence, len(proposals), presentation=presentation), encoding="utf-8")
     summary["comment"] = str(output / "comment.md")
     return summary
 

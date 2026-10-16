@@ -176,7 +176,7 @@ def relevant_code(claim, translation, finding, bundle, repo, commit):
     return out
 
 
-def general_section(index, finding, bundle, repo, commit, presentation=None):
+def general_section(index, finding, bundle, repo, commit, presentation=None, compact=False):
     from .general import validate_finding
     validate_finding(finding, bundle)
     claim, translation = finding["candidate"], finding["translation"]
@@ -224,9 +224,24 @@ def general_section(index, finding, bundle, repo, commit, presentation=None):
         "> " + text(" ".join(str(claim["quote"]).split())),
         f"**Input on which it fails:** {inputs}",
         f"**Sketch of the failure:** {text(explanation)}",
+    ]
+    if compact:
+        conditions = [translation["assumptions"][i]["description"]
+                      for i in finding["retained_assumptions"]]
+        span = translation["source_span"]
+        return lines + [
+            "**Retained conditions:** " + text("; ".join(conditions) or "No additional input restrictions."),
+            "**Environment models:** " + text("; ".join(
+                helper["description"] for helper in translation.get("environment", [])) or "None."),
+            "**Source:** " + source_link(claim["path"], *span, repo, commit),
+            *mapping_details,
+            f"Evidence: {code_span(finding['evidence'])}; SHA-256 {code_span(finding['dafny_sha256'])}.",
+            "Source, specifications and full Dafny are retained in the linked run artifact.",
+        ]
+    lines.extend([
         "<details><summary>Details</summary>\n",
         *relevant_code(claim, translation, finding, bundle, repo, commit),
-    ]
+    ])
     removed = [value["description"] for i, value in enumerate(translation["assumptions"])
                if i not in finding["retained_assumptions"]]
     details = ["<details><summary>Minimized Dafny</summary>\n"]
@@ -372,9 +387,9 @@ def render(report, bundle, evidence_url, presentation=None):
     return body
 
 
-def comment(report, bundle, evidence_url, proposed):
+def comment(report, bundle, evidence_url, proposed, presentation=None):
     """The PR comment: the findings report, or a short summary when nothing was refuted."""
-    body = render(report, bundle, evidence_url)
+    body = render(report, bundle, evidence_url, presentation=presentation)
     if body is not None:
         return body
     ident = report["identity"]
@@ -444,6 +459,7 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
     if report.get("selection_omissions"):
         lines.append(f"**Selection limit:** {len(report['selection_omissions'])} additional candidate "
                      "checks were not selected within the ten-property budget.")
+    compact_sections = []
     for index, item in enumerate(properties, 1):
         status = item["status"]
         label = "Inferred property" if item.get("origin") == "source" else "Intended property"
@@ -456,8 +472,11 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
             if any(item.get(key) != evidence["candidate"].get(key)
                    for key in ("path", "lines", "property", "quote", "origin")):
                 raise Abstain("Displayed refuted property differs from its checked evidence")
-            lines.extend(general_section(index, evidence, bundle, repo, commit,
-                                         mappings.get(evidence["candidate"]["id"]))[2:])
+            mapping = mappings.get(evidence["candidate"]["id"])
+            compact_sections.append((len(lines), "\n\n".join(
+                general_section(index, evidence, bundle, repo, commit, mapping, compact=True)[2:])))
+            lines.append("\n\n".join(
+                general_section(index, evidence, bundle, repo, commit, mapping)[2:]))
         elif status == VERIFIED:
             evidence = verified.get(item["id"])
             if evidence is None:
@@ -479,13 +498,22 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
             lines.extend([
                 "<details><summary>Verified model and evidence</summary>",
                 f"Evidence: {code_span(evidence['evidence'])}; SHA-256 {code_span(evidence['dafny_sha256'])}.",
-                dafny_block(evidence["dafny"]), "</details>",
             ])
+            compact_sections.append((len(lines),
+                                     "The full verified Dafny is retained in the linked run artifact."))
+            lines.extend([dafny_block(evidence["dafny"]), "</details>"])
         elif item.get("diagnostic"):
             diagnostic = re.sub("reachability", "input-domain check", item["diagnostic"], flags=re.I)
             lines.append("<details><summary>Diagnostic</summary>\n\n" + text(diagnostic) + "\n\n</details>")
     lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     body = "\n\n".join(lines)
+    for index, compact in sorted(compact_sections,
+                                 key=lambda item: len(lines[item[0]]) - len(item[1]), reverse=True):
+        if len(body) <= 60000:
+            break
+        if len(compact) < len(lines[index]):
+            lines[index] = compact
+            body = "\n\n".join(lines)
     if len(body) > 60000:
         raise Abstain("Publication exceeds bounded size")
     return body

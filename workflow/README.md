@@ -77,6 +77,13 @@ call may be skipped by a branch or short-circuit condition.
 Saved reports without typed natural-language invariant/spec notes still show
 the retained input conditions, intended property, and helper specifications;
 missing loop descriptions are not fabricated during publication.
+When source or Dafny excerpts would exceed the comment-size limit, the report
+links to their full evidence in the run artifact instead. Every property,
+outcome, counterexample, retained condition and evidence hash remains visible.
+If a refutation's source-presentation metadata is missing or invalid, `audit`
+records the diagnostic and requests a separate, hash-bound presentation from
+a tool-free session. Accepted proof evidence is unchanged and never rerun;
+invalid refreshed mappings still stop publication.
 
 The translator also supplies report-only **source presentation** metadata. It
 reverse-maps each witness key to an expression copied from captured source,
