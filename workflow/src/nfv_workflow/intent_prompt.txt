@@ -7,6 +7,13 @@ Skip properties that are obvious directly from a single assignment, an
 unconditional operation or identical switch arms. Prefer properties requiring
 reasoning about branches, loops, state, numeric corner cases or helper contracts.
 Selection is not a correctness verdict.
+Prefer changed implementation functions; use tests and callers as evidence of
+intention. Do not select a test/caller expectation about a callee's correctness
+while treating that callee's result as an unconstrained input. Such a check
+only admits invented environment responses, not behavior of the changed
+implementation. Select the owning changed implementation and its meaningful
+control/data-flow property instead. This does not exclude properties of the
+caller's own logic that hold independently of an unspecified callee result.
 
 Each property must select one exact function_id from function_catalog.functions.
 The trusted extractor supplies the path and changed anchors. Do not supply your

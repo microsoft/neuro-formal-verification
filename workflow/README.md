@@ -84,6 +84,17 @@ If a refutation's source-presentation metadata is missing or invalid, `audit`
 records the diagnostic and requests a separate, hash-bound presentation from
 a tool-free session. Accepted proof evidence is unchanged and never rerun;
 invalid refreshed mappings still stop publication.
+Draft array/sequence range errors are repaired before freezing, using the
+verifier's actual diagnostics to establish justified domains or annotations.
+An ordinary unproved postcondition instead proceeds to refutation; it is not
+treated as a syntax failure.
+The configured verifier timeout also sets Dafny's per-obligation time limit;
+its internal timeouts are retained as resource outcomes rather than ordinary
+postcondition failures.
+Property extraction prefers changed implementations, using tests as intent
+evidence rather than refuting test expectations with invented solver/API
+responses. Caller-owned logic remains eligible when its property does not
+depend on unspecified callee correctness.
 
 The translator also supplies report-only **source presentation** metadata. It
 reverse-maps each witness key to an expression copied from captured source,

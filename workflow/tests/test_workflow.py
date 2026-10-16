@@ -837,6 +837,15 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("`[]` only after reading the input and relevant changed source", prompt)
         self.assertIn("Explicit behavioral claims in the PR description", prompt)
 
+    def test_extraction_targets_implementation_not_invented_solver_responses(self):
+        prompt = self.source().split("## 1. Select nontrivial properties", 1)[1]
+        intent = (Path(__file__).parents[1] / "src/nfv_workflow/intent_prompt.txt").read_text(encoding="utf-8")
+        for source in (prompt, intent):
+            self.assertIn("Prefer changed implementation functions", source)
+            self.assertIn("Do not select a test/caller expectation", source)
+            self.assertIn("treating that callee's result as an unconstrained input", source)
+            self.assertIn("caller's own logic", source)
+
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
         source = self.source()
         self.assertIn("a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179", source)

@@ -53,6 +53,9 @@ under `workflow/tests/.general-scratch/`; never commit them.
   audited, type-checked model before proof or refutation. Split separate ensures
   and root conjunctions into independent properties without assuming siblings;
   never split through implications, disjunctions or quantifier bindings.
+  Audit array/sequence range diagnostics before freezing a draft, without
+  combining atomic properties. Prefer implementation-owned properties over
+  test expectations refuted only by arbitrary environment responses.
 - Report UX (`publish.general_section`): a one-line NFV intro linking the paper
   (arXiv:2608.21516) before the issue count, instead of explaining the
   model/source distinction; per finding normal-sized "Intended property" and

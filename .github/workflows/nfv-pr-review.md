@@ -155,6 +155,13 @@ Postulate at most ten distinct nontrivial properties from PR intent and changed
 code/comments, using captured preconditions, declarations and the preceding
 repository-context session's source to understand them. Skip properties that
 are obvious directly from a single assignment or unconditional operation.
+Prefer changed implementation functions; use tests and callers as evidence of
+intention. Do not select a test/caller expectation about a callee's correctness
+while treating that callee's result as an unconstrained input. Such a check
+only admits invented environment responses, not behavior of the changed
+implementation. Select the owning changed implementation and its meaningful
+control/data-flow property instead. This does not exclude properties of the
+caller's own logic that hold independently of an unspecified callee result.
 Split conjunctive claims into separate atomic properties within the ten-property
 selection budget.
 Select one exact `function_id` from `function_catalog.functions` per property.

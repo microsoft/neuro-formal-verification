@@ -159,6 +159,10 @@ input, not an execution trace, so never present one. Therefore:
     Do not map ghost results as inputs. Use the actual source condition/call
     for failure.expression, not a ghost Boolean property flag, and include it
     verbatim in presentation.explanation. No model-only names in visible text.
+    Direct mappings use exactly {"kind":"expression","expression":"exact source expression",
+    "anchors":[{"path":"captured file","line":1,"excerpt":"exact whole line"}]}.
+    Do not add a value field: values already belong to the fixed witness.
+    The failure record has only expression and anchors, never expected or actual.
     If an input is abstract state without justified direct source/value mapping,
     replace its entry with {"kind":"abstract","label":"source-oriented state",
     "reason":"why no concrete source value can be reconstructed"}. Cover every

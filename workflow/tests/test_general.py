@@ -634,6 +634,37 @@ class GeneralTests(unittest.TestCase):
         self.assertEqual(report["findings"][0]["counters"]["syntax_repairs"], 1)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_undefined_sequence_access_is_repaired_before_freezing(self):
+        bundle, claim, translation = fixture()
+        source = ["int f(int* values) {", "  // Requires a nonempty input array.",
+                  "  return values[0];", "}"]
+        bundle["sources"][claim["path"]]["text"] = "\n".join(source) + "\n"
+        bundle["changed"][claim["path"]] = claim["lines"] = [3]
+        claim["quote"] = claim["property"] = bundle["signals"][0]["text"] = "Returns the first array element."
+        translation.update({
+            "model": f"// src: {claim['path']}:1 | {source[0]}\n"
+                     "method Target(values: seq<int>) returns (r: int)\n"
+                     "// synth: intended postcondition\n  ensures r == values[0]\n"
+                     "// synth: body\n{\n"
+                     f"// src: {claim['path']}:3 | {source[2].strip()}\n"
+                     "  r := values[0];\n// synth: end\n}\n",
+            "original_ensures": ["r == values[0]"], "source_span": [1, 4],
+            "assumptions": [], "source_notes": [],
+        })
+        translation.pop("witness")
+        repaired = translation["model"].replace(
+            "// synth: intended postcondition", "// synth: documented input domain\n"
+            "  requires |values| > 0\n// synth: intended postcondition")
+        conditions = [{"clause": "|values| > 0", "description": "The input array is nonempty.",
+                       "origin": "inferred", "optional": False}]
+        report = self.execute(bundle, claim, Chat([translation, {"model": repaired,
+                              "assumptions": conditions}]), limits=Limits(proof_rounds=0))
+        self.assertFalse(report["failures"], report)
+        self.assertEqual(len(report["verified"]), 1, report)
+        self.assertEqual(report["verified"][0]["translation"]["original_ensures"], ["r == values[0]"])
+        self.assertEqual(report["verified"][0]["counters"]["syntax_repairs"], 1)
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_actual_annotation_only_proof_repair(self):
         bundle, claim, translation = fixture(invariant=False)
         def repair(prompt):

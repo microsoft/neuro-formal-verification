@@ -237,6 +237,7 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
         raise Abstain("Translation must be a structured artifact")
     current = translation["model"]
     type_log = []
+    positive = None
     for attempt in range(limits.syntax_rounds + 1):
         budget()
         try:
@@ -259,6 +260,18 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
                     raise Abstain("Environment contract cites source outside the supplied scoped context")
             result = verifier.resolve(current, directory / f"syntax-{attempt}")
             require_tool(result)
+            goals = {part for clause in translation["original_ensures"] for part in conjuncts(clause)}
+            if (result.get("outcome") == "verified" and result.get("exit_code") == 0
+                    and result.get("mode") == "typecheck" and len(goals) == 1):
+                positive = verifier(current, directory / "verification")
+                require_tool(positive)
+                save(directory / "drafts" / f"{attempt}-verification.json", positive)
+                if re.search(r"(?m)^.*\.dfy\(\d+,\d+\): Error: [^\n]*(?:index|bound)[^\n]*out of range",
+                             positive.get("stdout", "") + positive.get("stderr", "")):
+                    result = {**positive, "outcome": "audit_failure", "mode": "well-definedness",
+                              "stderr": "Draft array/sequence accesses are not established as "
+                                        "well-defined. Repair justified domains or proof annotations "
+                                        "before freezing the translation.\n" + positive.get("stderr", "")}
         except (Abstain, KeyError, TypeError, ValueError) as exc:
             result = {"outcome": "audit_failure", "stderr": str(exc), "stdout": ""}
         type_log.append(result)
@@ -325,8 +338,8 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
             children.append((child, child_translation))
         return {"kind": "property-decomposition", "children": children}
     budget()
-    positive = verifier(original, directory / "verification")
-    require_tool(positive)
+    if positive is None:
+        raise Abstain("Original property lacks its recorded verification attempt")
     if accepted(positive):
         feasible, domain = reachable(verifier, original, translation["entry_point"], directory / "input-domain")
         if not feasible:

@@ -146,7 +146,8 @@ async def refresh(report, bundle, chat, timeout=240):
         paths.update(item["source"]["path"] for item in translation.get("environment", []))
         context = {
             "identity": bundle["identity"], "claim": finding["candidate"],
-            "translation": translation, "source_map": finding["source_map"],
+            "translation": {key: value for key, value in translation.items() if key != "presentation"},
+            "source_map": finding["source_map"],
             "retained_assumptions": finding["retained_assumptions"],
             "sources": {path: numbered(bundle["sources"][path]) for path in sorted(paths)},
             "context_omissions": [f"{path}: not used by the checked source mapping"

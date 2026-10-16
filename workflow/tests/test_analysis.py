@@ -4,8 +4,10 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+from types import SimpleNamespace
 import unittest
 import uuid
+from unittest.mock import patch
 
 from nfv_workflow.general import Limits, run, select_properties, validate_verification
 from nfv_workflow.github import Abstain
@@ -81,6 +83,24 @@ class AnalysisTests(unittest.TestCase):
         altered["dafny"] += "// changed\n"
         with self.assertRaises(Abstain):
             validate_verification(altered, self.bundle)
+
+    def test_worker_applies_requested_budget_and_preserves_internal_timeout_evidence(self):
+        from nfv_workflow.worker import main
+        destination = self.directory / "worker.json"
+        stdout = ("Dafny program verifier finished with 4 verified, 0 errors, 1 time out\n")
+        with patch("sys.argv", ["worker", str(self.directory / "model.dfy"), str(destination),
+                                "60", "verify"]), \
+                patch("nfv_workflow.worker.subprocess.run", side_effect=[
+                    SimpleNamespace(returncode=4, stdout=stdout, stderr=""),
+                    SimpleNamespace(stdout="4.11.0\n"),
+                ]) as invoked:
+            main()
+        command = invoked.call_args_list[0].args[0]
+        self.assertEqual(command[command.index("--verification-time-limit") + 1], "60")
+        result = json.loads(destination.read_text())
+        self.assertEqual(result["outcome"], "timeout")
+        self.assertEqual(result["exit_code"], 4)
+        self.assertEqual(result["stdout"], stdout)
 
     def test_failed_verification_requests_witness_before_refutation(self):
         self.translation.pop("witness")

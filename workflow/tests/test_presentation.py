@@ -148,6 +148,17 @@ class PresentationTests(unittest.TestCase):
         self.assertIn("**Input on which it fails:** `n = 2`", body)
         self.assertNotIn(self.translation["explanation"], body)
 
+    def test_refresh_does_not_seed_the_agent_with_malformed_inline_presentation(self):
+        invalid = copy.deepcopy(self.value)
+        invalid["inputs"]["n"]["value"] = 2
+        report, _ = self.report({**self.translation, "presentation": invalid})
+        before = copy.deepcopy(report)
+        chat = Chat([self.value])
+        artifact = asyncio.run(refresh(report, self.bundle, chat))
+        self.assertNotIn("presentation", json.loads(chat.prompts[0])["translation"])
+        self.assertEqual(report, before)
+        validate_artifact(artifact, report, self.bundle)
+
     def test_empty_partial_unknown_and_unanchored_mappings_fail_closed(self):
         for mutation in (
             lambda value: value.update(inputs={}),
