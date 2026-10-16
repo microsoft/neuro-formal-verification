@@ -53,7 +53,7 @@ async def propose(bundle, model, intent_only=False):
 async def run_general(bundle, properties, output, model, limits):
     from .general import run, select_properties
     if not select_properties(properties, bundle, rejected=[]):
-        # Nothing valid to translate; run still records each rejection as an abstention.
+        # Nothing valid to translate; run records each rejected property's audit failure.
         return await run(bundle, properties, output, None, limits)
     if not model:
         raise Abstain("General translation/repair requires an explicitly configured model")
@@ -156,7 +156,9 @@ def audit(proposals_path, limits):
     report = asyncio.run(run_general(bundle, proposals, output, model, limits))
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
-    summary = {"findings": len(report["findings"]), "abstentions": len(report.get("abstentions", [])),
+    summary = {"findings": len(report["findings"]), "verified": len(report.get("verified", [])),
+               "outcomes": {status: sum(item["status"] == status for item in report.get("properties", []))
+                            for status in ("refuted", "verified", "resources exhausted", "type-check/audit failure")},
                "errors": report["errors"]}
     (output / "comment.md").write_text(comment(report, bundle, evidence, len(proposals)), encoding="utf-8")
     summary["comment"] = str(output / "comment.md")
@@ -164,7 +166,7 @@ def audit(proposals_path, limits):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Conditional Dafny model refutations; no source execution")
+    parser = argparse.ArgumentParser(description="Conditional Dafny model analysis; no source execution")
     commands = parser.add_subparsers(dest="command", required=True)
     p = commands.add_parser("collect", help="Capture merged-PR event source and commentary using read-only API")
     p.add_argument("--event", required=True)
@@ -172,6 +174,15 @@ def main(argv=None):
     p.add_argument("--side", choices=("head", "base"), default="head",
                    help="base: pre-merge snapshot anchored on removed lines (before/after analysis; not publishable)")
     p.add_argument("--sources-dir", help="Also write captured sources as plain files with repository line numbers")
+    p = commands.add_parser("context-manifest", help="Validate source-context session output; never execute source")
+    p.add_argument("--bundle", required=True)
+    p.add_argument("--manifest", required=True)
+    p.add_argument("--out", required=True)
+    p = commands.add_parser("enrich", help="Capture additional context by immutable blob SHA")
+    p.add_argument("--bundle", required=True)
+    p.add_argument("--manifest", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--sources-dir")
     p = commands.add_parser("reanchor", help="Map head-side properties onto a base-side bundle's removed lines")
     p.add_argument("--bundle", required=True)
     p.add_argument("--properties", required=True)
@@ -180,11 +191,11 @@ def main(argv=None):
     p.add_argument("--bundle", required=True)
     p.add_argument("--model", required=True)
     p.add_argument("--out", required=True)
-    p = commands.add_parser("extract", help="Extract intended properties without bug-likelihood triage")
+    p = commands.add_parser("extract", help="Postulate nontrivial properties from intent and source")
     p.add_argument("--bundle", required=True)
     p.add_argument("--model", required=True)
     p.add_argument("--out", required=True)
-    p = commands.add_parser("run", help="General multi-language Dafny-only translation and refutation")
+    p = commands.add_parser("run", help="Dafny-only verification followed by conditional model refutation")
     p.add_argument("--bundle", required=True)
     p.add_argument("--properties", required=True)
     p.add_argument("--model", required=True)
@@ -227,6 +238,15 @@ def main(argv=None):
     try:
         if args.command == "collect":
             bundle = collect(load(args.event), GitHub(), side=args.side)
+            save(args.out, bundle)
+            if args.sources_dir:
+                write_sources(bundle, args.sources_dir)
+        elif args.command == "context-manifest":
+            from .repository_context import sanitize_manifest
+            sanitize_manifest(load(args.bundle), args.manifest, args.out)
+        elif args.command == "enrich":
+            from .repository_context import enrich
+            bundle = enrich(load(args.bundle), load(args.manifest), GitHub())
             save(args.out, bundle)
             if args.sources_dir:
                 write_sources(bundle, args.sources_dir)

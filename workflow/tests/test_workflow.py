@@ -3,6 +3,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -778,7 +779,8 @@ class TemplateTests(unittest.TestCase):
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
-        self.assertIn("includes:\n  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertIn("  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertIn("  - .github/workflows/nfv-source-context.md\n", manifest)
         self.assertTrue((self.package / "README.md").exists())
 
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
@@ -819,14 +821,14 @@ class TemplateTests(unittest.TestCase):
         source, lock = self.source(), self.lock()
         self.assertIn('Path("nfv-input.json").write_text', source)
         self.assertIn(r'Path(\"nfv-input.json\").write_text', lock)
-        prompt = source.split("## 1. Extract intended properties", 1)[1]
+        prompt = source.split("## 1. Select nontrivial properties", 1)[1]
         self.assertIn("read `nfv-input.json` with the file", prompt)
         self.assertIn("requires no environment or credential access", prompt)
         self.assertNotIn('cat "$NFV_BUNDLE"', prompt)
         self.assertIn("Listing files is not source inspection", prompt)
 
     def test_extraction_failure_cannot_be_reported_as_no_properties(self):
-        prompt = self.source().split("## 1. Extract intended properties", 1)[1]
+        prompt = self.source().split("## 1. Select nontrivial properties", 1)[1]
         self.assertIn("call\n`noop` with the specific extraction error and stop", prompt)
         self.assertIn("Do not submit an empty array", prompt)
         self.assertIn("or run the audit as a fallback for an input/access/tool failure", prompt)
@@ -841,6 +843,29 @@ class TemplateTests(unittest.TestCase):
         self.assertIn('echo "NFV_DAFNY_PATH=$dafny_dir/dafny" >> "$GITHUB_ENV"', source)
         self.assertIn('echo "COPILOT_CLI_PATH=$RUNNER_TEMP/gh-aw/bin/copilot"', source)
         self.assertNotIn("setup-dafny-action", source)
+
+    def test_separate_source_only_session_precedes_analysis(self):
+        source, lock = self.source(), self.lock()
+        worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        self.assertIn("uses: ./.github/workflows/nfv-source-context.lock.yml", source)
+        self.assertIn("needs: [repository_context]", source)
+        self.assertIn("repository_context", lock.split("  agent:", 1)[1].split("steps:", 1)[0])
+        self.assertIn("name: nfv-source-context", source)
+        self.assertIn("nfv-workflow enrich", source)
+        self.assertIn("--sources-dir nfv-src", source)
+        self.assertIn("workflow_call:", worker)
+        self.assertIn("fetch-depth: 1", worker)
+        self.assertIn("ref: ${{ github.event.pull_request.base.sha }}", worker)
+        self.assertNotIn("head.sha }}", worker)
+        self.assertNotIn("  bash:", worker)
+        self.assertIn("report-failure-as-issue: false", worker)
+        worker_lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"(?m)^\s+(?:contents|issues|pull-requests): write$", worker_lock), [])
+        self.assertNotIn('"create_issue"', worker_lock)
+        self.assertIn("Do not execute repository code, build, test", worker)
+        self.assertIn("submodules: false", worker)
+        self.assertIn("lfs: false", worker)
+        self.assertTrue((self.template / "nfv-source-context.lock.yml").exists())
 
 
 class ExtractionInputTests(ScratchTest):
@@ -863,7 +888,7 @@ class ExtractionInputTests(ScratchTest):
         self.assertEqual(0, result.returncode, result.stderr)
         path = self.directory / "nfv-input.json"
         index = json.loads(path.read_text(encoding="utf-8"))
-        self.assertEqual({"identity", "signals", "changed", "captured_paths", "context_omissions"}, set(index))
+        self.assertEqual({"identity", "signals", "changed", "captured_paths", "context_omissions", "repository_context"}, set(index))
         for key in ("identity", "signals", "changed", "context_omissions"):
             self.assertEqual(data[key], index[key])
         self.assertEqual(sorted(data["sources"]), index["captured_paths"])
@@ -903,8 +928,8 @@ class AuditTests(ScratchTest):
             summary = audit(self.directory / "p.json", (6, 10, 60))
         self.assertEqual(summary["findings"], 0)
         body = Path(summary["comment"]).read_text(encoding="utf-8")
-        self.assertIn("no refutations", body)
-        self.assertIn("Extracted 0 intended properties", body)
+        self.assertIn("0 refuted, 0 verified", body)
+        self.assertIn("resources exhausted: 0", body)
         self.assertIn("/actions/runs/1", body)
         self.assertTrue((out / "report.json").exists() or (out / "proposals.json").exists())
 

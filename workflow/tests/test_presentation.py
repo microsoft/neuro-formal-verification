@@ -19,6 +19,8 @@ from nfv_workflow.publish import render
 class AcceptedVerifier(FailingVerifier):
     def __call__(self, source, directory):
         self.operations.append(("verify", source))
+        if Path(directory).name == "verification":
+            return {"outcome": "failed", "exit_code": 4, "mode": "unbounded"}
         return {"outcome": "verified", "exit_code": 0, "mode": "unbounded",
                 "stdout": "Dafny program verifier finished with 2 verified, 0 errors", "stderr": ""}
 

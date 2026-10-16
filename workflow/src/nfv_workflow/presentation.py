@@ -84,13 +84,15 @@ def validate(value, translation, bundle):
 
 
 def validate_report(report, bundle):
-    from .general import validate_finding
+    from .general import validate_finding, validate_verification
 
     if (report.get("identity") != bundle["identity"] or report.get("errors")
-            or report.get("mode") != "general-model-refutation"
+            or report.get("mode") not in ("general-model-refutation", "general-model-analysis")
             or not 1 <= len(report.get("findings", [])) <= 10):
         raise Abstain("Presentation refresh requires an accepted general report and matching bundle")
     sha(bundle["identity"]["source_sha"])
+    for evidence in report.get("verified", []):
+        validate_verification(evidence, bundle)
     ids = []
     for finding in report["findings"]:
         if finding.get("kind") != "conditional-model-refutation":

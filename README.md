@@ -9,7 +9,8 @@ This repository contains two components:
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
 - **GitHub Agentic Workflow integration (prototype implementation):** a PR
-  reviewer that refutes a pull request's intended properties with Dafny and
+  reviewer that selects nontrivial properties, tries verification first, then
+  refutation with Dafny, and
   comments the result. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
@@ -26,5 +27,7 @@ This repository contains two components:
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof
 of correctness.
+Verification likewise applies to the translated model under its assumptions,
+not automatically to the source code.
 
 Contributors and coding agents: see [AGENTS.md](AGENTS.md).

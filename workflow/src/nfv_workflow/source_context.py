@@ -9,6 +9,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 
 from .github import Abstain
+from .outcomes import ResourcesExhausted
 
 CONTEXT_BYTES = 32000
 REQUEST_BYTES = 80000
@@ -221,6 +222,41 @@ def caller_first(bundle, claims):
     return [claim for index, claim in sorted(enumerate(claims), key=lambda item: ranks[item[0]])]
 
 
+def declarations(record, language):
+    """Captured type and constant definitions; strings/comments are not declarations."""
+    offset = record.get("line_start", 1) - 1
+    source = record["text"]
+    if language == "python":
+        for node in ast.parse(textwrap.dedent(source)).body:
+            names = []
+            first = node.lineno
+            if isinstance(node, ast.ClassDef):
+                names = [node.name]
+                first = min([first] + [item.lineno for item in node.decorator_list])
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                names = [target.id for target in targets if isinstance(target, ast.Name)]
+            for name in names:
+                yield name, first + offset, node.end_lineno + offset
+        return
+    clean = mask(source, language)
+    for match in re.finditer(r"\b(?:enum\s+class|class|struct|enum|interface)\s+([A-Za-z_]\w*)", clean):
+        end = match.end()
+        brace, semicolon = clean.find("{", end), clean.find(";", end)
+        if brace >= 0 and (semicolon < 0 or brace < semicolon):
+            depth = 1
+            end = brace + 1
+            while end < len(clean) and depth:
+                depth += (clean[end] == "{") - (clean[end] == "}")
+                end += 1
+        yield match[1], clean.count("\n", 0, match.start()) + 1 + offset, clean.count("\n", 0, end) + 1 + offset
+    for match in re.finditer(r"(?m)^[^\n]*\b(?:const|constexpr)\b[^\n]*", clean):
+        assignment = re.search(r"\b([A-Za-z_]\w*)\s*(?:\[[^\]]*\]\s*)*=", match[0])
+        end = clean.find(";", match.start() + assignment.end()) if assignment else -1
+        if assignment and end >= 0:
+            yield assignment[1], clean.count("\n", 0, match.start()) + 1 + offset, clean.count("\n", 0, end) + 1 + offset
+
+
 def scoped_context(bundle, claim):
     path = claim["path"]
     record = bundle["sources"][path]
@@ -243,8 +279,9 @@ def scoped_context(bundle, claim):
         "context_omissions": omissions,
     }
     if size(context) > CONTEXT_BYTES:
-        raise Abstain("Changed function exceeds the scoped source context byte budget")
-    callees = sorted((fn for fn in local if fn != target and fn.name in target.calls),
+        raise ResourcesExhausted("Changed function exceeds the scoped source context byte budget")
+    callees = sorted((fn for fn in local if fn != target and fn.name in target.calls
+                      and not target.first <= fn.first <= fn.last <= target.last),
                      key=lambda fn: abs(fn.first - target.first))
     callers = sorted((fn for fn in local if fn != target and target.name in fn.calls),
                      key=lambda fn: abs(fn.first - target.first))
@@ -288,12 +325,28 @@ def scoped_context(bundle, claim):
             view["ranges"].pop()
             if not view["ranges"]:
                 del context["sources"][other_path]
+            omissions.append(f"{other_path}:{low}: {name} omitted by scoped context budget")
 
     identifiers = set(re.findall(r"\b[A-Za-z_]\w*\b", context["sources"][path]["numbered_lines"]))
+    for item in bundle.get("repository_context", []):
+        other_path = item["path"]
+        other_record = bundle["sources"][other_path]
+        other_language = "python" if other_path.endswith(".py") else (
+            "rust" if other_path.endswith(".rs") else
+            "cpp" if claim["language"] == "python" else claim["language"])
+        definitions = functions(other_record, other_language)
+        for fn in definitions:
+            if fn.name in item["symbols"] and not (other_path == path and fn in selected):
+                add_environment(other_path, other_record, fn.name, fn.first, fn.last)
+        for name, first, last in declarations(other_record, other_language):
+            if name in item["symbols"]:
+                add_environment(other_path, other_record, name, first, last)
     for other_path, other_record in bundle["sources"].items():
         if len(context["environment_declarations"]) >= ENVIRONMENT_LIMIT:
             break
-        other_language = "python" if other_path.endswith(".py") else claim["language"]
+        other_language = "python" if other_path.endswith(".py") else (
+            "rust" if other_path.endswith(".rs") else
+            "cpp" if claim["language"] == "python" else claim["language"])
         try:
             definitions = local if other_path == path else functions(other_record, other_language)
         except Abstain:
@@ -302,12 +355,16 @@ def scoped_context(bundle, claim):
         lines = other_record["text"].splitlines()
         offset = other_record.get("line_start", 1) - 1
         clean_lines = mask(other_record["text"], other_language).splitlines()
+        for name, first, last in declarations(other_record, other_language):
+            if name in identifiers and len(context["environment_declarations"]) < ENVIRONMENT_LIMIT:
+                add_environment(other_path, other_record, name, first, last)
         for index, line in enumerate(clean_lines, 1):
             if len(context["environment_declarations"]) >= ENVIRONMENT_LIMIT:
                 break
             if any(fn.first <= index + offset <= fn.last for fn in definitions):
                 continue
-            declaration = re.search(r"\b(?:class|struct|enum|interface|type|typedef|using|const|constexpr)\b", line)
+            declaration = None if other_language == "python" else re.search(
+                r"\b(?:type|typedef|using)\b", line)
             if declaration and not CALL.search(line):
                 names = set(re.findall(r"\b[A-Za-z_]\w*\b", line))
                 names -= {"class", "struct", "enum", "interface", "type", "typedef", "using",
@@ -342,14 +399,14 @@ def scoped_context(bundle, claim):
                 add_environment(other_path, other_record, declaration[1],
                                 comment_start(lines, index) + offset, index + offset)
     if size(context) > CONTEXT_BYTES:
-        raise Abstain("Scoped source context exceeds its byte budget")
+        raise ResourcesExhausted("Scoped source context exceeds its byte budget")
     return context
 
 
 def check_request(system, prompt, stage):
     # UTF-8 bytes conservatively bound byte-tokenizer input; leave ample output/SDK headroom.
     if len(system.encode("utf-8")) + len(prompt.encode("utf-8")) > REQUEST_BYTES:
-        raise Abstain(f"{stage} request exceeds the {REQUEST_BYTES}-byte model prompt budget")
+        raise ResourcesExhausted(f"{stage} request exceeds the {REQUEST_BYTES}-byte model prompt budget")
 
 
 def diagnostics(result):
