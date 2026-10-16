@@ -46,6 +46,13 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `refuted`, `verified`, `resources exhausted`, `type-check/audit failure`.
   Verification is model-conditional, not source correctness. Use "input-domain
   check" for the feasible-return guard in public text.
+- Bind new proposals to trusted, snapshot-bound function IDs; derive changed
+  anchors in code. Source-inferred quotes may come from anywhere in the selected
+  captured function. Preserve immutable cross-file source-context capture.
+  Retain draft formalizations and diagnostics, then freeze the first fully
+  audited, type-checked model before proof or refutation. Split separate ensures
+  and root conjunctions into independent properties without assuming siblings;
+  never split through implications, disjunctions or quantifier bindings.
 - Report UX (`publish.general_section`): a one-line NFV intro linking the paper
   (arXiv:2608.21516) before the issue count, instead of explaining the
   model/source distinction; per finding normal-sized "Intended property" and
@@ -91,7 +98,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   TypeScript, Python and Rust to **Dafny only**; CBMC is used only by the paper
   artifact.
 - Translation rules (`workflow/src/nfv_workflow/general_prompt.txt`,
-  `general_gates.py`): every Dafny computation line carries a preceding
+  `general_gates.py`): every Dafny computation line carries one or more preceding
   `// src: path:LINE | exact source line` tag; synthetic tags may only cover
   contracts, braces and annotations. Missing callees are modelled from captured
   code and comments with the weakest justified contract. Missing semantics and

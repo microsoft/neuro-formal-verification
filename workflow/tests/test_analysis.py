@@ -13,7 +13,8 @@ from nfv_workflow.outcomes import EXHAUSTED, INVALID, OUTCOMES, REFUTED, VERIFIE
 from nfv_workflow.outcomes import ResourcesExhausted
 from nfv_workflow.publish import render
 from nfv_workflow.repository_context import enrich, sanitize_manifest, validate_manifest
-from nfv_workflow.source_context import scoped_context
+from nfv_workflow.general_gates import SRC, conjuncts, validate_translation
+from nfv_workflow.source_context import function_catalog, quoted_context, scoped_context
 from test_general import Chat, FailingVerifier, fixture
 
 
@@ -154,6 +155,167 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(report["properties"][0]["status"], REFUTED, report)
         self.assertEqual(report["findings"][0]["counters"]["syntax_repairs"], 1)
 
+    def test_catalog_binds_changed_functions_without_model_line_numbers(self):
+        path = self.claim["path"]
+        self.bundle["sources"][path]["text"] += "\nint g(int n) {\n return n;\n}\n"
+        self.bundle["changed"][path] += [6, 7, 8]
+        catalog = function_catalog(self.bundle)
+        self.assertFalse(catalog["errors"])
+        self.assertEqual([fn["name"] for fn in catalog["functions"]], ["f", "g"])
+        self.assertEqual([fn["lines"] for fn in catalog["functions"]], [[4], [7, 8]])
+        fn = catalog["functions"][0]
+        raw = {**self.claim, "function_id": fn["id"], "lines": [6, 7, 8],
+               "origin": "source", "signal_id": "source:" + path,
+               "quote": "int f(int n) {"}
+        claim = select_properties([raw], self.bundle)[0]
+        self.assertEqual(claim["lines"], [4])
+        self.assertEqual(scoped_context(self.bundle, claim)["source_scope"]["function"], "f")
+        self.assertEqual(select_properties([claim], self.bundle)[0], claim)
+        with self.assertRaises(Abstain):
+            select_properties([{**raw, "quote": "return n;"}], self.bundle)
+        self.bundle["sources"][path]["text"] += "// different snapshot\n"
+        with self.assertRaises(Abstain):
+            select_properties([raw], self.bundle)
+
+    def test_draft_goal_syntax_is_corrected_before_the_first_typed_model_is_frozen(self):
+        initial = copy.deepcopy(self.translation)
+        bad = "r == (n if n >= 0 else 0)"
+        good = "r == (if n >= 0 then n else 0)"
+        initial["model"] = initial["model"].replace("ensures r == n", "ensures " + bad)
+        initial["original_ensures"] = [bad]
+        repaired = initial["model"].replace(bad, good)
+        class DraftVerifier(Verifier):
+            def resolve(self, source, directory):
+                self.operations.append(("resolve", source))
+                if bad in source:
+                    line = next(i for i, text in enumerate(source.splitlines(), 1) if "ensures" in text)
+                    return {"outcome": "type_error", "exit_code": 2, "mode": "typecheck",
+                            "stderr": f"model.dfy({line},3): Error: Invalid conditional expression"}
+                return {"outcome": "verified", "exit_code": 0, "mode": "typecheck"}
+        report = self.execute([initial, {"model": repaired}], DraftVerifier(positive=True))
+        self.assertEqual(report["properties"][0]["status"], VERIFIED, report)
+        evidence = report["verified"][0]
+        self.assertEqual(evidence["translation"]["original_ensures"], [good])
+        self.assertEqual(evidence["translation"]["model"], repaired)
+        drafts = self.directory / evidence["candidate"]["id"] / "drafts"
+        self.assertIn(bad, (drafts / "0.json").read_text())
+        self.assertIn(good, (drafts / "1.json").read_text())
+        validate_translation(evidence["translation"], evidence["candidate"], self.bundle)
+
+    def test_multiline_source_can_map_to_one_dafny_computation(self):
+        model = self.translation["model"]
+        path = self.claim["path"]
+        marker = f"// src: {path}:2 | int r = 0;"
+        model = model.replace(marker, marker + f"\n// src: {path}:4 | return r + 1;", 1)
+        mapped = validate_translation(self.translation, self.claim, self.bundle, model)
+        assignment = [row for row in mapped if row["model"] == "r := 0;"]
+        self.assertEqual([row["line"] for row in assignment], [2, 4])
+        self.assertEqual(len({row["model_line"] for row in assignment}), 1)
+
+    def test_repair_context_deduplication_is_lossless_and_keeps_cross_file_sources(self):
+        text = "\t  " + "long_quoted_source_expression" * 40 + " \t"
+        context = {"sources": {
+            "entry.cpp": {"blob_sha": "a" * 40, "ranges": [[42, 43]],
+                          "numbered_lines": f"42| {text}\n43| return result;"},
+            "external.cpp": {"blob_sha": "b" * 40, "ranges": [[7, 7]],
+                             "numbered_lines": "7| int external_helper(int n);"},
+        }}
+        original = copy.deepcopy(context)
+        model = f"// src: entry.cpp:42 | {text.strip()}\nr := n;\n"
+        compacted = quoted_context(context, model)
+        self.assertEqual(context, original)
+        self.assertLess(len(json.dumps(compacted)), len(json.dumps(context)))
+        self.assertEqual(compacted["sources"]["external.cpp"], context["sources"]["external.cpp"])
+        number, tag_line, leading, trailing = compacted["sources"]["entry.cpp"]["quoted_in_model"][0]
+        tag = SRC.fullmatch(model.splitlines()[tag_line - 1])
+        self.assertEqual((number, leading + tag[3].strip() + trailing), (42, text))
+        self.assertIn("43| return result;", compacted["sources"]["entry.cpp"]["numbered_lines"])
+        fabricated = model.replace(text.strip(), "different_source")
+        self.assertEqual(quoted_context(context, fabricated), context)
+
+    def test_conjunction_splitting_preserves_binding_and_precedence(self):
+        examples = {
+            "a && b": ["a", "b"],
+            "((a && b) && c)": ["a", "b", "c"],
+            "(a || b) && c": ["a || b", "c"],
+            "a ==> b && c": ["a ==> b && c"],
+            "a || b && c": ["a || b && c"],
+            "forall x :: P(x) && Q(x)": ["forall x :: P(x) && Q(x)"],
+            "if a then b && c else d": ["if a then b && c else d"],
+            '(s == "a && b") && c': ['s == "a && b"', "c"],
+        }
+        for expression, expected in examples.items():
+            with self.subTest(expression=expression):
+                self.assertEqual(conjuncts(expression), expected)
+
+    def test_conjuncts_have_independent_models_outcomes_and_witness_queries(self):
+        self.translation.pop("witness")
+        self.translation["model"] = self.translation["model"].replace(
+            "ensures r == n", "ensures r == n && r >= n")
+        self.translation["original_ensures"] = ["r == n && r >= n"]
+        class ComponentVerifier(Verifier):
+            def __call__(self, source, directory):
+                self.operations.append((Path(directory).name, source))
+                if Path(directory).name == "verification" and "ensures r == n" in source:
+                    return {"outcome": "failed", "exit_code": 4, "mode": "unbounded"}
+                return success()
+        report = self.execute([self.translation, {
+            "witness": {"n": 2}, "explanation": "The return adds one."}], ComponentVerifier())
+        self.assertEqual([row["status"] for row in report["properties"]], [REFUTED, VERIFIED], report)
+        self.assertEqual(len({row["id"] for row in report["properties"]}), 2)
+        self.assertEqual(len(self.chat.prompts), 2)
+        first, second = report["findings"][0], report["verified"][0]
+        self.assertEqual(first["translation"]["original_ensures"], ["r == n"])
+        self.assertEqual(second["translation"]["original_ensures"], ["r >= n"])
+        self.assertNotIn("ensures r >= n", first["translation"]["model"])
+        self.assertNotIn("ensures r == n", second["translation"]["model"])
+        self.assertNotIn("requires r == n", second["translation"]["model"])
+        for evidence in (first, second):
+            self.assertTrue((self.directory / evidence["candidate"]["id"] / "source-context.json").exists())
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertIn("### P1", body)
+        self.assertIn("### P2", body)
+
+    def test_separate_ensures_are_checked_as_separate_properties(self):
+        self.translation["model"] = self.translation["model"].replace(
+            "  ensures r == n", "  ensures r == n\n// synth: second property\n  ensures r >= n")
+        self.translation["original_ensures"] = ["r == n", "r >= n"]
+        report = self.execute([self.translation], Verifier(positive=True))
+        self.assertEqual(len(report["properties"]), 2)
+        self.assertEqual(len(report["verified"]), 2)
+        self.assertEqual(len(self.chat.prompts), 1)
+
+    def test_atomic_selection_limit_is_explicit_and_not_a_proof_verdict(self):
+        goals = " && ".join(f"r >= n + {index}" for index in range(11))
+        self.translation["model"] = self.translation["model"].replace("ensures r == n", "ensures " + goals)
+        report = self.execute([self.translation], Verifier(positive=True))
+        self.assertEqual(len(report["properties"]), 10)
+        self.assertEqual(len(report["verified"]), 10)
+        self.assertEqual(len(report["selection_omissions"]), 1)
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertIn("1 additional candidate checks were not selected", body)
+        self.assertNotIn("### P11", body)
+
+    def test_workflow_warning_policy_keeps_real_verifier_errors_fatal(self):
+        from nfv.shared.config import DAFNY_PATH
+        from nfv_workflow.check import Dafny, accepted
+        if not DAFNY_PATH:
+            self.skipTest("Dafny is not installed")
+        verifier = Dafny(30)
+        source = ("method Check(n: int) returns (r: int)\n"
+                  "  requires forall i: int :: i >= 0 ==> i + 1 > 0\n"
+                  "  ensures r == n\n{\n  r := n;\n}\n")
+        resolved = verifier.resolve(source, self.directory / "warning-resolve")
+        self.assertEqual(resolved["exit_code"], 0, resolved)
+        self.assertIn("Warning:", resolved["stdout"] + resolved["stderr"])
+        self.assertTrue(accepted(verifier(source, self.directory / "warning-verify")))
+        bad = verifier(source.replace("r := n;", "r := n + 1;"), self.directory / "bad-verify")
+        self.assertFalse(accepted(bad))
+        self.assertEqual(bad["exit_code"], 4, bad)
+        broken = verifier.resolve(source.replace("r := n;", "r := unknown;"),
+                                  self.directory / "bad-resolve")
+        self.assertNotEqual(broken["exit_code"], 0, broken)
+
 
 class RepositoryContextTests(unittest.TestCase):
     def setUp(self):
@@ -199,6 +361,9 @@ class RepositoryContextTests(unittest.TestCase):
         for snippet in ("@dataclass(frozen=True)", "rounds: int = 10",
                         "raise ValueError", "'proof_rounds'", "return n + 1"):
             self.assertIn(snippet, source)
+        fn = function_catalog(enriched)["functions"][0]
+        claim = select_properties([{**self.claim, "function_id": fn["id"]}], enriched)[0]
+        self.assertEqual(scoped_context(enriched, claim)["sources"][self.path]["blob_sha"], oid)
 
     def test_an_incomplete_prefix_is_not_mistaken_for_a_complete_blob(self):
         api, oid = self.api()

@@ -8,19 +8,27 @@ unconditional operation or identical switch arms. Prefer properties requiring
 reasoning about branches, loops, state, numeric corner cases or helper contracts.
 Selection is not a correctness verdict.
 
-Each property must identify relevant added/changed lines in bundle.changed.
+Each property must select one exact function_id from function_catalog.functions.
+The trusted extractor supplies the path and changed anchors. Do not supply your
+own line numbers or choose a helper that was not changed. Read the captured
+function and relevant captured cross-file context, including sources outside the
+PR payload, before stating its property.
 For PR intent, use origin "intent" and quote an exact nonempty substring of a
 bundle.signals entry. For a property inferred from source, use origin "source",
-signal_id "source:<path>", and quote exact text from the anchored changed lines.
+signal_id "source:<selected function path>", and quote exact text from within
+the selected captured function (including its leading comments). The quote
+need not itself be a changed line; the function must have changed.
 Do not misrepresent an inferred hypothesis as a developer's stated claim. Analyze the changed
 source and available declarations/preconditions/callee context to understand the
 intention. State inferred expectations as hypotheses, without assuming them. Deduplicate
 equivalent intended properties. Deleted-only/unanchored claims are omitted.
+Each property must be atomic: split "A and B" into two independently meaningful
+properties, not one conjunctive check. The total selection budget is ten.
 
 Supported source languages: C, C++, Java, C#, Go, JavaScript, TypeScript, Python, Rust.
 Return ONLY a JSON array:
 [
- {"path":"captured/changed.cpp", "lines":[42], "origin":"intent",
+ {"function_id":"exact id from function_catalog.functions", "origin":"intent",
   "signal_id":"exact signal id or source:<path>",
   "quote":"exact quoted claim", "property":"intended behavior in ordinary language",
   "language":"cpp"}

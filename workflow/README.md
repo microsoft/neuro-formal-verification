@@ -120,15 +120,19 @@ NFV comment. Verifier models, repair logs and hashes are in the run's
    Trusted code validates this manifest,
    fetches the corresponding head blobs and verifies their hashes; agent prose
    is never a semantic contract. Additional source is limited to 2 MB.
-2. **Postulate nontrivial properties.** Exact intent or captured-source quotes
-   and changed-line anchors are mandatory. Skip properties obvious from a
+2. **Postulate nontrivial properties.** Trusted code identifies changed functions
+   and supplies snapshot-bound function IDs and changed anchors. The proposer
+   selects an ID instead of inventing line numbers. Exact intent quotes or
+   captured-source quotes from the selected function are mandatory; a source
+   quote need not itself be a changed line. Skip properties obvious from a
    single unconditional operation. Deduplicate and select at most ten
    properties. Process the selected properties caller-first in the
    captured same-file lexical call graph, including paths through unchanged
    functions. Recursive groups and equal-depth properties retain extraction
    order. This orders requests; it does not change a property's entry function
    or claim anchors, and is not a resolved cross-file/runtime call order.
-   Anchor each property inside one changed entry function.
+   Each property belongs to one changed entry function. Conjunctive claims are
+   selected as separate atomic properties.
 3. **Translate and resolve.** The tool-free NFV `CopilotChat` client produces a
    canonical verifier model (Dafny), original `ensures`, source mappings,
    environment descriptions, and inferred input conditions. Each property's
@@ -150,16 +154,31 @@ NFV comment. Verifier models, repair logs and hashes are in the run's
    payload against an 80,000-byte UTF-8 budget, leaving output headroom.
    Large verifier diagnostics are explicitly shortened in repair prompts;
    full logs and frozen models remain in the evidence. Oversized immutable
-   model/metadata requests exhaust their budget before inference. Up to six repair
-   requests may fix syntax/types before freezing computation. Each attempt uses
-   the real NFV `type_check` / `dafny resolve` interface—**not verification of the
-   original property**. The recorded goal and metadata cannot change during repair.
-4. **Verify first, then freeze and invert.** Check the original model with
+   repair requests first deduplicate source rows already quoted by exact model
+   provenance tags, retaining references and whitespace to reconstruct the full
+   captured text. Unquoted cross-file source remains in the request; budgets are
+   not increased. Requests still too large exhaust their budget before inference. Up to six repair
+   requests may correct draft syntax, types and contracts while keeping the
+   source property fixed. Each draft and its diagnostics are saved. Trusted code
+   extracts the draft's actual postconditions rather than trusting a duplicate
+   model-authored copy. Each attempt runs `dafny resolve`—**not verification of
+   the original property**. The first fully audited, type-correct model is frozen.
+   The workflow permits Dafny warnings, retaining them in evidence, without
+   suppressing errors, integrity gates or proof obligations. This policy is
+   confined to `workflow/`; the paper's `nfv/` implementation is unchanged.
+4. **Verify each atomic property first, then invert.** Separate `ensures`
+   clauses and root conjunctions (`A && B`) become independently checked properties
+   with distinct IDs, source contexts, outcomes and counterexample requests.
+   Computation and input conditions are unchanged; one conjunct is never assumed
+   to prove another. Implications, disjunctions and quantified bodies retain
+   their grouping. At most ten atomic checks are selected; additional candidates
+   are explicitly listed as selection omissions, not reported as analyzed.
+   Check each original model with
    Dafny. An accepted proof plus a successful feasible-input guard records
    **verified**, without requiring a counterexample. Otherwise ask for a
    concrete witness if the translation did not already supply one. Reuse NFV's
-   `invert_entry_spec` to negate the conjunction
-   of original postconditions mechanically. Exact input equalities are installed
+   `invert_entry_spec` to negate its selected original postcondition
+   mechanically. Exact input equalities are installed
    mechanically. The complete translated computation, declarations, goals,
    original conditions, and witness are frozen.
 5. **Check the negative model.** A trusted parameterless `NfvWitnessCheck` method

@@ -93,6 +93,10 @@ be modeled with the available source and disclosed abstract inputs.
 
 Write ORIGINAL ensures, never its negation. Trusted code verifies it first;
 if necessary, it mechanically negates the recorded conjunction for refutation.
+State independent conditions as separate ensures clauses. The trusted pipeline
+checks each clause and each root conjunction independently, with a separate
+outcome and counterexample context. Never rely on another postcondition as an
+assumption when proving one component.
 No assume, axioms, attributes ({:...}), includes, imports, opaque/bodyless
 declarations, export/module tricks, iterators, externs, decreases *, or
 verification suppression. All callable declarations must have bodies whose
@@ -109,12 +113,23 @@ N; the quoted text is everything after "N| ". Never count lines yourself.
 Use src for declarations and computation. Use synth ONLY for braces, contracts,
 invariants, assertions, decreases, reads, and modifies. Each significant line in
 source_span must appear in a src tag, including the changed anchors. Multiple
-Dafny lines may reference one source line. These tags are claimed correspondence,
+Dafny lines may reference one source line. Consecutive src tags before a single
+Dafny line map multiple source lines to that computation (for example a
+multiline source call or condition). Do not duplicate computation merely to
+cover source lines. These tags are claimed correspondence,
 not proof of translation fidelity. Never fabricate quoted source text.
+An oversized repair request may deduplicate captured rows already quoted in the
+model. Its quoted_in_model rows identify the source line, model-tag line, and
+exact leading/trailing whitespace. Reconstruct the captured row from that tag's
+trimmed excerpt plus its whitespace; unquoted source rows remain verbatim.
+This does not remove cross-file context or authorize invented source text.
 
-Type repair may change the translated computation BEFORE freezing, but never
-change entry name, original ensures, or condition/environment contracts.
-Once type-correct the complete model is frozen. Proof repair will use a separate
+Before freezing, draft repair may correct syntax, types, computation and formal
+contracts to express the SAME immutable source property. Keep original_ensures,
+assumptions and environment metadata consistent with the corrected draft.
+Never weaken the property or invent input restrictions to make it prove.
+Every draft and its diagnostics are retained. Once fully audited and
+type-correct the complete model is frozen. Proof repair will use a separate
 annotation-only JSON protocol: computation, original/negated goal, witness, and
 input/environment contracts are immutable. Budget defaults: six syntax repairs,
 ten proof repairs. The only final outcomes are refuted, verified, resources

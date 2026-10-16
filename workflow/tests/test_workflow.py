@@ -917,7 +917,8 @@ class ExtractionInputTests(ScratchTest):
         self.assertEqual(0, result.returncode, result.stderr)
         path = self.directory / "nfv-input.json"
         index = json.loads(path.read_text(encoding="utf-8"))
-        self.assertEqual({"identity", "signals", "changed", "captured_paths", "context_omissions", "repository_context"}, set(index))
+        self.assertEqual({"identity", "signals", "changed", "captured_paths", "context_omissions",
+                          "repository_context", "function_catalog"}, set(index))
         for key in ("identity", "signals", "changed", "context_omissions"):
             self.assertEqual(data[key], index[key])
         self.assertEqual(sorted(data["sources"]), index["captured_paths"])

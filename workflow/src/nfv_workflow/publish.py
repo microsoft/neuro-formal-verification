@@ -441,6 +441,9 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
         "not proofs of source-code correctness or confirmed source bugs.**",
         " · ".join(f"{status}: {counts[status]}" for status in OUTCOMES),
     ]
+    if report.get("selection_omissions"):
+        lines.append(f"**Selection limit:** {len(report['selection_omissions'])} additional candidate "
+                     "checks were not selected within the ten-property budget.")
     for index, item in enumerate(properties, 1):
         status = item["status"]
         label = "Inferred property" if item.get("origin") == "source" else "Intended property"

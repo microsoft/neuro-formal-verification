@@ -50,6 +50,62 @@ def clauses(model, entry, keyword):
     return result
 
 
+def conjuncts(expression):
+    """Split only a conjunction at the root, never through a binder or implication."""
+    from .source_context import mask
+    expression = expression.strip()
+    while expression.startswith("("):
+        depth, end = 0, None
+        for index, char in enumerate(mask(expression)):
+            depth += (char == "(") - (char == ")")
+            if depth == 0:
+                end = index
+                break
+        if end != len(expression) - 1:
+            break
+        expression = expression[1:-1].strip()
+    code = mask(expression)
+    depth, positions, top = 0, [], []
+    for index, char in enumerate(code):
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        elif depth == 0:
+            top.append(char)
+            if code[index:index + 2] == "&&":
+                positions.append(index)
+        else:
+            top.append(" ")
+    if not positions or re.search(r"\b(?:forall|exists|if|match|var)\b|==>|<==|\|\|", "".join(top)):
+        return [expression]
+    result, first = [], 0
+    for last in positions + [len(expression)]:
+        result.extend(conjuncts(expression[first:last]))
+        first = last + 2
+    return result
+
+
+def with_postconditions(model, entry, goals):
+    from nfv.agent import refute
+    inverse = refute.invert_entry_spec(model, entry, BACKEND)
+    if not inverse.ok:
+        raise Abstain("Cannot isolate an original postcondition: " + inverse.reason)
+    start, end = refute._split_signature(inverse.model, entry, "dafny")
+    signature = inverse.model[start:end]
+    replacement = "\n".join("// synth: independent original postcondition\n  ensures " + goal
+                            for goal in goals)
+    frozen_goal = ("// synth: refutation goal: negation of the translated postcondition\n"
+                   "  ensures " + inverse.inverted)
+    if signature.count(frozen_goal) != 1:
+        raise Abstain("Cannot uniquely isolate the entry's postconditions")
+    signature = signature.replace(frozen_goal, replacement, 1)
+    result = inverse.model[:start] + signature + inverse.model[end:]
+    if clauses(result, entry, "ensures") != [normalized(goal) for goal in goals]:
+        raise Abstain("Isolated entry postconditions differ from the selected goals")
+    return result
+
+
 def audit(model, entry):
     if not isinstance(model, str) or len(model) > 160000:
         raise Abstain("Dafny model exceeds size budget")
@@ -127,36 +183,42 @@ def validate_translation(translation, claim, bundle, model=None):
             raise Abstain(f"Missing required source context: {path}")
     if claim["path"] not in translation["required_context"]:
         raise Abstain("Primary source absent from required context")
-    mapped, previous = [], None
+    mapped, previous = [], []
     for number, line in enumerate(model.splitlines(), 1):
         if not line.strip():
             continue
         src, synth = SRC.fullmatch(line), SYNTH.fullmatch(line)
         if src:
+            if previous and previous[0][0] == "synth":
+                raise Abstain("Source tag cannot replace a pending synthetic annotation")
             path, origin, excerpt = src[1], int(src[2]), src[3]
             if anchor(bundle, path, origin).strip() != excerpt.strip():
                 raise Abstain("Fabricated source provenance excerpt")
             if path not in translation["required_context"]:
                 raise Abstain("Provenance uses undeclared context")
-            previous = ("source", path, origin, excerpt)
+            previous.append(("source", path, origin, excerpt))
             continue
         if synth:
-            previous = ("synth",)
+            if previous:
+                raise Abstain("Synthetic tag cannot discard pending source provenance")
+            previous = [("synth",)]
             continue
         if line.lstrip().startswith("//"):
-            previous = None
+            if previous:
+                raise Abstain("Comment interrupts pending source provenance")
             continue
-        if previous is None:
+        if not previous:
             raise Abstain(f"Untagged Dafny line {number}")
-        if previous[0] == "synth":
+        if previous[0][0] == "synth":
             if not SYNTH_CODE.fullmatch(line.strip()):
                 raise Abstain("Computation cannot hide behind a synthetic annotation tag")
         else:
             if re.match(r"\s*(requires|ensures)\b", line):
                 raise Abstain("Contracts must use synthetic tags, not frozen computation tags")
-            mapped.append({"model_line": number, "path": previous[1],
-                           "line": previous[2], "source": previous[3], "model": line.strip()})
-        previous = None
+            for _, path, origin, excerpt in previous:
+                mapped.append({"model_line": number, "path": path,
+                               "line": origin, "source": excerpt, "model": line.strip()})
+        previous = []
     covered = {x["line"] for x in mapped if x["path"] == claim["path"]}
     required = set(claim["lines"])
     for line in range(first, last + 1):
@@ -164,7 +226,10 @@ def validate_translation(translation, claim, bundle, model=None):
         if text and not re.fullmatch(r"[{}();\[\]]+", text) and not text.startswith(("//", "#", "/*", "*")):
             required.add(line)
     if not required <= covered:
-        raise Abstain("Source provenance does not cover the declared source slice")
+        missing = sorted(required - covered)
+        raise Abstain(f"Source provenance does not cover the declared source slice: "
+                      f"{claim['path']} lines {missing[:30]}. Consecutive exact src tags may "
+                      "map multiple source lines to one Dafny computation line.")
     environment = translation.get("environment", [])
     if len(environment) > 30:
         raise Abstain("Environment context budget exceeded")

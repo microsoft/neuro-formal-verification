@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import json
 import re
 import textwrap
 from collections import defaultdict, deque
@@ -11,6 +13,12 @@ from dataclasses import dataclass
 from .github import Abstain
 from .outcomes import ResourcesExhausted
 
+LANGUAGES = {
+    ".c": "c", ".h": "cpp", ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
+    ".hpp": "cpp", ".java": "java", ".cs": "csharp", ".go": "go",
+    ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
+    ".ts": "typescript", ".tsx": "typescript", ".py": "python", ".rs": "rust",
+}
 CONTEXT_BYTES = 32000
 REQUEST_BYTES = 80000
 RELATED_LIMIT = 4
@@ -156,6 +164,55 @@ def entry_function(definitions, anchors):
     if len(targets) != 1:
         raise Abstain("Changed anchors must belong to one identifiable function")
     return targets.pop()
+
+
+def function_catalog(bundle):
+    """Identify changed entries before asking a model to select properties."""
+    from pathlib import PurePosixPath
+    catalog = {"functions": [], "errors": []}
+    for path, changed in sorted(bundle["changed"].items()):
+        language = LANGUAGES.get(PurePosixPath(path).suffix.lower())
+        if not language:
+            continue
+        record = bundle["sources"].get(path)
+        if record is None:
+            catalog["errors"].append({"path": path, "diagnostic": "Changed source was not captured"})
+            continue
+        try:
+            definitions = functions(record, language)
+        except Abstain as exc:
+            catalog["errors"].append({"path": path, "diagnostic": str(exc)})
+            continue
+        anchors, unscoped = defaultdict(list), []
+        source_lines = record["text"].splitlines()
+        offset = record.get("line_start", 1)
+        source_hash = hashlib.sha256(record["text"].encode("utf-8")).hexdigest()
+        for line in sorted(set(changed)):
+            index = line - offset
+            if not 0 <= index < len(source_lines):
+                continue
+            text = source_lines[index].strip()
+            if not text or text.startswith(("//", "#", "/*", "*")) or re.fullmatch(r"[{}();\[\]]+", text):
+                continue
+            try:
+                anchors[entry_function(definitions, [line])].append(line)
+            except Abstain:
+                unscoped.append(line)
+        if unscoped:
+            catalog["errors"].append({
+                "path": path, "lines": unscoped[:30], "total": len(unscoped),
+                "diagnostic": "Changed lines outside an unambiguous captured function are not entry candidates",
+            })
+        for fn, lines in sorted(anchors.items(), key=lambda pair: pair[0].declaration):
+            identity = json.dumps([path, language, fn.declaration, fn.last, source_hash],
+                                  ensure_ascii=False).encode("utf-8")
+            catalog["functions"].append({
+                "id": "function-" + hashlib.sha256(identity).hexdigest()[:20],
+                "path": path, "name": fn.name, "language": language,
+                "first": fn.first, "declaration": fn.declaration, "last": fn.last,
+                "lines": lines,
+            })
+    return catalog
 
 
 def root_levels(definitions):
@@ -423,6 +480,43 @@ def check_request(system, prompt, stage):
     # UTF-8 bytes conservatively bound byte-tokenizer input; leave ample output/SDK headroom.
     if len(system.encode("utf-8")) + len(prompt.encode("utf-8")) > REQUEST_BYTES:
         raise ResourcesExhausted(f"{stage} request exceeds the {REQUEST_BYTES}-byte model prompt budget")
+
+
+def quoted_context(context, model):
+    """Deduplicate exact captured rows without losing source text or indentation."""
+    from .general_gates import SRC
+    quoted = {}
+    for index, line in enumerate(model.splitlines(), 1):
+        tag = SRC.fullmatch(line)
+        if tag:
+            quoted[(tag[1], int(tag[2]), tag[3].strip())] = index
+    sources, changed = {}, False
+    for path, record in context["sources"].items():
+        rows, references = [], []
+        for row in record["numbered_lines"].splitlines():
+            match = re.fullmatch(r"(\d+)\| (.*)", row)
+            if match and match[2].strip():
+                text = match[2]
+                index = quoted.get((path, int(match[1]), text.strip()))
+                if index is not None:
+                    reference = [int(match[1]), index, text[:len(text) - len(text.lstrip())],
+                                 text[len(text.rstrip()):]]
+                    if len(json.dumps(reference, ensure_ascii=False).encode("utf-8")) + 10 < len(row.encode("utf-8")):
+                        references.append(reference)
+                        continue
+            rows.append(row)
+        sources[path] = {**record, "numbered_lines": "\n".join(rows)}
+        if references:
+            sources[path]["quoted_in_model"] = references
+            changed = True
+    if not changed:
+        return context
+    result = {**context, "sources": sources,
+              "source_text_references": "quoted_in_model rows are [source line, model tag line, "
+              "leading whitespace, trailing whitespace]. Reconstruct the exact captured source "
+              "from that src tag's trimmed excerpt and saved whitespace. Unreferenced rows remain "
+              "verbatim below. This is deduplication, not permission to omit source behavior."}
+    return result if size(result) < size(context) else context
 
 
 def diagnostics(result):

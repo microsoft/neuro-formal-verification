@@ -11,19 +11,13 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .check import Dafny, accepted
-from .general_gates import (BACKEND, annotate, clauses, clean_code, final_gate, normalized,
-                            remove_requirement, validate_translation, witness_bridge)
+from .general_gates import (BACKEND, annotate, clauses, clean_code, conjuncts, final_gate,
+                            remove_requirement, validate_translation, with_postconditions, witness_bridge)
 from .github import Abstain
 from .model import normalize, validate_claim
 from .outcomes import EXHAUSTED, INVALID, REFUTED, VERIFIED, ResourcesExhausted
-from .source_context import caller_first, check_request, diagnostics, scoped_context
-
-LANGUAGES = {
-    ".c": "c", ".h": "cpp", ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
-    ".hpp": "cpp", ".java": "java", ".cs": "csharp", ".go": "go",
-    ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
-    ".ts": "typescript", ".tsx": "typescript", ".py": "python", ".rs": "rust",
-}
+from .source_context import (LANGUAGES, caller_first, check_request, diagnostics,
+                             function_catalog, quoted_context, scoped_context)
 ALIASES = {"c++": "cpp", "c#": "csharp", "js": "javascript", "ts": "typescript", "py": "python",
            "rs": "rust"}
 
@@ -100,10 +94,21 @@ def select_properties(raw, bundle, rejected=None):
     and skipped instead of failing the whole batch."""
     if not isinstance(raw, list) or len(raw) > 100:
         raise Abstain("Expected at most 100 extracted intended properties")
-    selected, seen = [], set()
+    selected, seen, catalog = [], set(), None
     for value in raw:
         try:
-            path = validate_claim(value, bundle, allow_inferred=True)
+            source_span = None
+            if isinstance(value, dict) and "function_id" in value:
+                if catalog is None:
+                    catalog = {fn["id"]: fn for fn in function_catalog(bundle)["functions"]}
+                fn = catalog.get(value["function_id"])
+                if fn is None:
+                    raise Abstain("Property selects an unknown captured function")
+                if value.get("path", fn["path"]) != fn["path"]:
+                    raise Abstain("Property path disagrees with its captured function")
+                value = {**value, "path": fn["path"], "lines": fn["lines"]}
+                source_span = (fn["first"], fn["last"])
+            path = validate_claim(value, bundle, allow_inferred=True, source_span=source_span)
             language = str(value.get("language") or LANGUAGES.get(Path(path).suffix.lower(), "")).lower()
             language = ALIASES.get(language, language)
             expected = LANGUAGES.get(Path(path).suffix.lower())
@@ -122,8 +127,9 @@ def select_properties(raw, bundle, rejected=None):
             continue
         seen.add(key)
         claim = {key: value[key] for key in ("path", "lines", "signal_id", "quote", "property")}
-        if "origin" in value:
-            claim["origin"] = value["origin"]
+        for field in ("origin", "function_id"):
+            if field in value:
+                claim[field] = value[field]
         claim["language"] = language
         claim["id"] = hashlib.sha256(json.dumps(claim, sort_keys=True).encode()).hexdigest()[:20]
         selected.append(claim)
@@ -170,7 +176,7 @@ def reachable(verifier, model, entry, directory):
             and result.get("mode") == "unbounded"), result
 
 
-async def run_property(claim, bundle, chat, directory, limits, verifier):
+async def run_property(claim, bundle, chat, directory, limits, verifier, prepared=None):
     from nfv.agent import refute
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -187,9 +193,27 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
 
     async def ask(stage, prompt):
         remaining = budget()
-        check_request(system, prompt, stage)
+        compacted = False
+        try:
+            check_request(system, prompt, stage)
+        except ResourcesExhausted:
+            if stage not in ("syntax-repair", "proof-repair", "witness"):
+                raise
+            request = json.loads(prompt)
+            model = request.get("current_model") or request.get("translation", {}).get("model")
+            if model is None:
+                model = "\n".join(line.split(": ", 1)[1] for line in request["frozen_model_lines"])
+            request["source_context"] = quoted_context(request["source_context"], model)
+            if "metadata" in request:
+                request["metadata"] = {key: value for key, value in request["metadata"].items()
+                                       if key != "original_ensures"}
+            prompt = json.dumps(request, ensure_ascii=False)
+            check_request(system, prompt, stage)
+            compacted = True
         response = await chat.ask(system, prompt, timeout=min(limits.model_timeout, remaining))
-        record = {"stage": stage, "response": response.text}
+        record = {"stage": stage, "response": response.text,
+                  "request_bytes": len(system.encode("utf-8")) + len(prompt.encode("utf-8")),
+                  "source_context_deduplicated": compacted}
         for field in ("model", "input_tokens", "output_tokens", "api_calls", "nano_aiu"):
             if hasattr(response, field):
                 record[field] = getattr(response, field)
@@ -204,8 +228,11 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     }
     save(directory / "source-context.json", context)
     encoded_context = json.dumps(context, ensure_ascii=False)
-    counters["translation_calls"] += 1
-    translation = await ask("translation", "Translate this property for verification first. A failing witness is not required.\n" + encoded_context)
+    if prepared is None:
+        counters["translation_calls"] += 1
+        translation = await ask("translation", "Translate this property for verification first. A failing witness is not required.\n" + encoded_context)
+    else:
+        translation = json.loads(json.dumps(prepared))
     if not isinstance(translation, dict):
         raise Abstain("Translation must be a structured artifact")
     current = translation["model"]
@@ -213,6 +240,8 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     for attempt in range(limits.syntax_rounds + 1):
         budget()
         try:
+            translation = {**translation,
+                           "original_ensures": clauses(current, translation["entry_point"], "ensures")}
             mapped = validate_translation(translation, claim, bundle, current)
             scope = context["source_scope"]
             if not scope["first"] <= translation["source_span"][0] <= translation["source_span"][1] <= scope["last"]:
@@ -233,6 +262,8 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
         except (Abstain, KeyError, TypeError, ValueError) as exc:
             result = {"outcome": "audit_failure", "stderr": str(exc), "stdout": ""}
         type_log.append(result)
+        save(directory / "drafts" / f"{attempt}.json",
+             {"translation": {**translation, "model": current}, "typecheck": result})
         if result.get("outcome") == "verified" and result.get("exit_code") == 0 and result.get("mode") == "typecheck":
             break
         if result.get("outcome") == "timeout":
@@ -241,24 +272,58 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
             detail = result.get("stderr") or result.get("stdout", "")
             raise Abstain(f"Type checking failed after {limits.syntax_rounds} syntax repairs: {detail[:1000]}")
         counters["syntax_repairs"] += 1
+        old_goals = translation.get("original_ensures", [])
+        from nfv.agent import refute
+        span = refute._split_signature(current, translation["entry_point"], "dafny")
+        contract_lines = (current.count("\n", 0, span[0]) + 1,
+                          current.count("\n", 0, span[1]) + 1) if span else (0, 0)
+        error_lines = [int(line) for line in re.findall(
+            r"\.dfy\((\d+),\d+\):\s*(?:Parse )?Error\b",
+            result.get("stdout", "") + result.get("stderr", ""), re.IGNORECASE)]
+        contract_error = any(contract_lines[0] <= line <= contract_lines[1] for line in error_lines)
         repair = await ask("syntax-repair", json.dumps({
-            "instruction": "Fix only Dafny syntax/type errors. Return ONLY {\"model\":\"full tagged Dafny\"}. "
-                           "Entry, original ensures and input/environment contracts are immutable. "
-                           "You may also correct source_span, required_context and source_notes.",
+            "instruction": "Correct this draft's Dafny syntax, types, contracts and source mapping. "
+                           "The source property and captured source are immutable; never weaken or "
+                           "replace the intended property to obtain a proof. Return a JSON object "
+                           "with model (full tagged Dafny) and any corrected translation metadata. "
+                           "If a contract changes, update original_ensures, assumptions or environment "
+                           "to match. This is draft formalization, not proof repair. The first "
+                           "fully audited, type-checked translation will be frozen before verification.",
             "source_context": context, "metadata": {k: v for k, v in translation.items() if k != "model"},
             "current_model": current, "typecheck": diagnostics(result),
         }, ensure_ascii=False))
-        if (not isinstance(repair, dict) or "model" not in repair
-                or set(repair) - {"model", "source_span", "required_context", "source_notes"}):
-            raise Abstain("Syntax repair attempted to replace immutable translation metadata")
+        fields = {"model", "entry_point", "original_ensures", "assumptions", "environment",
+                  "source_span", "required_context", "source_notes", "correspondence", "explanation"}
+        if not isinstance(repair, dict) or "model" not in repair or set(repair) - fields:
+            raise Abstain("Draft repair returned unsupported translation metadata")
         current = repair["model"]
-        if clauses(current, translation["entry_point"], "ensures") != [
-                normalized(clause) for clause in translation["original_ensures"]]:
-            raise Abstain("Original property goal was altered")
+        entry = repair.get("entry_point", translation["entry_point"])
+        if old_goals and not contract_error and clauses(current, entry, "ensures") != old_goals:
+            current = with_postconditions(current, entry, old_goals)
+            repair = {**repair, "model": current, "original_ensures": old_goals}
+            save(directory / "drafts" / f"{attempt}-goal-restoration.json",
+                 {"reason": "Diagnostics did not identify an entry-contract error",
+                  "restored_ensures": old_goals})
         translation = {**translation, **repair}
     original = current
     translation = {**translation, "model": original}
     save(directory / "translation.json", translation)
+    goals = list(dict.fromkeys(part for clause in translation["original_ensures"]
+                               for part in conjuncts(clause)))
+    if len(goals) > 1:
+        children = []
+        for index, goal in enumerate(goals, 1):
+            child = select_properties([{
+                **claim, "property": f"Conjunct {index} of {len(goals)} of the proposed property: "
+                                    + claim["property"],
+            }], bundle)[0]
+            child_translation = {
+                **translation, "model": with_postconditions(original, translation["entry_point"], [goal]),
+                "original_ensures": [goal],
+                "decomposed_from": {"id": claim["id"], "index": index, "total": len(goals)},
+            }
+            children.append((child, child_translation))
+        return {"kind": "property-decomposition", "children": children}
     budget()
     positive = verifier(original, directory / "verification")
     require_tool(positive)
@@ -400,14 +465,21 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
             "id": failure["id"], "property": "Invalid proposed property",
             "status": failure["reason"], "diagnostic": failure["diagnostic"], "formalized": None,
         })
-    for claim in claims:
+    queue = [(claim, None) for claim in claims]
+    checked = 0
+    while queue and checked < 10:
+        claim, prepared = queue.pop(0)
         entry = {k: claim[k] for k in ("id", "path", "lines", "quote", "property")}
         if "origin" in claim:
             entry["origin"] = claim["origin"]
         entry.update(formalized=None, status=INVALID)
         report["properties"].append(entry)
         try:
-            finding = await run_property(claim, bundle, chat, output / claim["id"], limits, verifier)
+            finding = await run_property(claim, bundle, chat, output / claim["id"], limits, verifier, prepared)
+            if finding["kind"] == "property-decomposition":
+                report["properties"].remove(entry)
+                queue[:0] = finding["children"]
+                continue
             if finding["kind"] == "conditional-model-verification":
                 entry["status"] = VERIFIED
                 report["verified"].append(finding)
@@ -426,6 +498,14 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
             translation = output / claim["id"] / "translation.json"
             if translation.exists():
                 entry["formalized"] = json.loads(translation.read_text(encoding="utf-8")).get("original_ensures")
+            if entry in report["properties"]:
+                checked += 1
+                save(output / "report.json", report)
+                print(json.dumps({"property": claim["id"], "status": entry["status"],
+                                  "completed": checked, "pending": len(queue)}), flush=True)
+    if queue:
+        report["selection_omissions"] = [
+            {"id": claim["id"], "property": claim["property"]} for claim, _ in queue]
     save(output / "report.json", report)
     return report
 

@@ -37,13 +37,23 @@ def write_sources(bundle, directory):
         target.write_text(padding + record["text"], encoding="utf-8")
 
 
+def input_index(bundle):
+    from .source_context import function_catalog
+    return {**{key: bundle[key] for key in ("identity", "signals", "changed")},
+            "function_catalog": function_catalog(bundle),
+            "repository_context": bundle.get("repository_context", []),
+            "captured_paths": sorted(bundle["sources"]),
+            "context_omissions": bundle.get("context_omissions", [])}
+
+
 async def propose(bundle, model, intent_only=False):
     from nfv.shared.copilot_client import CopilotChat
 
     resource = "intent_prompt.txt" if intent_only else "proposal_prompt.txt"
     prompt = importlib.resources.files("nfv_workflow").joinpath(resource).read_text()
     async with CopilotChat(model=model, concurrency=1) as chat:
-        answer = await chat.ask(prompt, json.dumps(bundle), timeout=240)
+        data = {**bundle, "function_catalog": input_index(bundle)["function_catalog"]} if intent_only else bundle
+        answer = await chat.ask(prompt, json.dumps(data), timeout=240)
         raw = answer.text.strip()
         if raw.startswith("```json") and raw.endswith("```"):
             raw = raw[7:-3].strip()
@@ -60,7 +70,7 @@ async def run_general(bundle, properties, output, model, limits):
     from nfv.shared.config import DAFNY_PATH
     if not DAFNY_PATH:
         raise Abstain("Install Dafny before starting billable model translation")
-    from nfv.shared.copilot_client import CopilotChat
+    from .chat import WorkflowChat
     # In Actions, the repository token is for collection/publication, not model
     # identity. The dedicated Copilot token authenticates this tool-free client;
     # inside the gh-aw agent sandbox, the AWF API proxy authenticates instead.
@@ -70,7 +80,7 @@ async def run_general(bundle, properties, output, model, limits):
         os.environ.pop("GH_TOKEN", None)
         os.environ.pop("GITHUB_TOKEN", None)
     provider = awf_provider() if os.environ.get("GITHUB_AW") == "true" else None
-    async with CopilotChat(model=model, concurrency=1, provider=provider) as chat:
+    async with WorkflowChat(model=model, concurrency=1, provider=provider) as chat:
         return await run(bundle, properties, output, chat, limits)
 
 
@@ -102,9 +112,9 @@ async def refresh_presentation(report, bundle, model, timeout):
             raise Abstain("Actions presentation inference requires a dedicated COPILOT_GITHUB_TOKEN")
         os.environ.pop("GH_TOKEN", None)
         os.environ.pop("GITHUB_TOKEN", None)
-    from nfv.shared.copilot_client import CopilotChat
+    from .chat import WorkflowChat
     provider = awf_provider() if os.environ.get("GITHUB_AW") == "true" else None
-    async with CopilotChat(model=model, concurrency=1, provider=provider) as chat:
+    async with WorkflowChat(model=model, concurrency=1, provider=provider) as chat:
         return await refresh(report, bundle, chat, timeout)
 
 

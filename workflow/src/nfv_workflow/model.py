@@ -73,7 +73,7 @@ def normalize(value):
     return " ".join(value.casefold().split())
 
 
-def validate_claim(candidate, bundle, allow_inferred=False):
+def validate_claim(candidate, bundle, allow_inferred=False, source_span=None):
     path = source_path(candidate["path"])
     lines = candidate["lines"]
     if (path not in bundle["changed"] or not isinstance(lines, list) or not lines
@@ -85,7 +85,8 @@ def validate_claim(candidate, bundle, allow_inferred=False):
         raise Abstain("Property anchor missing from captured source")
     quote = candidate["quote"]
     if allow_inferred and candidate.get("origin") == "source":
-        evidence = "\n".join(source["text"].splitlines()[n - first_line] for n in lines)
+        evidence_lines = range(source_span[0], source_span[1] + 1) if source_span else lines
+        evidence = "\n".join(source["text"].splitlines()[n - first_line] for n in evidence_lines)
         if (candidate["signal_id"] != f"source:{path}" or not isinstance(quote, str)
                 or not quote.strip() or " ".join(quote.split()) not in " ".join(evidence.split())):
             raise Abstain("Inferred property lacks an exact captured-source quote")

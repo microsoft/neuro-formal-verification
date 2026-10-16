@@ -645,14 +645,15 @@ class GeneralTests(unittest.TestCase):
         self.assertEqual(report["findings"][0]["counters"]["proof_repairs"], 1)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
-    def test_changed_goal_in_type_repair_is_rejected(self):
+    def test_unrelated_type_repair_cannot_replace_a_valid_goal(self):
         bundle, claim, correct = fixture()
         initial = copy.deepcopy(correct)
         initial["model"] = initial["model"].replace("r := 0;", "r := false;")
         wrong = correct["model"].replace("ensures r == n", "ensures r != n")
         report = self.execute(bundle, claim, Chat([initial, {"model": wrong}]), limits=Limits(proof_rounds=0))
-        self.assertFalse(report["findings"])
-        self.assertIn("goal was altered", report["failures"][0]["diagnostic"])
+        self.assertEqual(len(report["findings"]), 1, report)
+        self.assertEqual(report["findings"][0]["translation"]["original_ensures"], ["r == n"])
+        self.assertNotIn("ensures r != n", report["findings"][0]["translation"]["model"])
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_holding_modeled_property_is_verified_without_a_witness(self):
