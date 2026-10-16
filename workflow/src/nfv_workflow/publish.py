@@ -422,6 +422,8 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
     from .general import validate_verification
     from .outcomes import OUTCOMES, REFUTED, VERIFIED
 
+    if report.get("completed") is False:
+        raise Abstain("Analysis is incomplete; publication stopped")
     checked_findings(report, bundle, evidence_url)
     if report.get("errors"):
         raise Abstain("Analysis contains infrastructure errors; publication stopped")

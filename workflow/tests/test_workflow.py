@@ -720,6 +720,28 @@ class CollectionTests(unittest.TestCase):
         self.assertTrue(result["declarations_and_preconditions"])
         self.assertIn("SASSERT", result["callee_names"])
 
+    def test_previous_nfv_bot_reports_are_not_developer_intent(self):
+        api = self.api()
+        original = api.pages
+        marker = "<!-- gh-aw-workflow-id: nfv-pr-review -->"
+        def pages(path):
+            if path.endswith("/comments"):
+                return [
+                    {"id": 1, "body": "Old generated report\n" + marker,
+                     "user": {"login": "github-actions[bot]"}},
+                    {"id": 2, "body": "Human discussion\n" + marker, "user": {"login": "contributor"}},
+                    {"id": 3, "body": "Other bot guidance", "user": {"login": "github-actions[bot]"}},
+                    {"id": 4, "body": "Legacy report\n<!-- gh-aw-agentic-workflow: NFV PR reviewer, run: x -->",
+                     "user": {"login": "github-actions[bot]"}},
+                ]
+            return original(path)
+        api.pages = pages
+        signals = collect(event(), api)["signals"]
+        self.assertNotIn("comment:1", [item["id"] for item in signals])
+        self.assertIn("comment:2", [item["id"] for item in signals])
+        self.assertIn("comment:3", [item["id"] for item in signals])
+        self.assertNotIn("comment:4", [item["id"] for item in signals])
+
     def test_mutated_pr_snapshot_rejected(self):
         api = self.api()
         original = api.request
@@ -794,21 +816,30 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("roles: all", source)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
-    def test_evaluation_runs_in_the_agent_job_without_custom_safe_jobs(self):
+    def test_evaluation_finishes_in_trusted_steps_before_publisher_starts(self):
         source, lock = self.source(), self.lock()
         self.assertNotIn("post-steps:", source)
         self.assertNotIn("  nfv_submit:", lock)
         self.assertNotIn("discussions: write", source)
-        self.assertIn("nfv-workflow audit --proposals nfv-proposals.json", source)
+        frontmatter, prompt = source.split("\n---\n", 1)
+        self.assertIn('nfv-workflow extract --bundle "$NFV_BUNDLE"', frontmatter)
+        self.assertIn('nfv-workflow audit --proposals "$NFV_OUT/proposals.json"', frontmatter)
+        self.assertNotIn("nfv-workflow audit", prompt)
+        self.assertIn("You only publish that report", prompt)
         self.assertIn("--allow-all-tools", lock)
         self.assertIn('"./nfv-plugin[inference]"', source)
-        self.assertNotIn("COPILOT_GITHUB_TOKEN: ${{ secrets", source)
+        self.assertIn("COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}", frontmatter)
+        self.assertIn('GITHUB_AW: "false"', frontmatter)
+        self.assertNotIn("  bash:", source)
+        self.assertNotIn("  edit:", source)
+        self.assertNotIn("COPILOT_CLI_PATH=", source)
 
     def test_report_is_posted_as_a_single_pr_comment(self):
         source = self.source()
         self.assertIn("add-comment:\n    max: 1\n    hide-older-comments: true\n", source)
         self.assertNotIn("pull-request-review", source)
         self.assertNotIn("APPROVE", source)
+        self.assertIn("allowed: [defaults, arxiv.org]", source)
 
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
         source, lock = self.source(), self.lock()
@@ -819,32 +850,34 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", source)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 
-    def test_extraction_reads_fixed_non_secret_index_and_changed_sources(self):
+    def test_publisher_reads_only_completed_read_only_report(self):
         source, lock = self.source(), self.lock()
         self.assertIn('Path("nfv-input.json").write_text', source)
         self.assertIn(r'Path(\"nfv-input.json\").write_text', lock)
-        prompt = source.split("## 1. Select nontrivial properties", 1)[1]
-        self.assertIn("read `nfv-input.json` with the file", prompt)
-        self.assertIn("requires no environment or credential access", prompt)
-        self.assertNotIn('cat "$NFV_BUNDLE"', prompt)
-        self.assertIn("Listing files is not source inspection", prompt)
+        self.assertIn('ln -s "$NFV_OUT/comment.md" nfv-comment.md', source)
+        self.assertIn('echo "NFV_OUT=$RUNNER_TEMP/gh-aw/nfv/evidence"', source)
+        prompt = source.split("\n---\n", 1)[1]
+        self.assertIn("Read `nfv-comment.md` using the file viewer", prompt)
+        self.assertIn("paging until the entire file", prompt)
+        self.assertIn("Never edit, summarize, add to", prompt)
+        self.assertIn("Do not run extraction, audits, verifiers or shell", prompt)
 
-    def test_extraction_failure_cannot_be_reported_as_no_properties(self):
-        prompt = self.source().split("## 1. Select nontrivial properties", 1)[1]
-        self.assertIn("call\n`noop` with the specific extraction error and stop", prompt)
-        self.assertIn("Do not submit an empty array", prompt)
-        self.assertIn("or run the audit as a fallback for an input/access/tool failure", prompt)
-        self.assertIn("`[]` only after reading the input and relevant changed source", prompt)
-        self.assertIn("Explicit behavioral claims in the PR description", prompt)
+    def test_audit_failure_retains_evidence_without_starting_publisher(self):
+        source = self.source()
+        block = source.split("  - name: Extract properties", 1)[1].split("  - name: Retain", 1)[0]
+        self.assertIn("set -euo pipefail", block)
+        self.assertNotIn("continue-on-error", block)
+        self.assertIn("if: always()\n    uses: actions/upload-artifact@", source)
+        self.assertIn("name: nfv-evidence", source)
+        prompt = source.split("\n---\n", 1)[1]
+        self.assertIn("never fabricate a report or publish incremental evidence", prompt)
 
     def test_extraction_targets_implementation_not_invented_solver_responses(self):
-        prompt = self.source().split("## 1. Select nontrivial properties", 1)[1]
         intent = (Path(__file__).parents[1] / "src/nfv_workflow/intent_prompt.txt").read_text(encoding="utf-8")
-        for source in (prompt, intent):
-            self.assertIn("Prefer changed implementation functions", source)
-            self.assertIn("Do not select a test/caller expectation", source)
-            self.assertIn("treating that callee's result as an unconstrained input", source)
-            self.assertIn("caller's own logic", source)
+        self.assertIn("Prefer changed implementation functions", intent)
+        self.assertIn("Do not select a test/caller expectation", intent)
+        self.assertIn("treating that callee's result as an unconstrained input", intent)
+        self.assertIn("caller's own logic", intent)
 
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
         source = self.source()
@@ -852,7 +885,6 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("-name 'z3-4.12.1'", source)
         self.assertIn('echo "NFV_Z3_PATH=${solvers[0]}" >> "$GITHUB_ENV"', source)
         self.assertIn('echo "NFV_DAFNY_PATH=$dafny_dir/dafny" >> "$GITHUB_ENV"', source)
-        self.assertIn('echo "COPILOT_CLI_PATH=$RUNNER_TEMP/gh-aw/bin/copilot"', source)
         self.assertNotIn("setup-dafny-action", source)
 
     def test_separate_source_only_session_precedes_analysis(self):
@@ -952,6 +984,21 @@ class ExtractionInputTests(ScratchTest):
 
 
 class AuditTests(ScratchTest):
+    def test_failed_restart_cannot_leave_stale_publishable_outputs(self):
+        proposals, captured = self.directory / "p.json", self.directory / "b.json"
+        proposals.write_text("[]")
+        captured.write_text(json.dumps(bundle()))
+        out = self.directory / "out"
+        out.mkdir()
+        names = ("comment.md", "report.json", "presentation.json", "presentation-diagnostics.json")
+        for name in names:
+            (out / name).write_text("stale output")
+        with patch.dict(os.environ, {"NFV_BUNDLE": str(captured), "NFV_OUT": str(out)}), \
+                patch("nfv_workflow.cli.run_general", side_effect=TimeoutError("client startup")):
+            with self.assertRaises(TimeoutError):
+                audit(proposals, (6, 10, 60))
+        self.assertTrue(all(not (out / name).exists() for name in names))
+
     def test_requires_trusted_bundle(self):
         (self.directory / "p.json").write_text("[]")
         with patch.dict(os.environ, {"NFV_BUNDLE": "", "NFV_OUT": str(self.directory / "out")}):

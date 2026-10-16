@@ -86,7 +86,7 @@ def validate(value, translation, bundle):
 def validate_report(report, bundle):
     from .general import validate_finding, validate_verification
 
-    if (report.get("identity") != bundle["identity"] or report.get("errors")
+    if (report.get("completed") is False or report.get("identity") != bundle["identity"] or report.get("errors")
             or report.get("mode") not in ("general-model-refutation", "general-model-analysis")
             or not 1 <= len(report.get("findings", [])) <= 10):
         raise Abstain("Presentation refresh requires an accepted general report and matching bundle")

@@ -111,6 +111,16 @@ class PresentationTests(unittest.TestCase):
         self.assertFalse((self.directory / "audit" / "presentation.json").exists())
         self.assertFalse((self.directory / "audit" / "comment.md").exists())
 
+    def test_incomplete_analysis_cannot_refresh_or_render_accepted_properties(self):
+        report, _ = self.report()
+        report["completed"] = False
+        chat = Chat([self.value])
+        with self.assertRaises(Abstain):
+            asyncio.run(refresh(report, self.bundle, chat))
+        self.assertEqual(chat.prompts, [])
+        with self.assertRaisesRegex(Abstain, "incomplete"):
+            render(report, self.bundle, self.url)
+
     def test_audit_preserves_evidence_when_presentation_refresh_fails(self):
         report, _ = self.report()
         with self.assertRaises(Abstain):

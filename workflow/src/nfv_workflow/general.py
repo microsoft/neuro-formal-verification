@@ -461,7 +461,7 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
     verifier = verifier or Dafny(limits.verifier_timeout)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    report = {"schema": 3, "mode": "general-model-analysis", "identity": bundle["identity"],
+    report = {"schema": 3, "mode": "general-model-analysis", "completed": False, "identity": bundle["identity"],
               "limits": asdict(limits), "findings": [], "verified": [], "failures": [],
               "errors": [], "properties": []}
     account = getattr(chat, "account", None)
@@ -479,6 +479,7 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
             "status": failure["reason"], "diagnostic": failure["diagnostic"], "formalized": None,
         })
     queue = [(claim, None) for claim in claims]
+    save(output / "report.json", report)
     checked = 0
     while queue and checked < 10:
         claim, prepared = queue.pop(0)
@@ -519,6 +520,7 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
     if queue:
         report["selection_omissions"] = [
             {"id": claim["id"], "property": claim["property"]} for claim, _ in queue]
+    report["completed"] = True
     save(output / "report.json", report)
     return report
 

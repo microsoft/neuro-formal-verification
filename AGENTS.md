@@ -127,15 +127,20 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
 - Flow: the reusable source-context AW session completes first. Trusted
-  pre-agent `steps:` install the pinned release, Dafny and the
-  plugin and collect the PR bundle; the agent reads the non-secret
-  `nfv-input.json` index and `nfv-src/` text, writes `nfv-proposals.json`, runs
-  `nfv-workflow audit --proposals nfv-proposals.json`, and posts the generated
-  `comment.md` with one `add-comment` (also when nothing is refuted, listing the
+  pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
+  the immutable PR bundle, then run tool-free extraction and the complete
+  foreground audit with the dedicated Copilot credential scoped to that step.
+  Extraction shortlists up to ten changed functions, then inspects full scoped
+  source and cross-file context; never submit the entire bundle as a model
+  request. NFV bot reports are not developer intent. The publishing agent reads
+  `nfv-comment.md` and posts it verbatim with one `add-comment`
+  (also when nothing is refuted, listing the
   formalized properties and their four outcomes). `hide-older-comments`
   collapses earlier reports.
-  Input/access/tool failures stop extraction with an explicit `noop` error,
-  never an empty proposal array masquerading as a successful review.
+  Input/access/tool failures fail the trusted step, never an empty proposal
+  array masquerading as a successful review. Incremental reports have
+  `completed: false` until analysis finishes and cannot be published. Retain
+  completed or interrupted evidence in the separate `nfv-evidence` artifact.
 - Configuration: repository variables `NFV_RELEASE_SHA` (40-hex commit of this
   repo) and `NFV_MODEL`; secret `COPILOT_GITHUB_TOKEN`; optional
   `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
@@ -155,13 +160,14 @@ under `workflow/tests/.general-scratch/`; never commit them.
   is ingested. The source-context worker deliberately uses trusted `post-steps`
   only to sanitize and upload its path/symbol manifest, not to run NFV analysis.
 - `$RUNNER_TEMP/gh-aw` is mounted read-only in the sandbox and `/tmp/gh-aw` is
-  writable. Variables written to `$GITHUB_ENV` in steps reach the agent.
-  Evidence goes to `/tmp/gh-aw/sandbox/agent/logs/…`, which the `agent`
-  artifact uploads.
+  writable. Variables written to `$GITHUB_ENV` in steps reach the agent; never
+  export credentials there. Trusted analysis writes evidence under
+  `$RUNNER_TEMP/gh-aw/nfv/evidence` before the publishing agent starts.
 - A bash allowlist entry matches the exact command line; arguments need
-  `cmd:*`. The reviewer uses `bash: ["*"]`.
-- The firewall blocks the Copilot SDK's CLI download; set `COPILOT_CLI_PATH` to
-  gh-aw's `$RUNNER_TEMP/gh-aw/bin/copilot`.
+  `cmd:*`. The publishing reviewer has no shell or edit tools.
+- The firewall blocks the Copilot SDK's CLI download inside an agent sandbox.
+  Foreground inference runs before the sandbox starts and uses the SDK's
+  managed CLI, not gh-aw's not-yet-installed CLI path.
 - The agent's shell does not inherit the harness's Copilot provider settings or
   token, and the SDK-launched CLI ignores `COPILOT_PROVIDER_*` variables. Pass
   `cli.awf_provider()` (an SDK `ProviderConfig` for the AWF API proxy at

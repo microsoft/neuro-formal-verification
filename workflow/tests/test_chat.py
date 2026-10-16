@@ -1,10 +1,51 @@
 import asyncio
+from contextlib import redirect_stdout
+import io
+import os
 from types import SimpleNamespace
 import unittest
 from unittest.mock import AsyncMock, patch
 
 
 class WorkflowChatTests(unittest.TestCase):
+    def test_actions_direct_auth_checks_identity_without_private_entitlement_probes(self):
+        from nfv_workflow.chat import WorkflowChat
+        client = SimpleNamespace(start=AsyncMock(), stop=AsyncMock(),
+                                 get_auth_status=AsyncMock(return_value=SimpleNamespace(
+                                     login="test-user", isAuthenticated=True)),
+                                 list_models=AsyncMock(return_value=[SimpleNamespace(id="test-model")]))
+        stream = io.StringIO()
+        async def exercise():
+            async with WorkflowChat(model="test-model") as chat:
+                self.assertEqual(chat.account.login, "test-user")
+                self.assertIsNone(chat.account.copilot_plan)
+                self.assertEqual(chat.account.orgs, [])
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}, clear=True), \
+                patch("nfv_workflow.chat.CopilotClient", return_value=client), \
+                patch("nfv.shared.account.detect_account", side_effect=AssertionError("Private metadata")), \
+                redirect_stdout(stream):
+            asyncio.run(exercise())
+        self.assertEqual(stream.getvalue(), "")
+        client.get_auth_status.assert_awaited_once()
+        client.list_models.assert_awaited_once()
+        client.stop.assert_awaited_once()
+
+    def test_actions_auth_failure_stops_client_and_does_not_expose_identity(self):
+        from nfv_workflow.chat import WorkflowChat
+        from nfv_workflow.github import Abstain
+        for login, authenticated, policy in (("", False, {}),
+                                             ("test-user", True, {"NFV_EXPECTED_LOGIN": "different"})):
+            with self.subTest(login=login):
+                client = SimpleNamespace(start=AsyncMock(), stop=AsyncMock(),
+                                         get_auth_status=AsyncMock(return_value=SimpleNamespace(
+                                             login=login, isAuthenticated=authenticated)))
+                with patch.dict(os.environ, {"GITHUB_ACTIONS": "true", **policy}, clear=True), \
+                        patch("nfv_workflow.chat.CopilotClient", return_value=client):
+                    with self.assertRaises(Abstain) as error:
+                        asyncio.run(WorkflowChat(model="test-model").start())
+                self.assertNotIn("test-user", str(error.exception))
+                client.stop.assert_awaited_once()
+
     def test_proxy_requests_use_fresh_tool_free_sessions_without_copilot_auth_probes(self):
         try:
             from copilot.generated.session_events import SessionEventType

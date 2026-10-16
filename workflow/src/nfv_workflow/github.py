@@ -207,6 +207,11 @@ def collect(event, api, side="head"):
                         ("commit", api.pages(f"{prefix}/pulls/{number}/commits"))):
         for item in items:
             body = item.get("body") or (item.get("commit") or {}).get("message", "")
+            if (kind == "comment" and (item.get("user") or {}).get("login") == "github-actions[bot]"
+                    and any(marker in body for marker in (
+                        "<!-- gh-aw-workflow-id: nfv-pr-review -->",
+                        "<!-- gh-aw-agentic-workflow: NFV PR reviewer,"))):
+                continue
             if body.strip():
                 signal_bytes += len(body[:12000].encode("utf-8"))
                 if len(signals) >= 500 or signal_bytes > 1_000_000:

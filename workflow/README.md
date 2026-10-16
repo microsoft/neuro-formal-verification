@@ -7,7 +7,9 @@ comments or reviews), and from changed code/comments. A separate source-context
 AW session first inspects a shallow trusted-base checkout and changed-head
 blobs as text. It never builds or executes the inspected repository. NFV then
 translates the properties into **Dafny**, tries verification first and, if that
-does not succeed, tries conditional model refutation.
+does not succeed, tries conditional model refutation. Trusted foreground Actions
+steps own extraction and the complete audit; the publishing AW agent starts only
+after the deterministic report is ready.
 
 The default path accepts source in **C, C++, Java, C#, Go, JavaScript, TypeScript,
 Python, and Rust** and translates the code each property is about, including loops
@@ -118,7 +120,8 @@ Verified models show the checked Dafny `ensures`, assumptions and evidence;
 failures show their category and diagnostic. Source-inferred properties are
 labeled separately from quoted intentions. Each new push hides the previous
 NFV comment. Verifier models, repair logs and hashes are in the run's
-`agent` artifact under `nfv-evidence/`.
+`nfv-evidence` artifact. Interrupted audits retain incremental evidence marked
+incomplete; it cannot be published as a finished review.
 
 ## Verification/refutation pipeline and gates
 
@@ -140,7 +143,12 @@ NFV comment. Verifier models, repair logs and hashes are in the run's
    is never a semantic contract. Additional source is limited to 2 MB.
 2. **Postulate nontrivial properties.** Trusted code identifies changed functions
    and supplies snapshot-bound function IDs and changed anchors. The proposer
-   selects an ID instead of inventing line numbers. Exact intent quotes or
+   shortlists up to ten functions from PR intent and bounded declaration previews,
+   then reads each selected function's full scoped source and captured cross-file
+   context in a separate tool-free session. Requests share a ten-property budget;
+   selected and omitted functions are recorded in `extraction.json`. Previous
+   NFV bot reports are excluded from developer-intent signals.
+   The proposer selects an ID instead of inventing line numbers. Exact intent quotes or
    captured-source quotes from the selected function are mandatory; a source
    quote need not itself be a changed line. Skip properties obvious from a
    single unconditional operation. Deduplicate and select at most ten
@@ -290,12 +298,13 @@ path does not require the model client.
    * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
-     after another within the 240-minute job timeout.
+     after another within the 360-minute job timeout.
 2. Configure the **`COPILOT_GITHUB_TOKEN`** secret used by the gh-aw Copilot
-   engine: a fine-grained token owned by a Copilot-licensed user with
+   engine and the trusted foreground NFV step: a fine-grained token owned by a Copilot-licensed user with
    *Copilot Requests: Read*. gh-aw rejects OAuth (`gho_`) tokens. The NFV
-   translation/repair sessions run inside the agent sandbox and reach the model
-   through the same AWF API proxy, so they need no separate credential.
+   extraction, translation and presentation sessions use this dedicated credential
+   directly before the publishing agent starts. It is scoped to the trusted step,
+   never exported through `GITHUB_ENV` or exposed to the publishing agent's shell.
 3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
    fine-grained token with read-only *Contents* access to
    `microsoft/neuro-formal-verification`.
@@ -306,8 +315,8 @@ path does not require the model client.
    its lock, and `.github\aw\packages\`. The checked-in lock is compiled with
    **gh aw v0.88.7**.
 
-Everything runs in the agent job; there is no custom safe-output job. Before
-the agent starts, trusted steps check out the pinned release, install it, download
+The analysis runs in foreground pre-agent steps; there is no custom safe-output
+job. Trusted steps check out the pinned release, install it, download
 official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
 `a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179`), select its
 unique bundled `z3-4.12.1`, and collect the PR source with the read-only
@@ -316,16 +325,17 @@ AWF sandbox mounts **read-only**, and are exported as `NFV_DAFNY_PATH`,
 `NFV_Z3_PATH` and `NFV_BUNDLE`. Trusted collection also writes `nfv-input.json`
 in the workspace: a non-secret extraction index containing PR signals,
 changed-line anchors, captured source paths, and omissions, without duplicating
-the source bodies. The agent reads this fixed path and captured `nfv-src/` files;
-it does not need to inspect environment variables to locate extraction inputs.
-An input/access/tool failure stops extraction with a specific `noop` error,
-not an empty audit. An empty proposal list is reserved for successful inspection
-that finds no grounded nontrivial property.
+the source bodies. Tool-free sessions receive bounded source contexts, not a shell
+or repository tools; trusted Python code invokes the actual type checker and
+verifier. Input/access/tool failures fail the trusted step, not an empty audit.
+An empty proposal list is reserved for completed inspection that finds no
+grounded nontrivial property.
 
-The agent may only read files, write `nfv-proposals.json`, and run
-`nfv-workflow audit --proposals nfv-proposals.json`; every other audit input is
-fixed by the trusted steps. `audit` writes `comment.md`, which the agent
-copies verbatim into the `add-comment` safe output. gh-aw threat detection
+The trusted step runs `extract`, then `audit`, and waits for both to exit. It
+uploads the separate `nfv-evidence` artifact even on failure. The publishing
+agent reads only `nfv-comment.md`, a link to the completed, read-only `comment.md`,
+and copies it verbatim into the `add-comment` safe output. It does not run
+analysis, shell commands or repairs. gh-aw threat detection
 screens that output before the `safe_outputs` job, the only job with write access,
 posts them. Never check out the PR head or execute PR scripts. This is **not an
 OS-level sandbox against verifier vulnerabilities**: use ephemeral

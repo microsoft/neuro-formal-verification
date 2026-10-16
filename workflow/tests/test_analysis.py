@@ -60,6 +60,7 @@ class AnalysisTests(unittest.TestCase):
         self.translation.pop("witness")
         verifier = Verifier(positive=True)
         report = self.execute([self.translation], verifier)
+        self.assertIs(report["completed"], True)
         self.assertEqual(report["properties"][0]["status"], VERIFIED)
         self.assertEqual(len(self.chat.prompts), 1)
         self.assertEqual([stage for stage, _ in verifier.operations], ["resolve", "verification"])
@@ -83,6 +84,19 @@ class AnalysisTests(unittest.TestCase):
         altered["dafny"] += "// changed\n"
         with self.assertRaises(Abstain):
             validate_verification(altered, self.bundle)
+
+    def test_interrupted_analysis_preserves_unpublishable_partial_evidence(self):
+        async def interrupted(*args, **kwargs):
+            saved = json.loads((self.directory / "report.json").read_text())
+            self.assertIs(saved["completed"], False)
+            raise asyncio.CancelledError()
+        with patch("nfv_workflow.general.run_property", side_effect=interrupted):
+            with self.assertRaises(asyncio.CancelledError):
+                self.execute([], Verifier())
+        partial = json.loads((self.directory / "report.json").read_text())
+        self.assertIs(partial["completed"], False)
+        with self.assertRaisesRegex(Abstain, "incomplete"):
+            render(partial, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
 
     def test_worker_applies_requested_budget_and_preserves_internal_timeout_evidence(self):
         from nfv_workflow.worker import main
