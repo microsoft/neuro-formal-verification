@@ -61,7 +61,9 @@ head and cancels the older run.
 The agent posts **one PR comment** (never a
 review approval or change request). It opens with a one-line description of NFV
 linking the [paper](https://arxiv.org/abs/2608.21516), before the issue count,
-the analyzed head and base, and the run link. Each finding shows **Intended
+the analyzed head and base, and the run link. Property sections use short
+headers (`P1`, `P2`, ...) with the full intended or inferred property statement
+in normal-sized text below the header. Each finding shows **Intended
 property** in normal-sized text and its quote, **Input on which it fails**, and
 **Sketch of the failure**. A collapsed **Details** section shows the relevant
 code and call sites with natural-language loop invariants and specifications

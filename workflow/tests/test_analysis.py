@@ -64,10 +64,16 @@ class AnalysisTests(unittest.TestCase):
         url = "https://github.com/local/synthetic/actions/runs/123"
         body = render(report, self.bundle, url)
         self.assertIn("verified for the translated model", body)
+        self.assertIn("### P1\n\n**Intended property:** " + self.claim["property"], body)
+        self.assertNotIn("## 1. " + self.claim["property"], body)
         self.assertIn("not proofs of source-code correctness", body)
         self.assertNotIn("reachability", body.lower())
         altered = copy.deepcopy(report)
         altered["properties"][0]["property"] = "Something never checked"
+        with self.assertRaises(Abstain):
+            render(altered, self.bundle, url)
+        altered = copy.deepcopy(report)
+        altered["properties"][0]["origin"] = "source"
         with self.assertRaises(Abstain):
             render(altered, self.bundle, url)
         altered = copy.deepcopy(report["verified"][0])
@@ -86,8 +92,26 @@ class AnalysisTests(unittest.TestCase):
         self.assertIn("Propose a concrete counterexample", self.chat.prompts[1])
         self.assertEqual(report["findings"][0]["translation"]["model"], self.translation["model"])
         body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
-        self.assertEqual(body.count("## 1."), 1)
+        self.assertEqual(body.count("### P1\n"), 1)
+        self.assertEqual(body.count("**Intended property:** " + self.claim["property"]), 1)
         self.assertIn("Outcome: refuted", body)
+
+    def test_failed_properties_use_short_headers_and_normal_sized_statements(self):
+        properties = [
+            {"id": "first", "property": "The source-derived result preserves its bounds.",
+             "origin": "source", "status": INVALID, "diagnostic": "Invalid model."},
+            {"id": "second", "property": "The result remains ordered for every admissible input.",
+             "status": EXHAUSTED, "diagnostic": "Time budget exhausted."},
+        ]
+        report = {"schema": 3, "mode": "general-model-analysis",
+                  "identity": self.bundle["identity"], "properties": properties,
+                  "findings": [], "verified": [], "failures": [], "errors": []}
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertIn("### P1\n\n**Inferred property:** " + properties[0]["property"], body)
+        self.assertIn("### P2\n\n**Intended property:** " + properties[1]["property"], body)
+        for item in properties:
+            self.assertNotIn("## " + item["property"], body)
+            self.assertIn("**Outcome: " + item["status"] + "**", body)
 
     def test_witness_stage_cannot_replace_the_frozen_model(self):
         self.translation.pop("witness")

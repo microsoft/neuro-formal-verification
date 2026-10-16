@@ -443,22 +443,24 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
     ]
     for index, item in enumerate(properties, 1):
         status = item["status"]
-        lines.append(f"## {index}. {text(item['property'])}\n\n**Outcome: {status}**")
+        label = "Inferred property" if item.get("origin") == "source" else "Intended property"
+        lines.extend([f"### P{index}", f"**{label}:** {text(item['property'])}",
+                      f"**Outcome: {status}**"])
         if status == REFUTED:
             evidence = findings.get(item.get("duplicate_of", item["id"]))
             if evidence is None:
                 raise Abstain("Refuted property lacks accepted evidence")
             if any(item.get(key) != evidence["candidate"].get(key)
-                   for key in ("path", "lines", "property", "quote")):
+                   for key in ("path", "lines", "property", "quote", "origin")):
                 raise Abstain("Displayed refuted property differs from its checked evidence")
             lines.extend(general_section(index, evidence, bundle, repo, commit,
-                                         mappings.get(evidence["candidate"]["id"]))[1:])
+                                         mappings.get(evidence["candidate"]["id"]))[2:])
         elif status == VERIFIED:
             evidence = verified.get(item["id"])
             if evidence is None:
                 raise Abstain("Verified property lacks accepted evidence")
             if any(item.get(key) != evidence["candidate"].get(key)
-                   for key in ("path", "lines", "property", "quote")):
+                   for key in ("path", "lines", "property", "quote", "origin")):
                 raise Abstain("Displayed verified property differs from its checked evidence")
             translation = evidence["translation"]
             conditions = [condition["description"] for condition in translation["assumptions"]]
