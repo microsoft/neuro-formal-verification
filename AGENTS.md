@@ -50,9 +50,12 @@ under `workflow/tests/.general-scratch/`; never commit them.
   anchors in code. Source-inferred quotes may come from anywhere in the selected
   captured function. Preserve immutable cross-file source-context capture.
   Retain draft formalizations and diagnostics, then freeze the first fully
-  audited, type-checked model before proof or refutation. Split separate ensures
-  and root conjunctions into independent properties without assuming siblings;
-  never split through implications, disjunctions or quantifier bindings.
+  audited, type-checked model before proof or refutation. Conjecture atomic
+  properties during extraction, never split translations into child checks.
+  Require one entry ensures without a root conjunction; compound drafts fail
+  audit rather than silently dropping a conjunct. Preserve implication,
+  disjunction and quantifier grouping. Progress counts the fixed whole review,
+  not subchecks of one property.
   Audit array/sequence range diagnostics before freezing a draft, without
   combining atomic properties. Prefer implementation-owned properties over
   test expectations refuted only by arbitrary environment responses.
@@ -128,16 +131,17 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
 - Flow: the reusable source-context AW session completes first. Trusted
   pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
-  the immutable PR bundle, then run tool-free extraction and the complete
-  foreground audit with the dedicated Copilot credential scoped to that step.
+  the immutable PR bundle. A deterministic custom SDK driver then runs
+  tool-free extraction and the complete foreground audit inside the AWF sandbox,
+  using the inference proxy without exposing real credentials.
   Extraction shortlists up to ten changed functions, then inspects full scoped
   source and cross-file context; never submit the entire bundle as a model
-  request. NFV bot reports are not developer intent. The publishing agent reads
-  `nfv-comment.md` and posts it verbatim with one `add-comment`
+  request. NFV bot reports are not developer intent. The driver submits
+  `comment.md` verbatim with one `safeoutputs add_comment`
   (also when nothing is refuted, listing the
   formalized properties and their four outcomes). `hide-older-comments`
   collapses earlier reports.
-  Input/access/tool failures fail the trusted step, never an empty proposal
+  Input/access/tool failures fail the driver, never an empty proposal
   array masquerading as a successful review. Incremental reports have
   `completed: false` until analysis finishes and cannot be published. Retain
   completed or interrupted evidence in the separate `nfv-evidence` artifact.
@@ -161,18 +165,20 @@ under `workflow/tests/.general-scratch/`; never commit them.
   only to sanitize and upload its path/symbol manifest, not to run NFV analysis.
 - `$RUNNER_TEMP/gh-aw` is mounted read-only in the sandbox and `/tmp/gh-aw` is
   writable. Variables written to `$GITHUB_ENV` in steps reach the agent; never
-  export credentials there. Trusted analysis writes evidence under
-  `$RUNNER_TEMP/gh-aw/nfv/evidence` before the publishing agent starts.
+  export credentials there. The foreground SDK driver writes evidence under
+  `/tmp/gh-aw/sandbox/agent/logs/nfv`. Post-steps only upload evidence.
 - A bash allowlist entry matches the exact command line; arguments need
-  `cmd:*`. The publishing reviewer has no shell or edit tools.
+  `  cmd:*`. The reviewer has no outer model session or shell/edit tools.
 - The firewall blocks the Copilot SDK's CLI download inside an agent sandbox.
-  Foreground inference runs before the sandbox starts and uses the SDK's
-  managed CLI, not gh-aw's not-yet-installed CLI path.
-- The agent's shell does not inherit the harness's Copilot provider settings or
-  token, and the SDK-launched CLI ignores `COPILOT_PROVIDER_*` variables. Pass
-  `cli.awf_provider()` (an SDK `ProviderConfig` for the AWF API proxy at
-  `http://api-proxy:10002`, placeholder key) to `CopilotChat(provider=...)`,
-  which hands it to each `create_session`; the proxy injects the credential.
+  The SDK engine provisions and supervises its trusted CLI sidecar. NFV connects
+  through `COPILOT_SDK_URI` with its per-run connection token instead of starting
+  another CLI. The Node driver supervises NFV's installed Python environment
+  without replacing its pinned SDK.
+- Nested SDK sessions require explicit provider configuration; do not rely on
+  `COPILOT_PROVIDER_*` environment variables alone. Pass
+  `cli.awf_provider()` to `CopilotChat(provider=...)`, which hands it to each
+  `create_session`. The SDK harness resolves the configured proxy endpoint and
+  provider type through AWF reflection; the proxy injects the credential.
 - `pull_request` runs use the workflow from the PR merge ref. A test PR's base
   branch must already contain the workflow, and its head must be parented on
   that base so the workflow files stay out of the diff.

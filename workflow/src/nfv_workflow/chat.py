@@ -2,7 +2,7 @@
 
 import os
 
-from copilot import CopilotClient
+from copilot import CopilotClient, RuntimeConnection
 
 from nfv.shared.copilot_client import CopilotChat
 from nfv.shared.account import Account, AccountError, check_account
@@ -14,7 +14,14 @@ class WorkflowChat(CopilotChat):
     async def start(self):
         if not self._provider and os.environ.get("GITHUB_ACTIONS") != "true":
             return await super().start()
-        self._client = CopilotClient(log_level="error")
+        options = {}
+        if self._provider and os.environ.get("GITHUB_AW") == "true" and os.environ.get("COPILOT_SDK_URI"):
+            token = os.environ.get("COPILOT_CONNECTION_TOKEN")
+            if not token:
+                raise Abstain("The gh-aw SDK sidecar requires its per-run connection token")
+            options["connection"] = RuntimeConnection.for_uri(os.environ["COPILOT_SDK_URI"],
+                                                              connection_token=token)
+        self._client = CopilotClient(log_level="error", **options)
         await self._client.start()
         if self._provider:
             return

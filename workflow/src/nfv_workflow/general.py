@@ -69,6 +69,10 @@ class ToolFailure(RuntimeError):
     """Infrastructure failure, not a refutation or a syntax-repair opportunity."""
 
 
+class NonAtomicContract(Abstain):
+    """The draft adds obligations beyond one extracted atomic conjecture."""
+
+
 def require_tool(result):
     if result.get("outcome") == "tool_error":
         raise ToolFailure("Dafny execution failed: " + str(result.get("stderr", ""))[-2000:])
@@ -176,7 +180,7 @@ def reachable(verifier, model, entry, directory):
             and result.get("mode") == "unbounded"), result
 
 
-async def run_property(claim, bundle, chat, directory, limits, verifier, prepared=None):
+async def run_property(claim, bundle, chat, directory, limits, verifier):
     from nfv.agent import refute
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
@@ -228,11 +232,10 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
     }
     save(directory / "source-context.json", context)
     encoded_context = json.dumps(context, ensure_ascii=False)
-    if prepared is None:
-        counters["translation_calls"] += 1
-        translation = await ask("translation", "Translate this property for verification first. A failing witness is not required.\n" + encoded_context)
-    else:
-        translation = json.loads(json.dumps(prepared))
+    counters["translation_calls"] += 1
+    translation = await ask("translation", "Translate this single atomic conjecture for verification first. "
+                            "Use exactly one entry postcondition; do not add or split properties. "
+                            "A failing witness is not required.\n" + encoded_context)
     if not isinstance(translation, dict):
         raise Abstain("Translation must be a structured artifact")
     current = translation["model"]
@@ -258,11 +261,16 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
                 if not all(any(low <= line <= high for low, high in ranges)
                            for line in item["source"]["lines"]):
                     raise Abstain("Environment contract cites source outside the supplied scoped context")
+            goals = translation["original_ensures"]
+            if len(goals) != 1 or len(conjuncts(goals[0])) != 1:
+                raise NonAtomicContract(
+                    "Formalize exactly one extracted atomic conjecture with one entry ensures, "
+                    "without a root conjunction. Do not select a conjunct or discard part of the "
+                    "conjecture. A genuinely compound conjecture requires new extraction, not late splitting.")
             result = verifier.resolve(current, directory / f"syntax-{attempt}")
             require_tool(result)
-            goals = {part for clause in translation["original_ensures"] for part in conjuncts(clause)}
             if (result.get("outcome") == "verified" and result.get("exit_code") == 0
-                    and result.get("mode") == "typecheck" and len(goals) == 1):
+                    and result.get("mode") == "typecheck"):
                 positive = verifier(current, directory / "verification")
                 require_tool(positive)
                 save(directory / "drafts" / f"{attempt}-verification.json", positive)
@@ -274,9 +282,13 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
                                         "before freezing the translation.\n" + positive.get("stderr", "")}
         except (Abstain, KeyError, TypeError, ValueError) as exc:
             result = {"outcome": "audit_failure", "stderr": str(exc), "stdout": ""}
+            if isinstance(exc, NonAtomicContract):
+                result["mode"] = "atomicity"
         type_log.append(result)
         save(directory / "drafts" / f"{attempt}.json",
              {"translation": {**translation, "model": current}, "typecheck": result})
+        if result.get("mode") == "atomicity":
+            raise NonAtomicContract(result["stderr"])
         if result.get("outcome") == "verified" and result.get("exit_code") == 0 and result.get("mode") == "typecheck":
             break
         if result.get("outcome") == "timeout":
@@ -300,7 +312,10 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
                            "replace the intended property to obtain a proof. Return a JSON object "
                            "with model (full tagged Dafny) and any corrected translation metadata. "
                            "If a contract changes, update original_ensures, assumptions or environment "
-                           "to match. This is draft formalization, not proof repair. The first "
+                           "to match. Preserve the complete meaning of the single atomic conjecture "
+                           "in exactly one entry ensures without a root conjunction. Never repair "
+                           "a compound conjecture by dropping a conjunct; report an audit failure "
+                           "requesting new extraction instead. This is draft formalization, not proof repair. The first "
                            "fully audited, type-checked translation will be frozen before verification.",
             "source_context": context, "metadata": {k: v for k, v in translation.items() if k != "model"},
             "current_model": current, "typecheck": diagnostics(result),
@@ -321,22 +336,6 @@ async def run_property(claim, bundle, chat, directory, limits, verifier, prepare
     original = current
     translation = {**translation, "model": original}
     save(directory / "translation.json", translation)
-    goals = list(dict.fromkeys(part for clause in translation["original_ensures"]
-                               for part in conjuncts(clause)))
-    if len(goals) > 1:
-        children = []
-        for index, goal in enumerate(goals, 1):
-            child = select_properties([{
-                **claim, "property": f"Conjunct {index} of {len(goals)} of the proposed property: "
-                                    + claim["property"],
-            }], bundle)[0]
-            child_translation = {
-                **translation, "model": with_postconditions(original, translation["entry_point"], [goal]),
-                "original_ensures": [goal],
-                "decomposed_from": {"id": claim["id"], "index": index, "total": len(goals)},
-            }
-            children.append((child, child_translation))
-        return {"kind": "property-decomposition", "children": children}
     budget()
     if positive is None:
         raise Abstain("Original property lacks its recorded verification attempt")
@@ -478,28 +477,23 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
             "id": failure["id"], "property": "Invalid proposed property",
             "status": failure["reason"], "diagnostic": failure["diagnostic"], "formalized": None,
         })
-    queue = [(claim, None) for claim in claims]
     save(output / "report.json", report)
-    checked = 0
-    while queue and checked < 10:
-        claim, prepared = queue.pop(0)
+    completed = len(report["properties"])
+    total = completed + len(claims)
+    for checked, claim in enumerate(claims, completed + 1):
         entry = {k: claim[k] for k in ("id", "path", "lines", "quote", "property")}
         if "origin" in claim:
             entry["origin"] = claim["origin"]
         entry.update(formalized=None, status=INVALID)
         report["properties"].append(entry)
         try:
-            finding = await run_property(claim, bundle, chat, output / claim["id"], limits, verifier, prepared)
-            if finding["kind"] == "property-decomposition":
-                report["properties"].remove(entry)
-                queue[:0] = finding["children"]
-                continue
+            finding = await run_property(claim, bundle, chat, output / claim["id"], limits, verifier)
             if finding["kind"] == "conditional-model-verification":
                 entry["status"] = VERIFIED
                 report["verified"].append(finding)
-                continue
-            entry["status"] = REFUTED
-            report["findings"].append(finding)
+            else:
+                entry["status"] = REFUTED
+                report["findings"].append(finding)
         except Exception as exc:
             entry["status"] = EXHAUSTED if isinstance(exc, (ResourcesExhausted, TimeoutError)) else INVALID
             entry["diagnostic"] = str(exc)[:3000]
@@ -512,14 +506,10 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
             translation = output / claim["id"] / "translation.json"
             if translation.exists():
                 entry["formalized"] = json.loads(translation.read_text(encoding="utf-8")).get("original_ensures")
-            if entry in report["properties"]:
-                checked += 1
-                save(output / "report.json", report)
-                print(json.dumps({"property": claim["id"], "status": entry["status"],
-                                  "completed": checked, "pending": len(queue)}), flush=True)
-    if queue:
-        report["selection_omissions"] = [
-            {"id": claim["id"], "property": claim["property"]} for claim, _ in queue]
+            save(output / "report.json", report)
+        print(json.dumps({"event": "property_completed", "property": claim["id"], "status": entry["status"],
+                          "properties_completed": checked, "properties_total": total,
+                          "properties_remaining": total - checked}), flush=True)
     report["completed"] = True
     save(output / "report.json", report)
     return report

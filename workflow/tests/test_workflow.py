@@ -816,23 +816,28 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("roles: all", source)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
-    def test_evaluation_finishes_in_trusted_steps_before_publisher_starts(self):
+    def test_evaluation_is_owned_by_a_deterministic_sandboxed_sdk_driver(self):
         source, lock = self.source(), self.lock()
-        self.assertNotIn("post-steps:", source)
         self.assertNotIn("  nfv_submit:", lock)
         self.assertNotIn("discussions: write", source)
         frontmatter, prompt = source.split("\n---\n", 1)
-        self.assertIn('nfv-workflow extract --bundle "$NFV_BUNDLE"', frontmatter)
-        self.assertIn('nfv-workflow audit --proposals "$NFV_OUT/proposals.json"', frontmatter)
-        self.assertNotIn("nfv-workflow audit", prompt)
-        self.assertIn("You only publish that report", prompt)
-        self.assertIn("--allow-all-tools", lock)
+        setup = frontmatter.split("post-steps:", 1)[0]
+        self.assertIn("copilot-sdk: true", setup)
+        self.assertIn("driver: nfv-plugin/workflow/sandbox_driver.cjs", setup)
+        self.assertIn("GH_AW_COPILOT_SDK_DRIVER: 1", lock)
+        self.assertIn("sandbox_driver.cjs", lock)
+        self.assertNotIn("nfv-workflow extract", setup)
+        self.assertNotIn("nfv-workflow audit", setup)
+        self.assertIn("supervised foreground process", prompt)
+        self.assertIn("There is no outer model session", prompt)
         self.assertIn('"./nfv-plugin[inference]"', source)
-        self.assertIn("COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}", frontmatter)
-        self.assertIn('GITHUB_AW: "false"', frontmatter)
+        self.assertNotIn("COPILOT_GITHUB_TOKEN:", frontmatter)
+        self.assertNotIn('GITHUB_AW: "false"', source)
         self.assertNotIn("  bash:", source)
         self.assertNotIn("  edit:", source)
+        self.assertIn("COPILOT_SDK_URI: http://127.0.0.1:3002", lock)
         self.assertNotIn("COPILOT_CLI_PATH=", source)
+        self.assertIn('echo "NFV_PYTHON=$(command -v python)"', source)
 
     def test_report_is_posted_as_a_single_pr_comment(self):
         source = self.source()
@@ -850,27 +855,28 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", source)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 
-    def test_publisher_reads_only_completed_read_only_report(self):
+    def test_driver_uses_writable_evidence_separate_from_read_only_inputs(self):
         source, lock = self.source(), self.lock()
         self.assertIn('Path("nfv-input.json").write_text', source)
         self.assertIn(r'Path(\"nfv-input.json\").write_text', lock)
-        self.assertIn('ln -s "$NFV_OUT/comment.md" nfv-comment.md', source)
-        self.assertIn('echo "NFV_OUT=$RUNNER_TEMP/gh-aw/nfv/evidence"', source)
+        self.assertNotIn("nfv-comment.md", source)
+        self.assertIn('echo "NFV_OUT=/tmp/gh-aw/sandbox/agent/logs/nfv"', source)
         prompt = source.split("\n---\n", 1)[1]
-        self.assertIn("Read `nfv-comment.md` using the file viewer", prompt)
-        self.assertIn("paging until the entire file", prompt)
+        self.assertIn("Only the deterministic driver submits", prompt)
         self.assertIn("Never edit, summarize, add to", prompt)
-        self.assertIn("Do not run extraction, audits, verifiers or shell", prompt)
+        self.assertIn("Incomplete extraction", prompt)
 
-    def test_audit_failure_retains_evidence_without_starting_publisher(self):
+    def test_post_steps_only_retain_evidence_and_never_run_analysis(self):
         source = self.source()
-        block = source.split("  - name: Extract properties", 1)[1].split("  - name: Retain", 1)[0]
-        self.assertIn("set -euo pipefail", block)
-        self.assertNotIn("continue-on-error", block)
+        block = source.split("post-steps:", 1)[1].split("\n---\n", 1)[0]
+        self.assertNotIn("run:", block)
+        self.assertNotIn("nfv-workflow", block)
         self.assertIn("if: always()\n    uses: actions/upload-artifact@", source)
         self.assertIn("name: nfv-evidence", source)
+        self.assertIn("path: /tmp/gh-aw/sandbox/agent/logs/nfv", block)
         prompt = source.split("\n---\n", 1)[1]
-        self.assertIn("never fabricate a report or publish incremental evidence", prompt)
+        self.assertIn("never fabricate a", prompt)
+        self.assertIn("report or publish incremental evidence", prompt)
 
     def test_extraction_targets_implementation_not_invented_solver_responses(self):
         intent = (Path(__file__).parents[1] / "src/nfv_workflow/intent_prompt.txt").read_text(encoding="utf-8")
@@ -878,6 +884,8 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("Do not select a test/caller expectation", intent)
         self.assertIn("treating that callee's result as an unconstrained input", intent)
         self.assertIn("caller's own logic", intent)
+        self.assertIn("atomic", intent)
+        self.assertIn("There is NO later property-splitting stage", intent)
 
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
         source = self.source()
@@ -1041,6 +1049,13 @@ class AuditTests(ScratchTest):
                                     "api_key": "dummy-byok-key-for-offline-mode"})
         with patch.dict(os.environ, {"COPILOT_API_URL": "http://172.30.0.30:10002"}, clear=True):
             self.assertEqual(awf_provider()["base_url"], "http://172.30.0.30:10002")
+        with patch.dict(os.environ, {"COPILOT_PROVIDER_BASE_URL": "http://api-proxy:12345",
+                                     "COPILOT_PROVIDER_TYPE": "anthropic"}, clear=True):
+            self.assertEqual(awf_provider(), {"type": "anthropic", "base_url": "http://api-proxy:12345",
+                                             "api_key": "dummy-byok-key-for-offline-mode"})
+        with patch.dict(os.environ, {"COPILOT_PROVIDER_TYPE": "unknown"}, clear=True):
+            with self.assertRaises(Abstain):
+                awf_provider()
 
     def test_rejects_non_array_proposals(self):
         (self.directory / "p.json").write_text("{}")

@@ -7,9 +7,9 @@ comments or reviews), and from changed code/comments. A separate source-context
 AW session first inspects a shallow trusted-base checkout and changed-head
 blobs as text. It never builds or executes the inspected repository. NFV then
 translates the properties into **Dafny**, tries verification first and, if that
-does not succeed, tries conditional model refutation. Trusted foreground Actions
-steps own extraction and the complete audit; the publishing AW agent starts only
-after the deterministic report is ready.
+does not succeed, tries conditional model refutation. A deterministic gh-aw SDK
+driver owns extraction, the complete audit and verbatim report submission inside
+the AWF sandbox. No outer model session supervises background shell commands.
 
 The default path accepts source in **C, C++, Java, C#, Go, JavaScript, TypeScript,
 Python, and Rust** and translates the code each property is about, including loops
@@ -157,8 +157,10 @@ incomplete; it cannot be published as a finished review.
    functions. Recursive groups and equal-depth properties retain extraction
    order. This orders requests; it does not change a property's entry function
    or claim anchors, and is not a resolved cross-file/runtime call order.
-   Each property belongs to one changed entry function. Conjunctive claims are
-   selected as separate atomic properties.
+   Each property belongs to one changed entry function. The proposer conjectures
+   atomic properties directly: a lower bound and an upper bound are separate
+   properties, not one combined statement to split later. Select within the
+   ten-property budget rather than packing multiple obligations into a claim.
 3. **Translate and resolve.** The tool-free NFV `CopilotChat` client produces a
    canonical verifier model (Dafny), original `ensures`, source mappings,
    environment descriptions, and inferred input conditions. Each property's
@@ -192,13 +194,15 @@ incomplete; it cannot be published as a finished review.
    The workflow permits Dafny warnings, retaining them in evidence, without
    suppressing errors, integrity gates or proof obligations. This policy is
    confined to `workflow/`; the paper's `nfv/` implementation is unchanged.
-4. **Verify each atomic property first, then invert.** Separate `ensures`
-   clauses and root conjunctions (`A && B`) become independently checked properties
-   with distinct IDs, source contexts, outcomes and counterexample requests.
-   Computation and input conditions are unchanged; one conjunct is never assumed
-   to prove another. Implications, disjunctions and quantified bodies retain
-   their grouping. At most ten atomic checks are selected; additional candidates
-   are explicitly listed as selection omissions, not reported as analyzed.
+4. **Verify each atomic property first, then invert.** Each selected conjecture
+   retains its own ID, source context, outcome and counterexample request. Its
+   entry must have exactly one `ensures`, without a root conjunction. A compound
+   draft fails its audit with a request for new extraction; no child properties
+   are created and no conjunct is discarded. Implications, disjunctions and
+   quantified bodies retain their grouping. Progress reports
+   `properties_completed`, `properties_total` and `properties_remaining` for
+   the whole selected review, including rejected proposals; the total never
+   grows during translation. Interrupted properties are not logged as completed.
    Check each original model with
    Dafny. An accepted proof plus a successful feasible-input guard records
    **verified**, without requiring a counterexample. Otherwise ask for a
@@ -300,11 +304,11 @@ path does not require the model client.
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
      after another within the 360-minute job timeout.
 2. Configure the **`COPILOT_GITHUB_TOKEN`** secret used by the gh-aw Copilot
-   engine and the trusted foreground NFV step: a fine-grained token owned by a Copilot-licensed user with
+   engine: a fine-grained token owned by a Copilot-licensed user with
    *Copilot Requests: Read*. gh-aw rejects OAuth (`gho_`) tokens. The NFV
-   extraction, translation and presentation sessions use this dedicated credential
-   directly before the publishing agent starts. It is scoped to the trusted step,
-   never exported through `GITHUB_ENV` or exposed to the publishing agent's shell.
+   extraction, translation and presentation sessions use the AWF inference proxy.
+   The proxy retains the credential outside the sandbox; no real GitHub or
+   Copilot credential is exported through `GITHUB_ENV` or given to the driver.
 3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
    fine-grained token with read-only *Contents* access to
    `microsoft/neuro-formal-verification`.
@@ -315,8 +319,7 @@ path does not require the model client.
    its lock, and `.github\aw\packages\`. The checked-in lock is compiled with
    **gh aw v0.88.7**.
 
-The analysis runs in foreground pre-agent steps; there is no custom safe-output
-job. Trusted steps check out the pinned release, install it, download
+Trusted pre-agent steps check out the pinned release, install it, download
 official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
 `a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179`), select its
 unique bundled `z3-4.12.1`, and collect the PR source with the read-only
@@ -327,19 +330,31 @@ in the workspace: a non-secret extraction index containing PR signals,
 changed-line anchors, captured source paths, and omissions, without duplicating
 the source bodies. Tool-free sessions receive bounded source contexts, not a shell
 or repository tools; trusted Python code invokes the actual type checker and
-verifier. Input/access/tool failures fail the trusted step, not an empty audit.
+verifier inside the sandbox. Input/access/tool failures fail the driver, not an empty audit.
 An empty proposal list is reserved for completed inspection that finds no
 grounded nontrivial property.
 
-The trusted step runs `extract`, then `audit`, and waits for both to exit. It
-uploads the separate `nfv-evidence` artifact even on failure. The publishing
-agent reads only `nfv-comment.md`, a link to the completed, read-only `comment.md`,
-and copies it verbatim into the `add-comment` safe output. It does not run
-analysis, shell commands or repairs. gh-aw threat detection
+The custom SDK driver runs extraction, then `audit`, as one foreground process
+inside gh-aw's AWF sandbox. Its small Node.js supervisor launches the installed
+Python environment, forwards cancellation and emits liveness heartbeats; NFV
+keeps its own pinned Python SDK. gh-aw provisions the trusted CLI before sandbox
+launch and resolves provider endpoints through AWF reflection. NFV connects to
+that harness-owned sidecar using `COPILOT_SDK_URI` and its per-run connection
+token; it never downloads or starts another CLI inside the sandbox. Tool-free
+sessions receive the provider explicitly, with a placeholder key; the proxy
+injects the actual credential. There is no supervising or publishing LLM.
+
+Evidence is written under `/tmp/gh-aw/sandbox/agent/logs/nfv` and uploaded as
+`nfv-evidence`, including interrupted work. Only after extraction and the complete
+audit succeed does the driver pipe the unchanged `comment.md` as JSON to
+`safeoutputs add_comment`. A failed or interrupted execution is never restarted
+in the same evidence directory, preventing duplicate write intents. Post-agent
+steps only retain evidence; they never perform analysis. gh-aw threat detection
 screens that output before the `safe_outputs` job, the only job with write access,
-posts them. Never check out the PR head or execute PR scripts. This is **not an
-OS-level sandbox against verifier vulnerabilities**: use ephemeral
-GitHub-hosted runners.
+posts the comment. Never check out the PR head or execute PR scripts. Extraction,
+translation and verifier processes run within the additional AWF isolation and
+network restrictions on an ephemeral GitHub-hosted runner; this is not a claim
+that the sandbox or verifier is invulnerable.
 
 ## Local commands and model configuration
 

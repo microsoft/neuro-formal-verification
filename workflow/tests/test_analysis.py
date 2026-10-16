@@ -1,6 +1,8 @@
 import asyncio
 import copy
+from contextlib import redirect_stdout
 import hashlib
+import io
 import json
 from pathlib import Path
 import shutil
@@ -90,9 +92,11 @@ class AnalysisTests(unittest.TestCase):
             saved = json.loads((self.directory / "report.json").read_text())
             self.assertIs(saved["completed"], False)
             raise asyncio.CancelledError()
-        with patch("nfv_workflow.general.run_property", side_effect=interrupted):
+        progress = io.StringIO()
+        with patch("nfv_workflow.general.run_property", side_effect=interrupted), redirect_stdout(progress):
             with self.assertRaises(asyncio.CancelledError):
                 self.execute([], Verifier())
+        self.assertEqual(progress.getvalue(), "")
         partial = json.loads((self.directory / "report.json").read_text())
         self.assertIs(partial["completed"], False)
         with self.assertRaisesRegex(Abstain, "incomplete"):
@@ -326,7 +330,7 @@ class AnalysisTests(unittest.TestCase):
         fabricated = model.replace(text.strip(), "different_source")
         self.assertEqual(quoted_context(context, fabricated), context)
 
-    def test_conjunction_splitting_preserves_binding_and_precedence(self):
+    def test_conjunction_detection_preserves_binding_and_precedence(self):
         examples = {
             "a && b": ["a", "b"],
             "((a && b) && c)": ["a", "b", "c"],
@@ -341,22 +345,33 @@ class AnalysisTests(unittest.TestCase):
             with self.subTest(expression=expression):
                 self.assertEqual(conjuncts(expression), expected)
 
-    def test_conjuncts_have_independent_models_outcomes_and_witness_queries(self):
-        self.translation.pop("witness")
-        self.translation["model"] = self.translation["model"].replace(
-            "ensures r == n", "ensures r == n && r >= n")
-        self.translation["original_ensures"] = ["r == n && r >= n"]
+    def test_extracted_atomic_claims_have_independent_models_and_fixed_progress(self):
+        second = {**self.claim, "property": "The result is at least n."}
+        other = copy.deepcopy(self.translation)
+        other["model"] = other["model"].replace("ensures r == n", "ensures r >= n")
+        other["original_ensures"] = ["r >= n"]
         class ComponentVerifier(Verifier):
             def __call__(self, source, directory):
                 self.operations.append((Path(directory).name, source))
                 if Path(directory).name == "verification" and "ensures r == n" in source:
                     return {"outcome": "failed", "exit_code": 4, "mode": "unbounded"}
                 return success()
-        report = self.execute([self.translation, {
-            "witness": {"n": 2}, "explanation": "The return adds one."}], ComponentVerifier())
+        chat = Chat([self.translation, other])
+        progress = io.StringIO()
+        with redirect_stdout(progress):
+            report = asyncio.run(run(self.bundle, [self.claim, second], self.directory,
+                                     chat, Limits(proof_rounds=0), ComponentVerifier()))
         self.assertEqual([row["status"] for row in report["properties"]], [REFUTED, VERIFIED], report)
         self.assertEqual(len({row["id"] for row in report["properties"]}), 2)
-        self.assertEqual(len(self.chat.prompts), 2)
+        self.assertEqual(len(chat.prompts), 2)
+        self.assertEqual([row["id"] for row in report["properties"]],
+                         [row["id"] for row in select_properties([self.claim, second], self.bundle)])
+        events = [json.loads(line) for line in progress.getvalue().splitlines()]
+        self.assertEqual([row["event"] for row in events], ["property_completed"] * 2)
+        self.assertEqual([row["properties_total"] for row in events], [2, 2])
+        self.assertEqual([row["properties_completed"] for row in events], [1, 2])
+        self.assertEqual([row["properties_remaining"] for row in events], [1, 0])
+        self.assertFalse(any("pending" in row or "completed" in row for row in events))
         first, second = report["findings"][0], report["verified"][0]
         self.assertEqual(first["translation"]["original_ensures"], ["r == n"])
         self.assertEqual(second["translation"]["original_ensures"], ["r >= n"])
@@ -369,25 +384,48 @@ class AnalysisTests(unittest.TestCase):
         self.assertIn("### P1", body)
         self.assertIn("### P2", body)
 
-    def test_separate_ensures_are_checked_as_separate_properties(self):
-        self.translation["model"] = self.translation["model"].replace(
-            "  ensures r == n", "  ensures r == n\n// synth: second property\n  ensures r >= n")
-        self.translation["original_ensures"] = ["r == n", "r >= n"]
-        report = self.execute([self.translation], Verifier(positive=True))
-        self.assertEqual(len(report["properties"]), 2)
-        self.assertEqual(len(report["verified"]), 2)
-        self.assertEqual(len(self.chat.prompts), 1)
+    def test_compound_drafts_fail_without_splitting_weakening_or_proof_calls(self):
+        for goals in (["r == n && r >= n"], ["r == n", "r >= n"],
+                      [" && ".join(f"r >= n + {index}" for index in range(11))]):
+            with self.subTest(goals=goals):
+                draft = copy.deepcopy(self.translation)
+                draft["model"] = with_postconditions(draft["model"], "Target", goals)
+                draft["original_ensures"] = goals
+                verifier = Verifier(positive=True)
+                report = self.execute([draft, {"model": self.translation["model"]}], verifier)
+                self.assertEqual(len(report["properties"]), 1)
+                self.assertEqual(report["properties"][0]["status"], INVALID, report)
+                self.assertIn("new extraction, not late splitting", report["failures"][0]["diagnostic"])
+                self.assertFalse(report["verified"] or report["findings"])
+                self.assertEqual(len(self.chat.prompts), 1)
+                self.assertEqual(verifier.operations, [])
+                candidate = report["properties"][0]["id"]
+                saved = json.loads((self.directory / candidate / "drafts" / "0.json").read_text())
+                self.assertEqual(saved["translation"]["original_ensures"], goals)
+                self.assertFalse((self.directory / candidate / "translation.json").exists())
+                self.assertNotIn("selection_omissions", report)
 
-    def test_atomic_selection_limit_is_explicit_and_not_a_proof_verdict(self):
-        goals = " && ".join(f"r >= n + {index}" for index in range(11))
-        self.translation["model"] = self.translation["model"].replace("ensures r == n", "ensures " + goals)
-        report = self.execute([self.translation], Verifier(positive=True))
-        self.assertEqual(len(report["properties"]), 10)
-        self.assertEqual(len(report["verified"]), 10)
-        self.assertEqual(len(report["selection_omissions"]), 1)
-        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
-        self.assertIn("1 additional candidate checks were not selected", body)
-        self.assertNotIn("### P11", body)
+    def test_atomic_implications_disjunctions_and_quantifiers_are_not_decomposed(self):
+        for goal in ("n >= 0 ==> r == n && r >= n", "r == n || r > n",
+                     "forall i: int :: i < n ==> i <= r && i + 1 <= r"):
+            with self.subTest(goal=goal):
+                draft = copy.deepcopy(self.translation)
+                draft["model"] = with_postconditions(draft["model"], "Target", [goal])
+                draft["original_ensures"] = [goal]
+                report = self.execute([draft], Verifier(positive=True))
+                self.assertEqual(len(report["properties"]), 1)
+                self.assertEqual(report["properties"][0]["status"], VERIFIED, report)
+                self.assertEqual(report["verified"][0]["translation"]["original_ensures"], [goal])
+
+    def test_progress_counts_rejected_claims_as_finished_without_growing_total(self):
+        progress = io.StringIO()
+        with redirect_stdout(progress):
+            report = asyncio.run(run(self.bundle, [{}, self.claim], self.directory,
+                                     Chat([self.translation]), Limits(), Verifier(positive=True)))
+        self.assertEqual([row["status"] for row in report["properties"]], [INVALID, VERIFIED])
+        event = json.loads(progress.getvalue())
+        self.assertEqual((event["properties_completed"], event["properties_total"],
+                          event["properties_remaining"]), (2, 2, 0))
 
     def test_workflow_warning_policy_keeps_real_verifier_errors_fatal(self):
         from nfv.shared.config import DAFNY_PATH

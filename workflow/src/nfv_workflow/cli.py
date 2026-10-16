@@ -95,10 +95,15 @@ def awf_provider():
     so a placeholder key suffices.
     """
     env = os.environ
-    return {"type": "openai",
-            "wire_api": env.get("COPILOT_PROVIDER_WIRE_API") or "responses",
-            "base_url": env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL") or AWF_COPILOT_PROXY,
-            "api_key": AWF_PLACEHOLDER_KEY}
+    provider_type = env.get("COPILOT_PROVIDER_TYPE") or "openai"
+    if provider_type not in ("openai", "anthropic", "azure"):
+        raise Abstain("Unsupported AWF SDK provider type")
+    provider = {"type": provider_type,
+                "base_url": env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL") or AWF_COPILOT_PROXY,
+                "api_key": AWF_PLACEHOLDER_KEY}
+    if provider_type != "anthropic":
+        provider["wire_api"] = env.get("COPILOT_PROVIDER_WIRE_API") or "responses"
+    return provider
 
 
 async def refresh_presentation(report, bundle, model, timeout):

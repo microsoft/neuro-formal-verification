@@ -8,6 +8,33 @@ from unittest.mock import AsyncMock, patch
 
 
 class WorkflowChatTests(unittest.TestCase):
+    def test_sandbox_clients_connect_to_the_harness_owned_sidecar_without_spawning_cli(self):
+        from nfv_workflow.chat import WorkflowChat
+        client = SimpleNamespace(start=AsyncMock(), stop=AsyncMock())
+        environment = {"GITHUB_AW": "true", "COPILOT_SDK_URI": "http://127.0.0.1:3002",
+                       "COPILOT_CONNECTION_TOKEN": "per-run-test-token"}
+        provider = {"type": "openai", "base_url": "http://api-proxy:12345", "api_key": "placeholder"}
+        async def exercise():
+            async with WorkflowChat(model="test-model", provider=provider):
+                pass
+        with patch.dict(os.environ, environment, clear=True), \
+                patch("nfv_workflow.chat.CopilotClient", return_value=client) as constructor:
+            asyncio.run(exercise())
+        connection = constructor.call_args.kwargs["connection"]
+        self.assertEqual(connection.url, environment["COPILOT_SDK_URI"])
+        self.assertEqual(connection.connection_token, environment["COPILOT_CONNECTION_TOKEN"])
+        client.start.assert_awaited_once()
+        client.stop.assert_awaited_once()
+
+    def test_sidecar_without_connection_token_fails_before_startup(self):
+        from nfv_workflow.chat import WorkflowChat
+        from nfv_workflow.github import Abstain
+        with patch.dict(os.environ, {"GITHUB_AW": "true", "COPILOT_SDK_URI": "http://127.0.0.1:3002"},
+                        clear=True), patch("nfv_workflow.chat.CopilotClient") as constructor:
+            with self.assertRaisesRegex(Abstain, "connection token"):
+                asyncio.run(WorkflowChat(model="test-model", provider={"type": "openai"}).start())
+        constructor.assert_not_called()
+
     def test_actions_direct_auth_checks_identity_without_private_entitlement_probes(self):
         from nfv_workflow.chat import WorkflowChat
         client = SimpleNamespace(start=AsyncMock(), stop=AsyncMock(),
