@@ -138,6 +138,21 @@ class SourceContextTests(unittest.TestCase):
         self.assertLessEqual(size(context), CONTEXT_BYTES)
         self.assertNotIn("large body", json.dumps(context))
 
+    def test_omission_notices_cannot_overflow_a_bounded_repository_context(self):
+        for padding in ("x" * 30000, "\N{EURO SIGN}" * 10000):
+            with self.subTest(multibyte=padding.startswith("\N{EURO SIGN}")):
+                helpers = "\n".join(
+                    f"struct Helper{i} {{\n int helper(int n) {{\n // {padding}\n return n;\n }}\n}};\n"
+                    for i in range(64))
+                bundle = {"sources": {"main": {"text": "int target(int n) {\n return n;\n}\n"},
+                                      "helpers.cpp": {"text": helpers}},
+                          "repository_context": [{"path": "helpers.cpp", "symbols": ["helper"]}]}
+                context = scoped_context(bundle, {"path": "main", "lines": [2], "language": "cpp"})
+                self.assertLessEqual(size(context), CONTEXT_BYTES)
+                self.assertIn("2|  return n;", context["sources"]["main"]["numbered_lines"])
+                self.assertIn(padding, context["sources"]["helpers.cpp"]["numbered_lines"])
+                self.assertIn("additional context-omission notices", context["context_omissions"][-1])
+
     def test_separate_functions_and_ambiguous_boundaries_abstain(self):
         with self.assertRaisesRegex(Abstain, "one identifiable function"):
             self.context("int f() {\n return 1;\n}\nint g() {\n return 2;\n}\n", [2, 5])

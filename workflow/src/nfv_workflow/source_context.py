@@ -408,6 +408,13 @@ def scoped_context(bundle, claim):
                 add_environment(other_path, other_record, declaration[1],
                                 comment_start(lines, index) + offset, index + offset)
     if size(context) > CONTEXT_BYTES:
+        omitted = 0
+        omissions.append("")
+        while len(omissions) > 1 and size(context) > CONTEXT_BYTES:
+            omissions.pop(-2)
+            omitted += 1
+            omissions[-1] = f"{omitted} additional context-omission notices omitted from this bounded prompt."
+    if size(context) > CONTEXT_BYTES:
         raise ResourcesExhausted("Scoped source context exceeds its byte budget")
     return context
 

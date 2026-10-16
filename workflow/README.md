@@ -142,6 +142,8 @@ NFV comment. Verifier models, repair logs and hashes are in the run's
    Ambiguous boundaries, anchors spanning separate functions, or a changed
    function exceeding the 32,000-byte source-context budget produce the
    corresponding audit-failure or resource-exhaustion outcome.
+   Omission notices are compacted with an explicit count when needed to keep
+   an otherwise bounded source context within the same budget.
    Every translation and repair request checks the entire system and user
    payload against an 80,000-byte UTF-8 budget, leaving output headroom.
    Large verifier diagnostics are explicitly shortened in repair prompts;
