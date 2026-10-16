@@ -145,15 +145,22 @@ class SandboxTests(unittest.TestCase):
         self.assertIn("NFV sandbox audit failed: incomplete", stderr.getvalue())
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is not installed")
-    def test_sdk_shim_preserves_python_output_and_failure_exit_status(self):
+    def test_sdk_shim_strips_platform_auth_preserving_sidecar_token_output_and_exit_status(self):
         package = self.directory / "nfv_workflow"
         package.mkdir()
         (package / "__init__.py").write_text("")
-        (package / "sandbox.py").write_text("print('driver reached Python', flush=True)\nraise SystemExit(7)\n")
+        (package / "sandbox.py").write_text(
+            "import os\n"
+            "assert not any(os.environ.get(key) for key in "
+            "('COPILOT_GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN'))\n"
+            "assert os.environ['COPILOT_CONNECTION_TOKEN'] == 'per-run-test-token'\n"
+            "print('driver reached Python', flush=True)\nraise SystemExit(7)\n")
         script = Path(__file__).parents[1] / "sandbox_driver.cjs"
         result = subprocess.run(
             ["node", str(script)], capture_output=True, text=True, timeout=15,
-            env={**os.environ, "NFV_PYTHON": sys.executable, "PYTHONPATH": str(self.directory.resolve())},
+            env={**os.environ, "NFV_PYTHON": sys.executable, "PYTHONPATH": str(self.directory.resolve()),
+                 "COPILOT_GITHUB_TOKEN": "test-platform-auth", "GH_TOKEN": "test-platform-auth",
+                 "GITHUB_TOKEN": "test-platform-auth", "COPILOT_CONNECTION_TOKEN": "per-run-test-token"},
             cwd=self.directory,
         )
         self.assertEqual(result.returncode, 7, result.stderr)

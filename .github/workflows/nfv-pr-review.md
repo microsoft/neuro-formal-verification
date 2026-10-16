@@ -13,6 +13,8 @@ engine:
   model: ${{ vars.NFV_MODEL }}
   copilot-sdk: true
   driver: nfv-plugin/workflow/sandbox_driver.cjs
+  env:
+    GH_AW_HARNESS_MAX_RETRIES: "0"
 timeout-minutes: 360
 checkout: false
 concurrency:

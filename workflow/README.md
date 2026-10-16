@@ -337,7 +337,9 @@ grounded nontrivial property.
 The custom SDK driver runs extraction, then `audit`, as one foreground process
 inside gh-aw's AWF sandbox. Its small Node.js supervisor launches the installed
 Python environment, forwards cancellation and emits liveness heartbeats; NFV
-keeps its own pinned Python SDK. gh-aw provisions the trusted CLI before sandbox
+keeps its own pinned Python SDK. The supervisor removes platform-authentication
+variables before starting NFV; Python retains a fail-closed credential guard.
+Automatic whole-driver retries are disabled. gh-aw provisions the trusted CLI before sandbox
 launch and resolves provider endpoints through AWF reflection. NFV connects to
 that harness-owned sidecar using `COPILOT_SDK_URI` and its per-run connection
 token; it never downloads or starts another CLI inside the sandbox. Tool-free

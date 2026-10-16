@@ -825,6 +825,8 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("copilot-sdk: true", setup)
         self.assertIn("driver: nfv-plugin/workflow/sandbox_driver.cjs", setup)
         self.assertIn("GH_AW_COPILOT_SDK_DRIVER: 1", lock)
+        self.assertIn('GH_AW_HARNESS_MAX_RETRIES: "0"', source)
+        self.assertIn("GH_AW_HARNESS_MAX_RETRIES: 0", lock)
         self.assertIn("sandbox_driver.cjs", lock)
         self.assertNotIn("nfv-workflow extract", setup)
         self.assertNotIn("nfv-workflow audit", setup)
