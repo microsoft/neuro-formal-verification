@@ -50,14 +50,15 @@ under `workflow/tests/.general-scratch/`; never commit them.
   anchors in code. Source-inferred quotes may come from anywhere in the selected
   captured function. Preserve immutable cross-file source-context capture.
   Retain draft formalizations and diagnostics, then freeze the first fully
-  audited, type-checked model before proof or refutation. Conjecture atomic
-  properties during extraction, never split translations into child checks.
-  Require one entry ensures without a root conjunction; compound drafts fail
-  audit rather than silently dropping a conjunct. Preserve implication,
-  disjunction and quantifier grouping. Progress counts the fixed whole review,
+  audited, type-checked model before proof or refutation. Keep each conjectured
+  property whole; never decompose it into atomic propositions or child checks.
+  Conjunctions and multiple entry ensures remain one property: verify them
+  together and mechanically negate their complete conjunction for refutation.
+  Never drop an obligation. Preserve implication, disjunction and quantifier
+  grouping. Progress counts the fixed whole review,
   not subchecks of one property.
   Audit array/sequence range diagnostics before freezing a draft, without
-  combining atomic properties. Prefer implementation-owned properties over
+  changing or splitting conjectures. Prefer implementation-owned properties over
   test expectations refuted only by arbitrary environment responses.
 - Report UX (`publish.general_section`): a one-line NFV intro linking the paper
   (arXiv:2608.21516) before the issue count, instead of explaining the
@@ -94,7 +95,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `publish.text()` escaping.
 - Only `nfv-workflow audit`/`evaluate` decide acceptance; agents never edit,
   summarize or add to generated report text.
-- Limits: at most 10 intended properties per PR, 6 syntax repairs and 10
+- Limits: at most 10 intended properties per PR, 3 syntax repairs and 10
   annotation-only proof repairs per property.
 - Do not modify the dataset or retained results in `paper/data` and
   `paper/results`; they are checksum-pinned and marked `-text` in

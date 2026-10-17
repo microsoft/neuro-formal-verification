@@ -144,7 +144,7 @@ class GeneralTests(unittest.TestCase):
         return asyncio.run(run(bundle, claims, self.directory, chat, **kwargs))
 
     def test_default_repair_budgets(self):
-        self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
+        self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (3, 10))
 
     def test_context_omits_unrelated_files(self):
         bundle, claim, _ = fixture()
@@ -246,19 +246,19 @@ class GeneralTests(unittest.TestCase):
                 self.assertIn("ensures !((r == n))", source)
                 self.assertIn("method NfvWitnessCheck()", source)
 
-    def test_type_repair_budget_is_six(self):
+    def test_type_repair_budget_is_three(self):
         bundle, claim, translation = fixture()
         class TypeFailures(FailingVerifier):
             def resolve(self, source, directory):
                 self.operations.append(("resolve", source))
                 return {"outcome": "type_error", "exit_code": 2, "mode": "typecheck"}
         verifier = TypeFailures()
-        chat = Chat([translation] + [{"model": translation["model"]}] * 6)
+        chat = Chat([translation] + [{"model": translation["model"]}] * 3)
         report = self.execute(bundle, claim, chat, verifier=verifier)
         self.assertFalse(report["findings"])
-        self.assertEqual(len(chat.prompts), 7)
-        self.assertEqual(len(verifier.operations), 7)
-        self.assertIn("6 syntax repairs", report["failures"][0]["diagnostic"])
+        self.assertEqual(len(chat.prompts), 4)
+        self.assertEqual(len(verifier.operations), 4)
+        self.assertIn("3 syntax repairs", report["failures"][0]["diagnostic"])
 
     def test_missing_verifier_does_not_spend_repair_calls(self):
         bundle, claim, translation = fixture()
@@ -362,7 +362,7 @@ class GeneralTests(unittest.TestCase):
         event.write_text("{}")
         submitted.write_text(json.dumps({"items": [{"type": "nfv_submit", "proposals": json.dumps([claim])}]}))
         async def fake_run(bundle, properties, output, model, limits):
-            self.assertEqual((limits.syntax_rounds, limits.proof_rounds), (6, 10))
+            self.assertEqual((limits.syntax_rounds, limits.proof_rounds), (3, 10))
             self.assertEqual(model, "fake-model")
             return {"findings": [], "errors": []}
         with patch.object(cli, "collect", return_value=bundle), patch.object(cli, "run_general", side_effect=fake_run):

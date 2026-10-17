@@ -896,8 +896,11 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("Do not select a test/caller expectation", intent)
         self.assertIn("treating that callee's result as an unconstrained input", intent)
         self.assertIn("caller's own logic", intent)
-        self.assertIn("atomic", intent)
+        self.assertIn("Do not decompose an intention into atomic", intent)
         self.assertIn("There is NO later property-splitting stage", intent)
+        prompt = (Path(__file__).parents[1] / "src/nfv_workflow/general_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Conjunctions and multiple ensures are permitted", " ".join(prompt.split()))
+        self.assertIn("negates their complete conjunction", " ".join(prompt.split()))
 
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
         source = self.source()

@@ -20,7 +20,7 @@ and branches, into the verifier's language.
   Lean) can be added as backends. CBMC is used only by the paper artifact.
   Verifier-specific details below (constructs, annotations, versions) describe
   the Dafny backend.
-* Each property gets up to **6 syntax/type repairs** and **10 annotation-only
+* Each property gets up to **3 syntax/type repairs** and **10 annotation-only
   repairs** of the negative check.
 * The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
   `ready_for_review`). Drafts are skipped.
@@ -163,10 +163,10 @@ The existing AI-credit and wall-time budgets still apply.
    functions. Recursive groups and equal-depth properties retain extraction
    order. This orders requests; it does not change a property's entry function
    or claim anchors, and is not a resolved cross-file/runtime call order.
-   Each property belongs to one changed entry function. The proposer conjectures
-   atomic properties directly: a lower bound and an upper bound are separate
-   properties, not one combined statement to split later. Select within the
-   ten-property budget rather than packing multiple obligations into a claim.
+   Each property belongs to one changed entry function and retains its whole
+   behavioral statement. Do not decompose intentions into atomic propositions:
+   related bounds, state updates and return-value conditions may remain together
+   as one property. Select distinct conjectures within the ten-property budget.
 3. **Translate and resolve.** The tool-free NFV `CopilotChat` client produces a
    canonical verifier model (Dafny), original `ensures`, source mappings,
    environment descriptions, and inferred input conditions. Each property's
@@ -191,7 +191,7 @@ The existing AI-credit and wall-time budgets still apply.
    repair requests first deduplicate source rows already quoted by exact model
    provenance tags, retaining references and whitespace to reconstruct the full
    captured text. Unquoted cross-file source remains in the request; budgets are
-   not increased. Requests still too large exhaust their budget before inference. Up to six repair
+   not increased. Requests still too large exhaust their budget before inference. Up to three repair
    requests may correct draft syntax, types and contracts while keeping the
    source property fixed. Each draft and its diagnostics are saved. Trusted code
    extracts the draft's actual postconditions rather than trusting a duplicate
@@ -200,11 +200,11 @@ The existing AI-credit and wall-time budgets still apply.
    The workflow permits Dafny warnings, retaining them in evidence, without
    suppressing errors, integrity gates or proof obligations. This policy is
    confined to `workflow/`; the paper's `nfv/` implementation is unchanged.
-4. **Verify each atomic property first, then invert.** Each selected conjecture
+4. **Verify each whole property first, then invert.** Each selected conjecture
    retains its own ID, source context, outcome and counterexample request. Its
-   entry must have exactly one `ensures`, without a root conjunction. A compound
-   draft fails its audit with a request for new extraction; no child properties
-   are created and no conjunct is discarded. Implications, disjunctions and
+   entry may contain conjunctions and multiple `ensures`. Check all obligations
+   together as one property; no child properties are created and no conjunct
+   is discarded. Implications, disjunctions and
    quantified bodies retain their grouping. Progress reports
    `properties_completed`, `properties_total` and `properties_remaining` for
    the whole selected review, including rejected proposals; the total never
@@ -213,7 +213,7 @@ The existing AI-credit and wall-time budgets still apply.
    Dafny. An accepted proof plus a successful feasible-input guard records
    **verified**, without requiring a counterexample. Otherwise ask for a
    concrete witness if the translation did not already supply one. Reuse NFV's
-   `invert_entry_spec` to negate its selected original postcondition
+   `invert_entry_spec` to negate the conjunction of all its original postconditions
    mechanically. Exact input equalities are installed
    mechanically. The complete translated computation, declarations, goals,
    original conditions, and witness are frozen.
@@ -305,7 +305,7 @@ path does not require the model client.
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
    * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.
-   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
+   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (3, max 20),
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
      after another within the 360-minute job timeout.
@@ -403,7 +403,7 @@ nfv-workflow collect --event event.json --out .nfv-work\bundle.json
 # Explicitly billable extraction and general refutation; replace placeholders.
 $env:NFV_MODEL = "YOUR_APPROVED_MODEL"
 nfv-workflow extract --bundle .nfv-work\bundle.json --model $env:NFV_MODEL --out .nfv-work\properties.json
-nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\properties.json --model $env:NFV_MODEL --syntax-rounds 6 --proof-rounds 10 --out .nfv-work\evidence
+nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\properties.json --model $env:NFV_MODEL --syntax-rounds 3 --proof-rounds 10 --out .nfv-work\evidence
 ```
 
 Never commit credentials or local environment files. Model access and billing
@@ -422,7 +422,7 @@ nfv-workflow run --bundle .nfv-work\bundle-base.json --properties .nfv-work\prop
 
 `audit` is the AW entrypoint; `evaluate` is the standalone equivalent that also
 collects fresh source and reads properties from an `nfv_submit` item.
-Their defaults are `--mode general --syntax-rounds 6 --proof-rounds 10`.
+Their defaults are `--mode general --syntax-rounds 3 --proof-rounds 10`.
 `--verifier-timeout` defaults to 60 seconds. Each model request defaults to
 240 seconds, with a 30-minute per-property wall limit checked between operations.
 The ordinary maximum is **18 logical model requests per property**

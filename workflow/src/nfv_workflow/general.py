@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .check import Dafny, accepted
-from .general_gates import (BACKEND, annotate, clauses, clean_code, conjuncts, final_gate,
+from .general_gates import (BACKEND, annotate, clauses, clean_code, final_gate,
                             remove_requirement, validate_translation, with_postconditions, witness_bridge)
 from .github import Abstain
 from .model import normalize, validate_claim
@@ -69,10 +69,6 @@ class ToolFailure(RuntimeError):
     """Infrastructure failure, not a refutation or a syntax-repair opportunity."""
 
 
-class NonAtomicContract(Abstain):
-    """The draft adds obligations beyond one extracted atomic conjecture."""
-
-
 def require_tool(result):
     if result.get("outcome") == "tool_error":
         raise ToolFailure("Dafny execution failed: " + str(result.get("stderr", ""))[-2000:])
@@ -80,7 +76,7 @@ def require_tool(result):
 
 @dataclass(frozen=True)
 class Limits:
-    syntax_rounds: int = 6
+    syntax_rounds: int = 3
     proof_rounds: int = 10
     verifier_timeout: int = 60
     model_timeout: int = 240
@@ -233,8 +229,8 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     save(directory / "source-context.json", context)
     encoded_context = json.dumps(context, ensure_ascii=False)
     counters["translation_calls"] += 1
-    translation = await ask("translation", "Translate this single atomic conjecture for verification first. "
-                            "Use exactly one entry postcondition; do not add or split properties. "
+    translation = await ask("translation", "Translate this whole conjecture for verification first. "
+                            "Preserve every part in the entry postconditions; do not add or split properties. "
                             "A failing witness is not required.\n" + encoded_context)
     if not isinstance(translation, dict):
         raise Abstain("Translation must be a structured artifact")
@@ -261,12 +257,6 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
                 if not all(any(low <= line <= high for low, high in ranges)
                            for line in item["source"]["lines"]):
                     raise Abstain("Environment contract cites source outside the supplied scoped context")
-            goals = translation["original_ensures"]
-            if len(goals) != 1 or len(conjuncts(goals[0])) != 1:
-                raise NonAtomicContract(
-                    "Formalize exactly one extracted atomic conjecture with one entry ensures, "
-                    "without a root conjunction. Do not select a conjunct or discard part of the "
-                    "conjecture. A genuinely compound conjecture requires new extraction, not late splitting.")
             result = verifier.resolve(current, directory / f"syntax-{attempt}")
             require_tool(result)
             if (result.get("outcome") == "verified" and result.get("exit_code") == 0
@@ -282,13 +272,9 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
                                         "before freezing the translation.\n" + positive.get("stderr", "")}
         except (Abstain, KeyError, TypeError, ValueError) as exc:
             result = {"outcome": "audit_failure", "stderr": str(exc), "stdout": ""}
-            if isinstance(exc, NonAtomicContract):
-                result["mode"] = "atomicity"
         type_log.append(result)
         save(directory / "drafts" / f"{attempt}.json",
              {"translation": {**translation, "model": current}, "typecheck": result})
-        if result.get("mode") == "atomicity":
-            raise NonAtomicContract(result["stderr"])
         if result.get("outcome") == "verified" and result.get("exit_code") == 0 and result.get("mode") == "typecheck":
             break
         if result.get("outcome") == "timeout":
@@ -312,10 +298,9 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
                            "replace the intended property to obtain a proof. Return a JSON object "
                            "with model (full tagged Dafny) and any corrected translation metadata. "
                            "If a contract changes, update original_ensures, assumptions or environment "
-                           "to match. Preserve the complete meaning of the single atomic conjecture "
-                           "in exactly one entry ensures without a root conjunction. Never repair "
-                           "a compound conjecture by dropping a conjunct; report an audit failure "
-                           "requesting new extraction instead. This is draft formalization, not proof repair. The first "
+                           "to match. Preserve every part of the whole conjecture, including all "
+                           "conjuncts and entry postconditions. Never drop an obligation or decompose "
+                           "the property into child checks. This is draft formalization, not proof repair. The first "
                            "fully audited, type-checked translation will be frozen before verification.",
             "source_context": context, "metadata": {k: v for k, v in translation.items() if k != "model"},
             "current_model": current, "typecheck": diagnostics(result),

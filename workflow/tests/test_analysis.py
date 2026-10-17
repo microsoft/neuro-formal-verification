@@ -17,7 +17,7 @@ from nfv_workflow.outcomes import EXHAUSTED, INVALID, OUTCOMES, REFUTED, VERIFIE
 from nfv_workflow.outcomes import InferenceFailure, ResourcesExhausted
 from nfv_workflow.publish import render
 from nfv_workflow.repository_context import enrich, sanitize_manifest, validate_manifest
-from nfv_workflow.general_gates import SRC, clauses, conjuncts, validate_translation, with_postconditions
+from nfv_workflow.general_gates import BACKEND, SRC, clauses, validate_translation, with_postconditions
 from nfv_workflow.source_context import function_catalog, quoted_context, scoped_context
 from test_general import Chat, FailingVerifier, fixture
 
@@ -356,22 +356,7 @@ class AnalysisTests(unittest.TestCase):
         fabricated = model.replace(text.strip(), "different_source")
         self.assertEqual(quoted_context(context, fabricated), context)
 
-    def test_conjunction_detection_preserves_binding_and_precedence(self):
-        examples = {
-            "a && b": ["a", "b"],
-            "((a && b) && c)": ["a", "b", "c"],
-            "(a || b) && c": ["a || b", "c"],
-            "a ==> b && c": ["a ==> b && c"],
-            "a || b && c": ["a || b && c"],
-            "forall x :: P(x) && Q(x)": ["forall x :: P(x) && Q(x)"],
-            "if a then b && c else d": ["if a then b && c else d"],
-            '(s == "a && b") && c': ['s == "a && b"', "c"],
-        }
-        for expression, expected in examples.items():
-            with self.subTest(expression=expression):
-                self.assertEqual(conjuncts(expression), expected)
-
-    def test_extracted_atomic_claims_have_independent_models_and_fixed_progress(self):
+    def test_distinct_claims_have_independent_models_and_fixed_progress(self):
         second = {**self.claim, "property": "The result is at least n."}
         other = copy.deepcopy(self.translation)
         other["model"] = other["model"].replace("ensures r == n", "ensures r >= n")
@@ -410,28 +395,63 @@ class AnalysisTests(unittest.TestCase):
         self.assertIn("### P1", body)
         self.assertIn("### P2", body)
 
-    def test_compound_drafts_fail_without_splitting_weakening_or_proof_calls(self):
+    def test_compound_properties_stay_whole_for_verification_and_refutation(self):
+        from nfv.agent import refute
         for goals in (["r == n && r >= n"], ["r == n", "r >= n"],
                       [" && ".join(f"r >= n + {index}" for index in range(11))]):
-            with self.subTest(goals=goals):
-                draft = copy.deepcopy(self.translation)
-                draft["model"] = with_postconditions(draft["model"], "Target", goals)
-                draft["original_ensures"] = goals
-                verifier = Verifier(positive=True)
-                report = self.execute([draft, {"model": self.translation["model"]}], verifier)
-                self.assertEqual(len(report["properties"]), 1)
-                self.assertEqual(report["properties"][0]["status"], INVALID, report)
-                self.assertIn("new extraction, not late splitting", report["failures"][0]["diagnostic"])
-                self.assertFalse(report["verified"] or report["findings"])
-                self.assertEqual(len(self.chat.prompts), 1)
-                self.assertEqual(verifier.operations, [])
-                candidate = report["properties"][0]["id"]
-                saved = json.loads((self.directory / candidate / "drafts" / "0.json").read_text())
-                self.assertEqual(saved["translation"]["original_ensures"], goals)
-                self.assertFalse((self.directory / candidate / "translation.json").exists())
-                self.assertNotIn("selection_omissions", report)
+            for positive in (True, False):
+                with self.subTest(goals=goals, positive=positive):
+                    draft = copy.deepcopy(self.translation)
+                    draft["model"] = with_postconditions(draft["model"], "Target", goals)
+                    draft["original_ensures"] = goals
+                    verifier = Verifier(positive=positive)
+                    progress = io.StringIO()
+                    with redirect_stdout(progress):
+                        report = self.execute([draft], verifier)
+                    self.assertEqual(len(report["properties"]), 1)
+                    self.assertEqual(report["properties"][0]["status"],
+                                     VERIFIED if positive else REFUTED, report)
+                    evidence = (report["verified"] if positive else report["findings"])[0]
+                    self.assertEqual(evidence["translation"]["original_ensures"], goals)
+                    self.assertEqual(evidence["translation"]["model"], draft["model"])
+                    self.assertEqual(len(self.chat.prompts), 1)
+                    candidate = report["properties"][0]["id"]
+                    saved = json.loads((self.directory / candidate / "drafts" / "0.json").read_text())
+                    self.assertEqual(saved["translation"]["original_ensures"], goals)
+                    events = [json.loads(line) for line in progress.getvalue().splitlines()]
+                    self.assertEqual(len(events), 1)
+                    self.assertEqual((events[0]["properties_total"],
+                                      events[0]["properties_completed"]), (1, 1))
+                    if not positive:
+                        inverse = refute.invert_entry_spec(draft["model"], "Target", BACKEND)
+                        self.assertTrue(inverse.ok, inverse.reason)
+                        self.assertEqual(clauses(evidence["checked_model"], "Target", "ensures"),
+                                         [inverse.inverted])
+                    self.assertNotIn("selection_omissions", report)
 
-    def test_atomic_implications_disjunctions_and_quantifiers_are_not_decomposed(self):
+    def test_whole_compound_properties_with_real_dafny(self):
+        from nfv.shared.config import DAFNY_PATH
+        from nfv_workflow.check import Dafny
+        if not DAFNY_PATH:
+            self.skipTest("Dafny is not installed")
+        for expected, value in ((VERIFIED, "n + 1"), (REFUTED, "n")):
+            for goals in ([f"r == {value} && r >= n"], [f"r == {value}", "r >= n"]):
+                with self.subTest(expected=expected, goals=goals):
+                    bundle, claim, draft = fixture()
+                    claim["property"] = claim["quote"] = f"The result equals {value} and is at least n."
+                    bundle["signals"][0]["text"] = claim["quote"]
+                    draft["model"] = with_postconditions(draft["model"], "Target", goals)
+                    draft["original_ensures"] = goals
+                    chat = Chat([draft])
+                    report = asyncio.run(run(bundle, [claim], self.directory,
+                                             chat, Limits(), Dafny(30)))
+                    self.assertEqual(len(report["properties"]), 1)
+                    self.assertEqual(report["properties"][0]["status"], expected, report)
+                    evidence = (report["verified"] if expected == VERIFIED else report["findings"])[0]
+                    self.assertEqual(evidence["translation"]["original_ensures"], goals)
+                    self.assertEqual(len(chat.prompts), 1)
+
+    def test_implications_disjunctions_and_quantifiers_are_not_decomposed(self):
         for goal in ("n >= 0 ==> r == n && r >= n", "r == n || r > n",
                      "forall i: int :: i < n ==> i <= r && i + 1 <= r"):
             with self.subTest(goal=goal):

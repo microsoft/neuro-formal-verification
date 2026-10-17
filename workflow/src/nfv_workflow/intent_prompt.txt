@@ -29,19 +29,15 @@ Do not misrepresent an inferred hypothesis as a developer's stated claim. Analyz
 source and available declarations/preconditions/callee context to understand the
 intention. State inferred expectations as hypotheses, without assuming them. Deduplicate
 equivalent intended properties. Deleted-only/unanchored claims are omitted.
-Conjecture atomic properties NOW, before translation or verification. Each array
-item states one independently meaningful behavioral expectation with its own
-complete statement and grounding. If an intention contains independent claims
-A and B, conjecture two separate items, not one combined claim or "Conjunct 1".
-Do not bundle output bounds, state updates, return values and iteration counts
-into one property. For example, "the lower bound is the smaller final sum" and
-"the upper bound is the larger final sum" are separate conjectures.
-Conditions describing when one expectation applies belong with that expectation;
-do not split its antecedent, quantifier binding or necessary input domain.
-The translator must formalize each item as one entry postcondition without a
-root conjunction. There is NO later property-splitting stage. Respect
-max_properties by selecting the most meaningful atomic conjectures, never by
-packing extra claims into an item. The total selection budget is ten.
+Preserve each conjectured property as a complete behavioral statement with its
+grounding and necessary input domain. Do not decompose an intention into atomic
+propositions or enumerate its conjuncts as separate items. A property may combine
+related bounds, state updates and return-value conditions when they express the
+same intended behavior. Preserve antecedents, quantifier bindings and grouping.
+There is NO later property-splitting stage. Verification checks the complete
+property; refutation mechanically negates its complete set of postconditions.
+Select the most meaningful distinct properties within max_properties. The total
+selection budget is ten.
 
 Supported source languages: C, C++, Java, C#, Go, JavaScript, TypeScript, Python, Rust.
 Return ONLY a JSON array:

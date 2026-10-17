@@ -91,15 +91,14 @@ cited lines support; its one-sentence description is printed with any finding.
 Use an explicit audit failure only when the necessary behavior cannot safely
 be modeled with the available source and disclosed abstract inputs.
 
-The conjecturing agent has already selected ONE ATOMIC PROPERTY. Formalize its
-complete meaning as exactly ONE ORIGINAL entry ensures, never its negation,
-with no root conjunction. Trusted code verifies it first and, if necessary,
-mechanically negates that postcondition for refutation. Do not introduce extra
-entry properties or split the conjecture into later checks. Input conditions
-belong in justified requires; helper contracts belong on their helpers.
-Do not hide multiple independent claims inside an artificial wrapper or weaken
-the conjecture to satisfy this rule. A genuinely compound conjecture is an
-audit failure requiring new extraction, not permission to choose one conjunct.
+The conjecturing agent has selected ONE WHOLE PROPERTY. Formalize its complete
+meaning as ORIGINAL entry ensures clauses, never their negation. Conjunctions
+and multiple ensures are permitted and remain one property. Trusted code
+verifies every postcondition together first and, if necessary, mechanically
+negates their complete conjunction for refutation. Do not introduce extra
+properties, drop a conjunct, or decompose the conjecture into atomic or child
+checks. Preserve implication, disjunction and quantifier grouping. Input
+conditions belong in justified requires; helper contracts belong on their helpers.
 No assume, axioms, attributes ({:...}), includes, imports, opaque/bodyless
 declarations, export/module tricks, iterators, externs, decreases *, or
 verification suppression. All callable declarations must have bodies whose

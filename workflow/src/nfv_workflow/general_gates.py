@@ -50,45 +50,9 @@ def clauses(model, entry, keyword):
     return result
 
 
-def conjuncts(expression):
-    """Split only a conjunction at the root, never through a binder or implication."""
-    from .source_context import mask
-    expression = expression.strip()
-    while expression.startswith("("):
-        depth, end = 0, None
-        for index, char in enumerate(mask(expression)):
-            depth += (char == "(") - (char == ")")
-            if depth == 0:
-                end = index
-                break
-        if end != len(expression) - 1:
-            break
-        expression = expression[1:-1].strip()
-    code = mask(expression)
-    depth, positions, top = 0, [], []
-    for index, char in enumerate(code):
-        if char in "([{":
-            depth += 1
-        elif char in ")]}":
-            depth -= 1
-        elif depth == 0:
-            top.append(char)
-            if code[index:index + 2] == "&&":
-                positions.append(index)
-        else:
-            top.append(" ")
-    if not positions or re.search(r"\b(?:forall|exists|if|match|var)\b|==>|<==|\|\|", "".join(top)):
-        return [expression]
-    result, first = [], 0
-    for last in positions + [len(expression)]:
-        result.extend(conjuncts(expression[first:last]))
-        first = last + 2
-    return result
-
-
 def with_postconditions(model, entry, goals):
     from nfv.agent import refute
-    replacement = "\n".join("// synth: independent original postcondition\n  ensures " + goal
+    replacement = "\n".join("// synth: original conjecture postcondition\n  ensures " + goal
                             for goal in goals)
     inverse = refute.invert_entry_spec(model, entry, BACKEND)
     if not inverse.ok:
