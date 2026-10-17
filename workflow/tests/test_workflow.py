@@ -3,10 +3,13 @@ import copy
 import hashlib
 import json
 import os
+import re
+import shlex
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+from string import Template
 import unittest
 import uuid
 from unittest.mock import patch
@@ -717,6 +720,28 @@ class CollectionTests(unittest.TestCase):
         self.assertTrue(result["declarations_and_preconditions"])
         self.assertIn("SASSERT", result["callee_names"])
 
+    def test_previous_nfv_bot_reports_are_not_developer_intent(self):
+        api = self.api()
+        original = api.pages
+        marker = "<!-- gh-aw-workflow-id: nfv-pr-review -->"
+        def pages(path):
+            if path.endswith("/comments"):
+                return [
+                    {"id": 1, "body": "Old generated report\n" + marker,
+                     "user": {"login": "github-actions[bot]"}},
+                    {"id": 2, "body": "Human discussion\n" + marker, "user": {"login": "contributor"}},
+                    {"id": 3, "body": "Other bot guidance", "user": {"login": "github-actions[bot]"}},
+                    {"id": 4, "body": "Legacy report\n<!-- gh-aw-agentic-workflow: NFV PR reviewer, run: x -->",
+                     "user": {"login": "github-actions[bot]"}},
+                ]
+            return original(path)
+        api.pages = pages
+        signals = collect(event(), api)["signals"]
+        self.assertNotIn("comment:1", [item["id"] for item in signals])
+        self.assertIn("comment:2", [item["id"] for item in signals])
+        self.assertIn("comment:3", [item["id"] for item in signals])
+        self.assertNotIn("comment:4", [item["id"] for item in signals])
+
     def test_mutated_pr_snapshot_rejected(self):
         api = self.api()
         original = api.request
@@ -778,7 +803,8 @@ class TemplateTests(unittest.TestCase):
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
-        self.assertIn("includes:\n  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertIn("  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertIn("  - .github/workflows/nfv-source-context.md\n", manifest)
         self.assertTrue((self.package / "README.md").exists())
 
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
@@ -790,21 +816,47 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("roles: all", source)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
-    def test_evaluation_runs_in_the_agent_job_without_custom_safe_jobs(self):
+    def test_evaluation_is_owned_by_a_deterministic_sandboxed_sdk_driver(self):
         source, lock = self.source(), self.lock()
-        self.assertNotIn("post-steps:", source)
         self.assertNotIn("  nfv_submit:", lock)
         self.assertNotIn("discussions: write", source)
-        self.assertIn("nfv-workflow audit --proposals nfv-proposals.json", source)
-        self.assertIn("--allow-all-tools", lock)
+        frontmatter, prompt = source.split("\n---\n", 1)
+        setup = frontmatter.split("post-steps:", 1)[0]
+        self.assertIn("copilot-sdk: true", setup)
+        self.assertIn("driver: nfv-plugin/workflow/sandbox_driver.cjs", setup)
+        self.assertIn("GH_AW_COPILOT_SDK_DRIVER: 1", lock)
+        self.assertIn('GH_AW_HARNESS_MAX_RETRIES: "0"', source)
+        self.assertIn("GH_AW_HARNESS_MAX_RETRIES: 0", lock)
+        self.assertIn("sandbox_driver.cjs", lock)
+        self.assertNotIn("nfv-workflow extract", setup)
+        self.assertNotIn("nfv-workflow audit", setup)
+        self.assertIn("supervised foreground process", prompt)
+        self.assertIn("There is no outer model session", prompt)
         self.assertIn('"./nfv-plugin[inference]"', source)
-        self.assertNotIn("COPILOT_GITHUB_TOKEN: ${{ secrets", source)
+        self.assertNotIn("COPILOT_GITHUB_TOKEN:", frontmatter)
+        self.assertNotIn('GITHUB_AW: "false"', source)
+        self.assertNotIn("  bash:", source)
+        self.assertNotIn("  edit:", source)
+        self.assertIn("COPILOT_SDK_URI: http://127.0.0.1:3002", lock)
+        self.assertNotIn("COPILOT_CLI_PATH=", source)
+        self.assertIn('echo "NFV_PYTHON=$(command -v python)"', source)
 
     def test_report_is_posted_as_a_single_pr_comment(self):
         source = self.source()
         self.assertIn("add-comment:\n    max: 1\n    hide-older-comments: true\n", source)
         self.assertNotIn("pull-request-review", source)
         self.assertNotIn("APPROVE", source)
+        self.assertIn("allowed: [defaults, arxiv.org]", source)
+
+    def test_independent_sessions_have_a_bounded_cache_miss_allowance(self):
+        source, lock = self.source(), self.lock()
+        reviewer = lock.split("\n  detection:", 1)[0]
+        self.assertIn("max-turns: 500\n", source)
+        self.assertIn("max-turn-cache-misses: 500\n", source)
+        self.assertIn(r'\"maxRuns\":500', reviewer)
+        self.assertIn(r'\"maxCacheMisses\":500', reviewer)
+        self.assertNotIn(r'\"maxCacheMisses\":5,', reviewer)
+        self.assertIn(r'\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}', reviewer)
 
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
         source, lock = self.source(), self.lock()
@@ -815,23 +867,40 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", source)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 
-    def test_extraction_reads_fixed_non_secret_index_and_changed_sources(self):
+    def test_driver_uses_writable_evidence_separate_from_read_only_inputs(self):
         source, lock = self.source(), self.lock()
         self.assertIn('Path("nfv-input.json").write_text', source)
         self.assertIn(r'Path(\"nfv-input.json\").write_text', lock)
-        prompt = source.split("## 1. Extract intended properties", 1)[1]
-        self.assertIn("read `nfv-input.json` with the file", prompt)
-        self.assertIn("requires no environment or credential access", prompt)
-        self.assertNotIn('cat "$NFV_BUNDLE"', prompt)
-        self.assertIn("Listing files is not source inspection", prompt)
+        self.assertNotIn("nfv-comment.md", source)
+        self.assertIn('echo "NFV_OUT=/tmp/gh-aw/sandbox/agent/logs/nfv"', source)
+        prompt = source.split("\n---\n", 1)[1]
+        self.assertIn("Only the deterministic driver submits", prompt)
+        self.assertIn("Never edit, summarize, add to", prompt)
+        self.assertIn("Incomplete extraction", prompt)
 
-    def test_extraction_failure_cannot_be_reported_as_no_properties(self):
-        prompt = self.source().split("## 1. Extract intended properties", 1)[1]
-        self.assertIn("call\n`noop` with the specific extraction error and stop", prompt)
-        self.assertIn("Do not submit an empty array", prompt)
-        self.assertIn("or run the audit as a fallback for an input/access/tool failure", prompt)
-        self.assertIn("`[]` only after reading the input and relevant changed source", prompt)
-        self.assertIn("Explicit behavioral claims in the PR description", prompt)
+    def test_post_steps_only_retain_evidence_and_never_run_analysis(self):
+        source = self.source()
+        block = source.split("post-steps:", 1)[1].split("\n---\n", 1)[0]
+        self.assertNotIn("run:", block)
+        self.assertNotIn("nfv-workflow", block)
+        self.assertIn("if: always()\n    uses: actions/upload-artifact@", source)
+        self.assertIn("name: nfv-evidence", source)
+        self.assertIn("path: /tmp/gh-aw/sandbox/agent/logs/nfv", block)
+        prompt = source.split("\n---\n", 1)[1]
+        self.assertIn("never fabricate a", prompt)
+        self.assertIn("report or publish incremental evidence", prompt)
+
+    def test_extraction_targets_implementation_not_invented_solver_responses(self):
+        intent = (Path(__file__).parents[1] / "src/nfv_workflow/intent_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Prefer changed implementation functions", intent)
+        self.assertIn("Do not select a test/caller expectation", intent)
+        self.assertIn("treating that callee's result as an unconstrained input", intent)
+        self.assertIn("caller's own logic", intent)
+        self.assertIn("Do not decompose an intention into atomic", intent)
+        self.assertIn("There is NO later property-splitting stage", intent)
+        prompt = (Path(__file__).parents[1] / "src/nfv_workflow/general_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("Conjunctions and multiple ensures are permitted", " ".join(prompt.split()))
+        self.assertIn("negates their complete conjunction", " ".join(prompt.split()))
 
     def test_verifier_uses_hash_pinned_archive_and_explicit_bundled_z3(self):
         source = self.source()
@@ -839,8 +908,57 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("-name 'z3-4.12.1'", source)
         self.assertIn('echo "NFV_Z3_PATH=${solvers[0]}" >> "$GITHUB_ENV"', source)
         self.assertIn('echo "NFV_DAFNY_PATH=$dafny_dir/dafny" >> "$GITHUB_ENV"', source)
-        self.assertIn('echo "COPILOT_CLI_PATH=$RUNNER_TEMP/gh-aw/bin/copilot"', source)
         self.assertNotIn("setup-dafny-action", source)
+
+    def test_separate_source_only_session_precedes_analysis(self):
+        source, lock = self.source(), self.lock()
+        worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        self.assertIn("uses: ./.github/workflows/nfv-source-context.lock.yml", source)
+        self.assertIn("needs: [repository_context]", source)
+        self.assertIn("repository_context", lock.split("  agent:", 1)[1].split("steps:", 1)[0])
+        self.assertIn("name: nfv-source-context", source)
+        self.assertIn("nfv-workflow enrich", source)
+        self.assertIn("--sources-dir nfv-src", source)
+        self.assertIn("workflow_call:", worker)
+        self.assertIn("fetch-depth: 1", worker)
+        self.assertIn("ref: ${{ github.event.pull_request.base.sha }}", worker)
+        self.assertNotIn("head.sha }}", worker)
+        self.assertNotIn("  bash:", worker)
+        self.assertIn("report-failure-as-issue: false", worker)
+        worker_lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"(?m)^\s+(?:contents|issues|pull-requests): write$", worker_lock), [])
+        self.assertNotIn('"create_issue"', worker_lock)
+        self.assertIn("Do not execute repository code, build, test", worker)
+        self.assertIn("submodules: false", worker)
+        self.assertIn("lfs: false", worker)
+        self.assertTrue((self.template / "nfv-source-context.lock.yml").exists())
+
+    def test_source_context_initializes_workspace_before_generated_git_setup(self):
+        source = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
+        marker = "Initialize empty workspace repository (no PR code is checked out)"
+        self.assertLess(source.index(marker), source.index("Capture immutable PR changes as data"))
+        self.assertLess(lock.index(marker), lock.index("Configure Git credentials"))
+
+
+class WorkspaceBootstrapTests(ScratchTest):
+    def test_source_context_bootstrap_supports_local_git_without_checking_out_source(self):
+        source = (TemplateTests.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        block = source.split("  - name: Initialize empty workspace repository", 1)[1]
+        script = block.split("    run: |\n", 1)[1].split("  - name:", 1)[0]
+        variables = {"GITHUB_WORKSPACE": str(self.directory.resolve()),
+                     "GITHUB_SERVER_URL": "https://github.invalid", "GITHUB_REPOSITORY": "test/source"}
+        for line in script.strip().splitlines():
+            command = [Template(arg).substitute(variables) for arg in shlex.split(line.strip())]
+            subprocess.run(command, check=True, capture_output=True, text=True)
+        subprocess.run(["git", "-C", str(self.directory), "config", "--local", "nfv.bootstrap", "ok"],
+                       check=True, capture_output=True, text=True)
+        origin = subprocess.run(["git", "-C", str(self.directory), "remote", "get-url", "origin"],
+                                check=True, capture_output=True, text=True)
+        self.assertEqual(origin.stdout.strip(), "https://github.invalid/test/source.git")
+        tracked = subprocess.run(["git", "-C", str(self.directory), "ls-files"],
+                                 check=True, capture_output=True, text=True)
+        self.assertEqual(tracked.stdout, "")
 
 
 class ExtractionInputTests(ScratchTest):
@@ -863,7 +981,8 @@ class ExtractionInputTests(ScratchTest):
         self.assertEqual(0, result.returncode, result.stderr)
         path = self.directory / "nfv-input.json"
         index = json.loads(path.read_text(encoding="utf-8"))
-        self.assertEqual({"identity", "signals", "changed", "captured_paths", "context_omissions"}, set(index))
+        self.assertEqual({"identity", "signals", "changed", "captured_paths", "context_omissions",
+                          "repository_context", "function_catalog"}, set(index))
         for key in ("identity", "signals", "changed", "context_omissions"):
             self.assertEqual(data[key], index[key])
         self.assertEqual(sorted(data["sources"]), index["captured_paths"])
@@ -888,6 +1007,42 @@ class ExtractionInputTests(ScratchTest):
 
 
 class AuditTests(ScratchTest):
+    def test_infrastructure_errors_preserve_evidence_without_rendering_a_review(self):
+        from unittest.mock import AsyncMock
+        proposals, captured, out = (self.directory / name for name in ("p.json", "b.json", "out"))
+        proposals.write_text("[]")
+        captured.write_text(json.dumps(bundle()))
+        for completed, errors in ((False, ["Model inference failed: HTTP 403"]),
+                                  (False, []), (True, ["Dafny unavailable"])):
+            report = {"completed": completed, "errors": errors}
+            async def failed(*args):
+                (out / "report.json").write_text(json.dumps(report))
+                return report
+            with self.subTest(completed=completed, errors=errors), \
+                    patch.dict(os.environ, {"NFV_BUNDLE": str(captured), "NFV_OUT": str(out)}), \
+                    patch("nfv_workflow.cli.run_general", new=AsyncMock(side_effect=failed)), \
+                    patch("nfv_workflow.publish.comment") as render_comment:
+                with self.assertRaisesRegex(Abstain, "NFV audit incomplete"):
+                    audit(proposals, (6, 10, 60))
+            render_comment.assert_not_called()
+            self.assertEqual(json.loads((out / "report.json").read_text()), report)
+            self.assertFalse((out / "comment.md").exists())
+
+    def test_failed_restart_cannot_leave_stale_publishable_outputs(self):
+        proposals, captured = self.directory / "p.json", self.directory / "b.json"
+        proposals.write_text("[]")
+        captured.write_text(json.dumps(bundle()))
+        out = self.directory / "out"
+        out.mkdir()
+        names = ("comment.md", "report.json", "presentation.json", "presentation-diagnostics.json")
+        for name in names:
+            (out / name).write_text("stale output")
+        with patch.dict(os.environ, {"NFV_BUNDLE": str(captured), "NFV_OUT": str(out)}), \
+                patch("nfv_workflow.cli.run_general", side_effect=TimeoutError("client startup")):
+            with self.assertRaises(TimeoutError):
+                audit(proposals, (6, 10, 60))
+        self.assertTrue(all(not (out / name).exists() for name in names))
+
     def test_requires_trusted_bundle(self):
         (self.directory / "p.json").write_text("[]")
         with patch.dict(os.environ, {"NFV_BUNDLE": "", "NFV_OUT": str(self.directory / "out")}):
@@ -903,8 +1058,8 @@ class AuditTests(ScratchTest):
             summary = audit(self.directory / "p.json", (6, 10, 60))
         self.assertEqual(summary["findings"], 0)
         body = Path(summary["comment"]).read_text(encoding="utf-8")
-        self.assertIn("no refutations", body)
-        self.assertIn("Extracted 0 intended properties", body)
+        self.assertIn("0 refuted, 0 verified", body)
+        self.assertIn("resources exhausted: 0", body)
         self.assertIn("/actions/runs/1", body)
         self.assertTrue((out / "report.json").exists() or (out / "proposals.json").exists())
 
@@ -930,6 +1085,13 @@ class AuditTests(ScratchTest):
                                     "api_key": "dummy-byok-key-for-offline-mode"})
         with patch.dict(os.environ, {"COPILOT_API_URL": "http://172.30.0.30:10002"}, clear=True):
             self.assertEqual(awf_provider()["base_url"], "http://172.30.0.30:10002")
+        with patch.dict(os.environ, {"COPILOT_PROVIDER_BASE_URL": "http://api-proxy:12345",
+                                     "COPILOT_PROVIDER_TYPE": "anthropic"}, clear=True):
+            self.assertEqual(awf_provider(), {"type": "anthropic", "base_url": "http://api-proxy:12345",
+                                             "api_key": "dummy-byok-key-for-offline-mode"})
+        with patch.dict(os.environ, {"COPILOT_PROVIDER_TYPE": "unknown"}, clear=True):
+            with self.assertRaises(Abstain):
+                awf_provider()
 
     def test_rejects_non_array_proposals(self):
         (self.directory / "p.json").write_text("{}")

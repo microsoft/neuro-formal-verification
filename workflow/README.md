@@ -1,11 +1,15 @@
 # NFV PR reviewer
 
 This is a prototype implementation of a GitHub Agentic Workflow that reviews a
-pull request when it is opened or updated, extracts up to **ten intended properties** from the
+pull request when it is opened or updated, selects up to **ten nontrivial properties** from the
 PR description, PR conversation comments, and commit messages (not review
-comments or reviews), then translates the code
-into the language of a **verifier backend** to look for conditional model
-refutations.
+comments or reviews), and from changed code/comments. A separate source-context
+AW session first inspects a shallow trusted-base checkout and changed-head
+blobs as text. It never builds or executes the inspected repository. NFV then
+translates the properties into **Dafny**, tries verification first and, if that
+does not succeed, tries conditional model refutation. A deterministic gh-aw SDK
+driver owns extraction, the complete audit and verbatim report submission inside
+the AWF sandbox. No outer model session supervises background shell commands.
 
 The default path accepts source in **C, C++, Java, C#, Go, JavaScript, TypeScript,
 Python, and Rust** and translates the code each property is about, including loops
@@ -16,7 +20,7 @@ and branches, into the verifier's language.
   Lean) can be added as backends. CBMC is used only by the paper artifact.
   Verifier-specific details below (constructs, annotations, versions) describe
   the Dafny backend.
-* Each property gets up to **6 syntax/type repairs** and **10 annotation-only
+* Each property gets up to **3 syntax/type repairs** and **10 annotation-only
   repairs** of the negative check.
 * The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
   `ready_for_review`). Drafts are skipped.
@@ -41,10 +45,12 @@ integers, floor division, dynamic types, and aliasing, and Rust debug/release
 overflow, panics, Option/Result, and ownership/borrows. This guides translation;
 it is not a mechanically verified source-language frontend.
 
-Unsupported constructs, unavailable context, invalid witness encodings,
-inconclusive checks, or exhausted budgets cause abstention. No path falls back
-to proving the original property. Passing an original-property check is never
-used as a finding or as evidence of source correctness.
+Every selected property has exactly one outcome: **refuted**, **verified**,
+**resources exhausted**, or **type-check/audit failure**. Verification means
+the translated model satisfies the property under its stated input and
+environment assumptions, not that the source program is correct. A verified
+property gets an explicit note and checked postconditions. Resource limits and
+invalid models have separate diagnostics, not additional outcome categories.
 
 ## What developers receive
 
@@ -54,10 +60,12 @@ A PR whose head or base
 moves during collection is rejected; the next `synchronize` run reviews the new
 head and cancels the older run.
 
-When accepted refutations exist, the agent posts **one PR comment** (never a
+The agent posts **one PR comment** (never a
 review approval or change request). It opens with a one-line description of NFV
 linking the [paper](https://arxiv.org/abs/2608.21516), before the issue count,
-the analyzed head and base, and the run link. Each finding shows **Intended
+the analyzed head and base, and the run link. Property sections use short
+headers (`P1`, `P2`, ...) with the full intended or inferred property statement
+in normal-sized text below the header. Each finding shows **Intended
 property** in normal-sized text and its quote, **Input on which it fails**, and
 **Sketch of the failure**. A collapsed **Details** section shows the relevant
 code and call sites with natural-language loop invariants and specifications
@@ -71,6 +79,24 @@ call may be skipped by a branch or short-circuit condition.
 Saved reports without typed natural-language invariant/spec notes still show
 the retained input conditions, intended property, and helper specifications;
 missing loop descriptions are not fabricated during publication.
+When source or Dafny excerpts would exceed the comment-size limit, the report
+links to their full evidence in the run artifact instead. Every property,
+outcome, counterexample, retained condition and evidence hash remains visible.
+If a refutation's source-presentation metadata is missing or invalid, `audit`
+records the diagnostic and requests a separate, hash-bound presentation from
+a tool-free session. Accepted proof evidence is unchanged and never rerun;
+invalid refreshed mappings still stop publication.
+Draft array/sequence range errors are repaired before freezing, using the
+verifier's actual diagnostics to establish justified domains or annotations.
+An ordinary unproved postcondition instead proceeds to refutation; it is not
+treated as a syntax failure.
+The configured verifier timeout also sets Dafny's per-obligation time limit;
+its internal timeouts are retained as resource outcomes rather than ordinary
+postcondition failures.
+Property extraction prefers changed implementations, using tests as intent
+evidence rather than refuting test expectations with invented solver/API
+responses. Caller-owned logic remains eligible when its property does not
+depend on unspecified callee correctness.
 
 The translator also supplies report-only **source presentation** metadata. It
 reverse-maps each witness key to an expression copied from captured source,
@@ -89,13 +115,21 @@ Sequences summarizing separate source predicate queries use anchored
 **abstract per-element results**, not a claim that one source call returns that
 sequence.
 
-Otherwise the comment says no property was refuted and lists each extracted
-property with its quoted claim, its formalized Dafny `ensures` (when the
-translation got that far), and its status, plus abstention and error reasons; this is not evidence of
-correctness. Each new push hides the previous NFV comment. Verifier models, repair logs and hashes are in the run's
-`agent` artifact under `nfv-evidence/`.
+The comment summarizes the four outcomes and lists every selected property.
+Verified models show the checked Dafny `ensures`, assumptions and evidence;
+failures show their category and diagnostic. Source-inferred properties are
+labeled separately from quoted intentions. Each new push hides the previous
+NFV comment. Verifier models, repair logs and hashes are in the run's
+`nfv-evidence` artifact. Interrupted audits retain incremental evidence marked
+incomplete; it cannot be published as a finished review.
+Provider/SDK failures and verifier infrastructure failures stop the audit,
+retain incomplete evidence, and fail the job without submitting a review.
+An individual model-request timeout remains a property resource-exhaustion
+outcome. The sandbox allows at most 500 inference requests and 500 consecutive
+cache misses: independent sessions are not required to hit a prompt cache.
+The existing AI-credit and wall-time budgets still apply.
 
-## Refutation pipeline and gates
+## Verification/refutation pipeline and gates
 
 1. **Collect as data.** Read regular Git blobs by immutable SHA and verify their
    Git blob hashes. Gather changed code, nearby declarations, precondition/assert
@@ -106,37 +140,81 @@ correctness. Each new push hides the previous NFV comment. Verifier models, repa
    last. Retain this immutable collection for evidence, with omissions and a
    complete regular-file inventory.
    PR source is never checked out for execution, compiled, imported, or tested.
-2. **Extract intention, not suspicion.** Exact comment/review/commit quotes and
-   changed-line anchors are mandatory. Deduplicate and select at most ten
-   intended properties. Process the selected properties caller-first in the
+   Before analysis, a separate source-only AW session shallowly checks out the
+   immutable base and inspects changed-head text. It selects at most 16 source
+   paths and eight identifiers per file. C++ qualified names and operator
+   hints are normalized to unqualified lexical lookup names.
+   Trusted code validates this manifest,
+   fetches the corresponding head blobs and verifies their hashes; agent prose
+   is never a semantic contract. Additional source is limited to 2 MB.
+2. **Postulate nontrivial properties.** Trusted code identifies changed functions
+   and supplies snapshot-bound function IDs and changed anchors. The proposer
+   shortlists up to ten functions from PR intent and bounded declaration previews,
+   then reads each selected function's full scoped source and captured cross-file
+   context in a separate tool-free session. Requests share a ten-property budget;
+   selected and omitted functions are recorded in `extraction.json`. Previous
+   NFV bot reports are excluded from developer-intent signals.
+   The proposer selects an ID instead of inventing line numbers. Exact intent quotes or
+   captured-source quotes from the selected function are mandatory; a source
+   quote need not itself be a changed line. Skip properties obvious from a
+   single unconditional operation. Deduplicate and select at most ten
+   properties. Process the selected properties caller-first in the
    captured same-file lexical call graph, including paths through unchanged
    functions. Recursive groups and equal-depth properties retain extraction
    order. This orders requests; it does not change a property's entry function
    or claim anchors, and is not a resolved cross-file/runtime call order.
-   No likelihood-based triage is applied.
+   Each property belongs to one changed entry function and retains its whole
+   behavioral statement. Do not decompose intentions into atomic propositions:
+   related bounds, state updates and return-value conditions may remain together
+   as one property. Select distinct conjectures within the ten-property budget.
 3. **Translate and resolve.** The tool-free NFV `CopilotChat` client produces a
-   canonical verifier model (Dafny), original `ensures`, source mappings, concrete witness,
+   canonical verifier model (Dafny), original `ensures`, source mappings,
    environment descriptions, and inferred input conditions. Each property's
    context contains one identifiable changed function, at most two direct
    same-file callers and two callees, and bounded declaration/comment excerpts
    for other calls and referenced types/constants. These are lexical candidates,
+   supplemented by bounded cross-file definitions from the context session,
    not resolved overloads or receiver types. It does not recursively expand the
    call graph. Original repository line numbers are preserved; omitted bodies
    are environment. Relevant captured callee bodies are translated as checked,
    source-derived helpers. Captured callers inform intent and applicability,
    without automatically restricting the entry's input domain to those calls.
    Ambiguous boundaries, anchors spanning separate functions, or a changed
-   function exceeding the 32,000-byte source-context budget cause abstention.
+   function exceeding the 32,000-byte source-context budget produce the
+   corresponding audit-failure or resource-exhaustion outcome.
+   Omission notices are compacted with an explicit count when needed to keep
+   an otherwise bounded source context within the same budget.
    Every translation and repair request checks the entire system and user
    payload against an 80,000-byte UTF-8 budget, leaving output headroom.
    Large verifier diagnostics are explicitly shortened in repair prompts;
    full logs and frozen models remain in the evidence. Oversized immutable
-   model/metadata requests abstain before inference. Up to six repair
-   requests may fix syntax/types before freezing computation. Each attempt uses
-   the real NFV `type_check` / `dafny resolve` interface—**not verification of the
-   original property**. The recorded goal and metadata cannot change during repair.
-4. **Freeze and invert.** Reuse NFV's `invert_entry_spec` to negate the conjunction
-   of original postconditions mechanically. Exact input equalities are installed
+   repair requests first deduplicate source rows already quoted by exact model
+   provenance tags, retaining references and whitespace to reconstruct the full
+   captured text. Unquoted cross-file source remains in the request; budgets are
+   not increased. Requests still too large exhaust their budget before inference. Up to three repair
+   requests may correct draft syntax, types and contracts while keeping the
+   source property fixed. Each draft and its diagnostics are saved. Trusted code
+   extracts the draft's actual postconditions rather than trusting a duplicate
+   model-authored copy. Each attempt runs `dafny resolve`—**not verification of
+   the original property**. The first fully audited, type-correct model is frozen.
+   The workflow permits Dafny warnings, retaining them in evidence, without
+   suppressing errors, integrity gates or proof obligations. This policy is
+   confined to `workflow/`; the paper's `nfv/` implementation is unchanged.
+4. **Verify each whole property first, then invert.** Each selected conjecture
+   retains its own ID, source context, outcome and counterexample request. Its
+   entry may contain conjunctions and multiple `ensures`. Check all obligations
+   together as one property; no child properties are created and no conjunct
+   is discarded. Implications, disjunctions and
+   quantified bodies retain their grouping. Progress reports
+   `properties_completed`, `properties_total` and `properties_remaining` for
+   the whole selected review, including rejected proposals; the total never
+   grows during translation. Interrupted properties are not logged as completed.
+   Check each original model with
+   Dafny. An accepted proof plus a successful feasible-input guard records
+   **verified**, without requiring a counterexample. Otherwise ask for a
+   concrete witness if the translation did not already supply one. Reuse NFV's
+   `invert_entry_spec` to negate the conjunction of all its original postconditions
+   mechanically. Exact input equalities are installed
    mechanically. The complete translated computation, declarations, goals,
    original conditions, and witness are frozen.
 5. **Check the negative model.** A trusted parameterless `NfvWitnessCheck` method
@@ -178,13 +256,13 @@ translator models it from the callee's captured implementation, declaration and
 comments, preferring the weakest contract those lines justify, and leaves
 undocumented results as entry inputs. Omitted implementations are not
 reconstructed; the captured declarations/comments justify the weakest
-environment contracts, or the property abstains when needed behavior is
+environment contracts, or the property has a type-check/audit failure when needed behavior is
 undocumented. No axioms, `assume`, `expect`, bodyless callable contracts,
 verification-disabling attributes, includes/imports, opaque definitions, or
 termination escapes are allowed. No model-authored shell command is executed.
 Canonical callable signatures/contracts are complete single lines and their
 opening body brace is on its own line. Certain advanced Dafny constructs, such
-as subset/newtype aliases and uninterpreted constants, conservatively abstain.
+as subset/newtype aliases and uninterpreted constants, fail the model audit.
 
 The current concrete-call bridge supports named **`int`, `bool`, `seq<int>`,
 and `seq<bool>` input/return values**. Heap/graph initial state may be modeled
@@ -227,15 +305,16 @@ path does not require the model client.
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
    * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.
-   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
+   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (3, max 20),
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
-     after another within the 240-minute job timeout.
+     after another within the 360-minute job timeout.
 2. Configure the **`COPILOT_GITHUB_TOKEN`** secret used by the gh-aw Copilot
    engine: a fine-grained token owned by a Copilot-licensed user with
    *Copilot Requests: Read*. gh-aw rejects OAuth (`gho_`) tokens. The NFV
-   translation/repair sessions run inside the agent sandbox and reach the model
-   through the same AWF API proxy, so they need no separate credential.
+   extraction, translation and presentation sessions use the AWF inference proxy.
+   The proxy retains the credential outside the sandbox; no real GitHub or
+   Copilot credential is exported through `GITHUB_ENV` or given to the driver.
 3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
    fine-grained token with read-only *Contents* access to
    `microsoft/neuro-formal-verification`.
@@ -246,8 +325,7 @@ path does not require the model client.
    its lock, and `.github\aw\packages\`. The checked-in lock is compiled with
    **gh aw v0.88.7**.
 
-Everything runs in the agent job; there is no custom safe-output job. Before
-the agent starts, trusted steps check out the pinned release, install it, download
+Trusted pre-agent steps check out the pinned release, install it, download
 official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
 `a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179`), select its
 unique bundled `z3-4.12.1`, and collect the PR source with the read-only
@@ -256,20 +334,35 @@ AWF sandbox mounts **read-only**, and are exported as `NFV_DAFNY_PATH`,
 `NFV_Z3_PATH` and `NFV_BUNDLE`. Trusted collection also writes `nfv-input.json`
 in the workspace: a non-secret extraction index containing PR signals,
 changed-line anchors, captured source paths, and omissions, without duplicating
-the source bodies. The agent reads this fixed path and captured `nfv-src/` files;
-it does not need to inspect environment variables to locate extraction inputs.
-An input/access/tool failure stops extraction with a specific `noop` error,
-not an empty audit. An empty proposal list is reserved for successful inspection
-that finds no grounded intended property.
+the source bodies. Tool-free sessions receive bounded source contexts, not a shell
+or repository tools; trusted Python code invokes the actual type checker and
+verifier inside the sandbox. Input/access/tool failures fail the driver, not an empty audit.
+An empty proposal list is reserved for completed inspection that finds no
+grounded nontrivial property.
 
-The agent may only read files, write `nfv-proposals.json`, and run
-`nfv-workflow audit --proposals nfv-proposals.json`; every other audit input is
-fixed by the trusted steps. `audit` writes `comment.md`, which the agent
-copies verbatim into the `add-comment` safe output. gh-aw threat detection
+The custom SDK driver runs extraction, then `audit`, as one foreground process
+inside gh-aw's AWF sandbox. Its small Node.js supervisor launches the installed
+Python environment, forwards cancellation and emits liveness heartbeats; NFV
+keeps its own pinned Python SDK. The supervisor removes platform-authentication
+variables before starting NFV; Python retains a fail-closed credential guard.
+Automatic whole-driver retries are disabled. gh-aw provisions the trusted CLI before sandbox
+launch and resolves provider endpoints through AWF reflection. NFV connects to
+that harness-owned sidecar using `COPILOT_SDK_URI` and its per-run connection
+token; it never downloads or starts another CLI inside the sandbox. Tool-free
+sessions receive the provider explicitly, with a placeholder key; the proxy
+injects the actual credential. There is no supervising or publishing LLM.
+
+Evidence is written under `/tmp/gh-aw/sandbox/agent/logs/nfv` and uploaded as
+`nfv-evidence`, including interrupted work. Only after extraction and the complete
+audit succeed does the driver pipe the unchanged `comment.md` as JSON to
+`safeoutputs add_comment`. A failed or interrupted execution is never restarted
+in the same evidence directory, preventing duplicate write intents. Post-agent
+steps only retain evidence; they never perform analysis. gh-aw threat detection
 screens that output before the `safe_outputs` job, the only job with write access,
-posts them. Never check out the PR head or execute PR scripts. This is **not an
-OS-level sandbox against verifier vulnerabilities**: use ephemeral
-GitHub-hosted runners.
+posts the comment. Never check out the PR head or execute PR scripts. Extraction,
+translation and verifier processes run within the additional AWF isolation and
+network restrictions on an ephemeral GitHub-hosted runner; this is not a claim
+that the sandbox or verifier is invulnerable.
 
 ## Local commands and model configuration
 
@@ -310,7 +403,7 @@ nfv-workflow collect --event event.json --out .nfv-work\bundle.json
 # Explicitly billable extraction and general refutation; replace placeholders.
 $env:NFV_MODEL = "YOUR_APPROVED_MODEL"
 nfv-workflow extract --bundle .nfv-work\bundle.json --model $env:NFV_MODEL --out .nfv-work\properties.json
-nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\properties.json --model $env:NFV_MODEL --syntax-rounds 6 --proof-rounds 10 --out .nfv-work\evidence
+nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\properties.json --model $env:NFV_MODEL --syntax-rounds 3 --proof-rounds 10 --out .nfv-work\evidence
 ```
 
 Never commit credentials or local environment files. Model access and billing
@@ -329,11 +422,12 @@ nfv-workflow run --bundle .nfv-work\bundle-base.json --properties .nfv-work\prop
 
 `audit` is the AW entrypoint; `evaluate` is the standalone equivalent that also
 collects fresh source and reads properties from an `nfv_submit` item.
-Their defaults are `--mode general --syntax-rounds 6 --proof-rounds 10`.
+Their defaults are `--mode general --syntax-rounds 3 --proof-rounds 10`.
 `--verifier-timeout` defaults to 60 seconds. Each model request defaults to
 240 seconds, with a 30-minute per-property wall limit checked between operations.
-The ordinary maximum is **17 logical model requests per property**
-(one translation + six syntax repairs + ten annotation repairs), plus extraction.
+The ordinary maximum is **18 logical model requests per property**
+(one translation + six syntax repairs + one witness proposal + ten annotation
+repairs), plus extraction and the separate source-context session.
 The retained SDK may retry transport failures up to four times per request.
 Model choices and budgets must be approved before enabling the workflow.
 
@@ -388,7 +482,8 @@ NL formalization, external caller preconditions, or linker behavior.
   language server or build-system resolver.
 * General modeling: 600,000-character context, 160,000-character verifier model,
   1,000-line source span, 20 input conditions, 30 environment helpers, and a
-  bounded concrete-value witness bridge. Unrepresentable semantics abstain.
+  bounded concrete-value witness bridge. Unrepresentable semantics fail the
+  model audit rather than yielding a correctness claim.
 * Artifact access follows repository permissions and expires after 30 days by
   default. Download evidence before expiry.
 * Paper core, historical model prompts, scoring, and experiment budgets are

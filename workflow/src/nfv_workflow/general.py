@@ -1,4 +1,4 @@
-"""Multi-language, conditional MODEL refutation using the retained NFV backend."""
+"""Verification-first conditional model analysis using the retained NFV backend."""
 
 from __future__ import annotations
 
@@ -11,18 +11,13 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .check import Dafny, accepted
-from .general_gates import (BACKEND, annotate, clean_code, final_gate,
-                            remove_requirement, validate_translation, witness_bridge)
+from .general_gates import (BACKEND, annotate, clauses, clean_code, final_gate,
+                            remove_requirement, validate_translation, with_postconditions, witness_bridge)
 from .github import Abstain
 from .model import normalize, validate_claim
-from .source_context import caller_first, check_request, diagnostics, scoped_context
-
-LANGUAGES = {
-    ".c": "c", ".h": "cpp", ".cpp": "cpp", ".cc": "cpp", ".cxx": "cpp",
-    ".hpp": "cpp", ".java": "java", ".cs": "csharp", ".go": "go",
-    ".js": "javascript", ".jsx": "javascript", ".mjs": "javascript",
-    ".ts": "typescript", ".tsx": "typescript", ".py": "python", ".rs": "rust",
-}
+from .outcomes import EXHAUSTED, INVALID, REFUTED, VERIFIED, InferenceFailure, ResourcesExhausted
+from .source_context import (LANGUAGES, caller_first, check_request, diagnostics,
+                             function_catalog, quoted_context, scoped_context)
 ALIASES = {"c++": "cpp", "c#": "csharp", "js": "javascript", "ts": "typescript", "py": "python",
            "rs": "rust"}
 
@@ -81,7 +76,7 @@ def require_tool(result):
 
 @dataclass(frozen=True)
 class Limits:
-    syntax_rounds: int = 6
+    syntax_rounds: int = 3
     proof_rounds: int = 10
     verifier_timeout: int = 60
     model_timeout: int = 240
@@ -99,10 +94,21 @@ def select_properties(raw, bundle, rejected=None):
     and skipped instead of failing the whole batch."""
     if not isinstance(raw, list) or len(raw) > 100:
         raise Abstain("Expected at most 100 extracted intended properties")
-    selected, seen = [], set()
+    selected, seen, catalog = [], set(), None
     for value in raw:
         try:
-            path = validate_claim(value, bundle)
+            source_span = None
+            if isinstance(value, dict) and "function_id" in value:
+                if catalog is None:
+                    catalog = {fn["id"]: fn for fn in function_catalog(bundle)["functions"]}
+                fn = catalog.get(value["function_id"])
+                if fn is None:
+                    raise Abstain("Property selects an unknown captured function")
+                if value.get("path", fn["path"]) != fn["path"]:
+                    raise Abstain("Property path disagrees with its captured function")
+                value = {**value, "path": fn["path"], "lines": fn["lines"]}
+                source_span = (fn["first"], fn["last"])
+            path = validate_claim(value, bundle, allow_inferred=True, source_span=source_span)
             language = str(value.get("language") or LANGUAGES.get(Path(path).suffix.lower(), "")).lower()
             language = ALIASES.get(language, language)
             expected = LANGUAGES.get(Path(path).suffix.lower())
@@ -114,13 +120,16 @@ def select_properties(raw, bundle, rejected=None):
                 raise
             identity = json.dumps(value, sort_keys=True, default=str) if isinstance(value, dict) else repr(value)
             rejected.append({"id": "claim-" + hashlib.sha256(identity.encode()).hexdigest()[:14],
-                             "reason": f"Abstain: {exc}"})
+                             "reason": INVALID, "diagnostic": str(exc)})
             continue
         key = (path, normalize(value["property"]))
         if key in seen:
             continue
         seen.add(key)
         claim = {key: value[key] for key in ("path", "lines", "signal_id", "quote", "property")}
+        for field in ("origin", "function_id"):
+            if field in value:
+                claim[field] = value[field]
         claim["language"] = language
         claim["id"] = hashlib.sha256(json.dumps(claim, sort_keys=True).encode()).hexdigest()[:20]
         selected.append(claim)
@@ -140,8 +149,15 @@ def json_answer(text):
     if text.startswith("```json") and text.endswith("```"):
         text = text[7:-3].strip()
     if len(text) > 300000:
-        raise Abstain("Model response exceeds the artifact budget")
+        raise ResourcesExhausted("Model response exceeds the artifact budget")
     result = json.loads(text)
+    if isinstance(result, dict) and isinstance(result.get("failure"), str):
+        if result["failure"] not in (EXHAUSTED, INVALID):
+            raise Abstain("Unknown model failure category")
+        message = str(result.get("diagnostic", "No usable model was produced"))
+        if result["failure"] == EXHAUSTED:
+            raise ResourcesExhausted(message)
+        raise Abstain(message)
     if isinstance(result, dict) and result.get("abstain"):
         raise Abstain(str(result["abstain"]))
     return result
@@ -153,7 +169,7 @@ def reachable(verifier, model, entry, directory):
     # provenance comments (e.g. `if (...) {`) must not unbalance its body scan.
     probe = refute._probe_source(clean_code(model), entry, BACKEND)
     if not probe:
-        raise Abstain("Could not construct retained NFV reachability probe")
+        raise Abstain("Could not construct the feasible-input probe")
     result = verifier.run(model + probe, directory, filter_symbol=refute.REACH_PROBE)
     require_tool(result)
     return (result.get("outcome") == "failed" and result.get("exit_code") == 4
@@ -172,14 +188,32 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     def budget():
         remaining = limits.entry_seconds - (time.monotonic() - started)
         if remaining <= 0:
-            raise Abstain("Per-property wall-time budget exhausted")
+            raise ResourcesExhausted("Per-property wall-time budget exhausted")
         return remaining
 
     async def ask(stage, prompt):
         remaining = budget()
-        check_request(system, prompt, stage)
+        compacted = False
+        try:
+            check_request(system, prompt, stage)
+        except ResourcesExhausted:
+            if stage not in ("syntax-repair", "proof-repair", "witness"):
+                raise
+            request = json.loads(prompt)
+            model = request.get("current_model") or request.get("translation", {}).get("model")
+            if model is None:
+                model = "\n".join(line.split(": ", 1)[1] for line in request["frozen_model_lines"])
+            request["source_context"] = quoted_context(request["source_context"], model)
+            if "metadata" in request:
+                request["metadata"] = {key: value for key, value in request["metadata"].items()
+                                       if key != "original_ensures"}
+            prompt = json.dumps(request, ensure_ascii=False)
+            check_request(system, prompt, stage)
+            compacted = True
         response = await chat.ask(system, prompt, timeout=min(limits.model_timeout, remaining))
-        record = {"stage": stage, "response": response.text}
+        record = {"stage": stage, "response": response.text,
+                  "request_bytes": len(system.encode("utf-8")) + len(prompt.encode("utf-8")),
+                  "source_context_deduplicated": compacted}
         for field in ("model", "input_tokens", "output_tokens", "api_calls", "nano_aiu"):
             if hasattr(response, field):
                 record[field] = getattr(response, field)
@@ -195,48 +229,130 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     save(directory / "source-context.json", context)
     encoded_context = json.dumps(context, ensure_ascii=False)
     counters["translation_calls"] += 1
-    translation = await ask("translation", "Translate this intended property. No triage or original-property proof.\n" + encoded_context)
+    translation = await ask("translation", "Translate this whole conjecture for verification first. "
+                            "Preserve every part in the entry postconditions; do not add or split properties. "
+                            "A failing witness is not required.\n" + encoded_context)
     if not isinstance(translation, dict):
         raise Abstain("Translation must be a structured artifact")
     current = translation["model"]
     type_log = []
+    positive = None
     for attempt in range(limits.syntax_rounds + 1):
         budget()
-        mapped = validate_translation(translation, claim, bundle, current)
-        scope = context["source_scope"]
-        if not scope["first"] <= translation["source_span"][0] <= translation["source_span"][1] <= scope["last"]:
-            raise Abstain("Translation source span escapes the scoped changed function")
-        if any(path not in context["sources"] for path in translation["required_context"]):
-            raise Abstain("Translation requires source outside the supplied scoped context")
-        for row in mapped:
-            ranges = context["sources"].get(row["path"], {}).get("ranges", [])
-            if not any(low <= row["line"] <= high for low, high in ranges):
-                raise Abstain("Translation cites computation outside the supplied scoped context")
-        for item in translation.get("environment", []):
-            ranges = context["sources"].get(item["source"]["path"], {}).get("ranges", [])
-            if not all(any(low <= line <= high for low, high in ranges)
-                       for line in item["source"]["lines"]):
-                raise Abstain("Environment contract cites source outside the supplied scoped context")
-        result = verifier.resolve(current, directory / f"syntax-{attempt}")
-        require_tool(result)
+        try:
+            translation = {**translation,
+                           "original_ensures": clauses(current, translation["entry_point"], "ensures")}
+            mapped = validate_translation(translation, claim, bundle, current)
+            scope = context["source_scope"]
+            if not scope["first"] <= translation["source_span"][0] <= translation["source_span"][1] <= scope["last"]:
+                raise Abstain("Translation source span escapes the scoped changed function")
+            if any(path not in context["sources"] for path in translation["required_context"]):
+                raise Abstain("Translation requires source outside the supplied scoped context")
+            for row in mapped:
+                ranges = context["sources"].get(row["path"], {}).get("ranges", [])
+                if not any(low <= row["line"] <= high for low, high in ranges):
+                    raise Abstain("Translation cites computation outside the supplied scoped context")
+            for item in translation.get("environment", []):
+                ranges = context["sources"].get(item["source"]["path"], {}).get("ranges", [])
+                if not all(any(low <= line <= high for low, high in ranges)
+                           for line in item["source"]["lines"]):
+                    raise Abstain("Environment contract cites source outside the supplied scoped context")
+            result = verifier.resolve(current, directory / f"syntax-{attempt}")
+            require_tool(result)
+            if (result.get("outcome") == "verified" and result.get("exit_code") == 0
+                    and result.get("mode") == "typecheck"):
+                positive = verifier(current, directory / "verification")
+                require_tool(positive)
+                save(directory / "drafts" / f"{attempt}-verification.json", positive)
+                if re.search(r"(?m)^.*\.dfy\(\d+,\d+\): Error: [^\n]*(?:index|bound)[^\n]*out of range",
+                             positive.get("stdout", "") + positive.get("stderr", "")):
+                    result = {**positive, "outcome": "audit_failure", "mode": "well-definedness",
+                              "stderr": "Draft array/sequence accesses are not established as "
+                                        "well-defined. Repair justified domains or proof annotations "
+                                        "before freezing the translation.\n" + positive.get("stderr", "")}
+        except (Abstain, KeyError, TypeError, ValueError) as exc:
+            result = {"outcome": "audit_failure", "stderr": str(exc), "stdout": ""}
         type_log.append(result)
+        save(directory / "drafts" / f"{attempt}.json",
+             {"translation": {**translation, "model": current}, "typecheck": result})
         if result.get("outcome") == "verified" and result.get("exit_code") == 0 and result.get("mode") == "typecheck":
             break
+        if result.get("outcome") == "timeout":
+            raise ResourcesExhausted("Type checking exceeded its time budget")
         if attempt == limits.syntax_rounds:
-            raise Abstain(f"Type checking failed after {limits.syntax_rounds} syntax repairs")
+            detail = result.get("stderr") or result.get("stdout", "")
+            raise Abstain(f"Type checking failed after {limits.syntax_rounds} syntax repairs: {detail[:1000]}")
         counters["syntax_repairs"] += 1
+        old_goals = translation.get("original_ensures", [])
+        from nfv.agent import refute
+        span = refute._split_signature(current, translation["entry_point"], "dafny")
+        contract_lines = (current.count("\n", 0, span[0]) + 1,
+                          current.count("\n", 0, span[1]) + 1) if span else (0, 0)
+        error_lines = [int(line) for line in re.findall(
+            r"\.dfy\((\d+),\d+\):\s*(?:Parse )?Error\b",
+            result.get("stdout", "") + result.get("stderr", ""), re.IGNORECASE)]
+        contract_error = any(contract_lines[0] <= line <= contract_lines[1] for line in error_lines)
         repair = await ask("syntax-repair", json.dumps({
-            "instruction": "Fix only Dafny syntax/type errors. Return ONLY {\"model\":\"full tagged Dafny\"}. "
-                           "Entry, original ensures, witness, and all metadata/contracts are immutable.",
+            "instruction": "Correct this draft's Dafny syntax, types, contracts and source mapping. "
+                           "The source property and captured source are immutable; never weaken or "
+                           "replace the intended property to obtain a proof. Return a JSON object "
+                           "with model (full tagged Dafny) and any corrected translation metadata. "
+                           "If a contract changes, update original_ensures, assumptions or environment "
+                           "to match. Preserve every part of the whole conjecture, including all "
+                           "conjuncts and entry postconditions. Never drop an obligation or decompose "
+                           "the property into child checks. This is draft formalization, not proof repair. The first "
+                           "fully audited, type-checked translation will be frozen before verification.",
             "source_context": context, "metadata": {k: v for k, v in translation.items() if k != "model"},
             "current_model": current, "typecheck": diagnostics(result),
         }, ensure_ascii=False))
-        if not isinstance(repair, dict) or set(repair) != {"model"}:
-            raise Abstain("Syntax repair attempted to replace immutable translation metadata")
+        fields = {"model", "entry_point", "original_ensures", "assumptions", "environment",
+                  "source_span", "required_context", "source_notes", "correspondence", "explanation"}
+        if not isinstance(repair, dict) or "model" not in repair or set(repair) - fields:
+            raise Abstain("Draft repair returned unsupported translation metadata")
         current = repair["model"]
+        entry = repair.get("entry_point", translation["entry_point"])
+        if old_goals and not contract_error and clauses(current, entry, "ensures") != old_goals:
+            current = with_postconditions(current, entry, old_goals)
+            repair = {**repair, "model": current, "original_ensures": old_goals}
+            save(directory / "drafts" / f"{attempt}-goal-restoration.json",
+                 {"reason": "Diagnostics did not identify an entry-contract error",
+                  "restored_ensures": old_goals})
+        translation = {**translation, **repair}
     original = current
     translation = {**translation, "model": original}
     save(directory / "translation.json", translation)
+    budget()
+    if positive is None:
+        raise Abstain("Original property lacks its recorded verification attempt")
+    if accepted(positive):
+        feasible, domain = reachable(verifier, original, translation["entry_point"], directory / "input-domain")
+        if not feasible:
+            if domain.get("outcome") == "timeout":
+                raise ResourcesExhausted("Input-domain check exceeded its time budget")
+            raise Abstain("No feasible returning input was established for the recorded assumptions")
+        verified = {
+            "kind": "conditional-model-verification", "candidate": claim,
+            "translation": translation, "source_map": mapped, "result": positive,
+            "input_domain_result": domain, "dafny": original,
+            "dafny_sha256": hashlib.sha256(original.encode()).hexdigest(),
+            "evidence": f"{claim['id']}/verification/model.dfy", "counters": counters,
+            "limits": asdict(limits),
+        }
+        save(directory / "verified.json", verified)
+        return verified
+    if "witness" not in translation:
+        witness = await ask("witness", json.dumps({
+            "instruction": "Verification did not succeed. Propose a concrete counterexample for "
+                           "the frozen model. Return witness, explanation, and optional presentation. "
+                           "Never change the model, property, assumptions or environment contracts.",
+            "source_context": context, "translation": translation,
+            "verification": diagnostics(positive),
+        }, ensure_ascii=False))
+        if (not isinstance(witness, dict) or not {"witness", "explanation"} <= set(witness)
+                or set(witness) - {"witness", "explanation", "presentation"}):
+            raise Abstain("Counterexample response attempted to replace frozen translation metadata")
+        translation = {**translation, **witness}
+        save(directory / "translation.json", translation)
     inverse = refute.invert_entry_spec(original, translation["entry_point"], BACKEND)
     if not inverse.ok:
         raise Abstain("Cannot mechanically negate original property: " + inverse.reason)
@@ -254,7 +370,9 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
         if accepted(result):
             break
         if attempt == limits.proof_rounds:
-            raise Abstain(f"Negative check failed after {limits.proof_rounds} proof repairs")
+            if result.get("outcome") == "type_error":
+                raise Abstain("Refutation model did not type-check within its repair budget")
+            raise ResourcesExhausted(f"Neither verification nor refutation succeeded after {limits.proof_rounds} proof repairs")
         counters["proof_repairs"] += 1
         repair = await ask("proof-repair", json.dumps({
             "instruction": "Return ONLY {\"annotations\":[{\"after\":FROZEN_LINE_NUMBER,\"text\":\"invariant ...\"}]}. "
@@ -271,7 +389,9 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     budget()
     reach_ok, reach_result = reachable(verifier, current, translation["entry_point"], directory / "reach-initial")
     if not reach_ok:
-        raise Abstain("Initial reachability gate did not establish a nonvacuous returning case")
+        if reach_result.get("outcome") == "timeout":
+            raise ResourcesExhausted("Counterexample input-domain check exceeded its time budget")
+        raise Abstain("No feasible returning input was established for the counterexample")
     minimization = []
     for index, condition in enumerate(translation["assumptions"]):
         if not condition["optional"]:
@@ -295,10 +415,14 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     final = verifier(current + "\n" + driver, directory / "final")
     require_tool(final)
     if not accepted(final):
+        if final.get("outcome") == "timeout":
+            raise ResourcesExhausted("Final refutation recheck exceeded its time budget")
         raise Abstain("Final negative-check/witness recheck failed")
     reach_ok, reach_result = reachable(verifier, current, translation["entry_point"], directory / "reach-final")
     if not reach_ok:
-        raise Abstain("Final reachability recheck failed")
+        if reach_result.get("outcome") == "timeout":
+            raise ResourcesExhausted("Final input-domain recheck exceeded its time budget")
+        raise Abstain("Final input-domain recheck failed")
     gates.update({"witness_consistency": True, "reachability": True,
                   "source_correspondence": "not established"})
     final_source = current + "\n" + driver
@@ -321,46 +445,80 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
     verifier = verifier or Dafny(limits.verifier_timeout)
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    report = {"schema": 2, "mode": "general-model-refutation", "identity": bundle["identity"],
-              "limits": asdict(limits), "findings": [], "abstentions": [], "errors": [], "properties": []}
+    report = {"schema": 3, "mode": "general-model-analysis", "completed": False, "identity": bundle["identity"],
+              "limits": asdict(limits), "findings": [], "verified": [], "failures": [],
+              "errors": [], "properties": []}
     account = getattr(chat, "account", None)
     if getattr(account, "login", None):
         report["authenticated_account"] = account.login
     try:
-        claims = select_properties(properties, bundle, rejected=report["abstentions"])
+        claims = select_properties(properties, bundle, rejected=report["failures"])
     except (Abstain, ValueError, KeyError, TypeError) as exc:
         claims = []
         report["errors"].append(str(exc))
-    for claim in claims:
+        report["failures"].append({"id": "proposals", "reason": INVALID, "diagnostic": str(exc)})
+    for failure in report["failures"]:
+        report["properties"].append({
+            "id": failure["id"], "property": "Invalid proposed property",
+            "status": failure["reason"], "diagnostic": failure["diagnostic"], "formalized": None,
+        })
+    save(output / "report.json", report)
+    completed = len(report["properties"])
+    total = completed + len(claims)
+    for checked, claim in enumerate(claims, completed + 1):
         entry = {k: claim[k] for k in ("id", "path", "lines", "quote", "property")}
-        entry.update(formalized=None, status="not run")
+        if "origin" in claim:
+            entry["origin"] = claim["origin"]
+        entry.update(formalized=None, status=INVALID)
         report["properties"].append(entry)
         try:
             finding = await run_property(claim, bundle, chat, output / claim["id"], limits, verifier)
-            entry["status"] = "refuted"
-            # Identical formalized properties on the same slice are one finding.
-            duplicate = any(
-                x["candidate"]["path"] == claim["path"] and
-                x["translation"]["original_ensures"] == finding["translation"]["original_ensures"] and
-                x["translation"]["source_span"] == finding["translation"]["source_span"]
-                for x in report["findings"])
-            if not duplicate:
-                report["findings"].append(finding)
+            if finding["kind"] == "conditional-model-verification":
+                entry["status"] = VERIFIED
+                report["verified"].append(finding)
             else:
-                entry["status"] = "duplicate of an earlier refutation"
-        except ToolFailure as exc:
-            entry["status"] = "error"
-            report["errors"].append(str(exc))
-            break
+                entry["status"] = REFUTED
+                report["findings"].append(finding)
         except Exception as exc:
-            entry["status"] = "abstained"
-            report["abstentions"].append({"id": claim["id"], "reason": f"{type(exc).__name__}: {exc}"[:3000]})
+            entry["status"] = EXHAUSTED if isinstance(exc, (ResourcesExhausted, TimeoutError)) else INVALID
+            entry["diagnostic"] = str(exc)[:3000]
+            if isinstance(exc, (ToolFailure, InferenceFailure)):
+                report["errors"].append(str(exc))
+            failure = {"id": claim["id"], "reason": entry["status"], "diagnostic": entry["diagnostic"]}
+            report["failures"].append(failure)
+            save(output / claim["id"] / "failure.json", failure)
         finally:
             translation = output / claim["id"] / "translation.json"
             if translation.exists():
                 entry["formalized"] = json.loads(translation.read_text(encoding="utf-8")).get("original_ensures")
+            save(output / "report.json", report)
+        if report["errors"]:
+            return report
+        print(json.dumps({"event": "property_completed", "property": claim["id"], "status": entry["status"],
+                          "properties_completed": checked, "properties_total": total,
+                          "properties_remaining": total - checked}), flush=True)
+    report["completed"] = not report["errors"]
     save(output / "report.json", report)
     return report
+
+
+def validate_verification(evidence, bundle):
+    if evidence.get("kind") != "conditional-model-verification":
+        raise Abstain("Unexpected verification evidence kind")
+    claim = evidence["candidate"]
+    if select_properties([claim], bundle)[0]["id"] != claim["id"]:
+        raise Abstain("Verified property identity changed")
+    translation = evidence["translation"]
+    source = translation["model"]
+    mapped = validate_translation(translation, claim, bundle)
+    if (source != evidence["dafny"] or mapped != evidence["source_map"]
+            or hashlib.sha256(source.encode()).hexdigest() != evidence["dafny_sha256"]
+            or not accepted(evidence["result"])):
+        raise Abstain("Verified model, provenance or positive proof evidence changed")
+    domain = evidence["input_domain_result"]
+    if domain.get("outcome") != "failed" or domain.get("exit_code") != 4 or domain.get("mode") != "unbounded":
+        raise Abstain("Missing feasible-input evidence for the verified model")
+    return mapped
 
 
 def validate_finding(finding, bundle):
@@ -396,5 +554,5 @@ def validate_finding(finding, bundle):
         raise Abstain("Missing accepted Dafny negative/witness evidence")
     reach = finding["reachability_result"]
     if reach.get("outcome") != "failed" or reach.get("exit_code") != 4 or reach.get("mode") != "unbounded":
-        raise Abstain("Missing reachability evidence")
+        raise Abstain("Missing feasible-input evidence")
     return mapped

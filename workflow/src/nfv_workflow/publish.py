@@ -176,7 +176,7 @@ def relevant_code(claim, translation, finding, bundle, repo, commit):
     return out
 
 
-def general_section(index, finding, bundle, repo, commit, presentation=None):
+def general_section(index, finding, bundle, repo, commit, presentation=None, compact=False):
     from .general import validate_finding
     validate_finding(finding, bundle)
     claim, translation = finding["candidate"], finding["translation"]
@@ -220,13 +220,28 @@ def general_section(index, finding, bundle, repo, commit, presentation=None):
         inputs = ", ".join(code_span(f"{k} = {json.dumps(v)}") for k, v in sorted(translation["witness"].items()))
     lines = [
         f"\n### {index}. Potential issue",
-        f"**Intended property:** {text(claim['property'])}",
+        f"**{'Inferred property' if claim.get('origin') == 'source' else 'Intended property'}:** {text(claim['property'])}",
         "> " + text(" ".join(str(claim["quote"]).split())),
         f"**Input on which it fails:** {inputs}",
         f"**Sketch of the failure:** {text(explanation)}",
+    ]
+    if compact:
+        conditions = [translation["assumptions"][i]["description"]
+                      for i in finding["retained_assumptions"]]
+        span = translation["source_span"]
+        return lines + [
+            "**Retained conditions:** " + text("; ".join(conditions) or "No additional input restrictions."),
+            "**Environment models:** " + text("; ".join(
+                helper["description"] for helper in translation.get("environment", [])) or "None."),
+            "**Source:** " + source_link(claim["path"], *span, repo, commit),
+            *mapping_details,
+            f"Evidence: {code_span(finding['evidence'])}; SHA-256 {code_span(finding['dafny_sha256'])}.",
+            "Source, specifications and full Dafny are retained in the linked run artifact.",
+        ]
+    lines.extend([
         "<details><summary>Details</summary>\n",
         *relevant_code(claim, translation, finding, bundle, repo, commit),
-    ]
+    ])
     removed = [value["description"] for i, value in enumerate(translation["assumptions"])
                if i not in finding["retained_assumptions"]]
     details = ["<details><summary>Minimized Dafny</summary>\n"]
@@ -348,6 +363,8 @@ def finding_lines(index, finding, bundle, repo, commit, presentation=None):
 
 
 def render(report, bundle, evidence_url, presentation=None):
+    if report.get("schema") == 3 and report.get("mode") == "general-model-analysis":
+        return analysis_comment(report, bundle, evidence_url, presentation)
     mappings = {}
     if presentation is not None:
         from .presentation import validate_artifact
@@ -370,9 +387,9 @@ def render(report, bundle, evidence_url, presentation=None):
     return body
 
 
-def comment(report, bundle, evidence_url, proposed):
+def comment(report, bundle, evidence_url, proposed, presentation=None):
     """The PR comment: the findings report, or a short summary when nothing was refuted."""
-    body = render(report, bundle, evidence_url)
+    body = render(report, bundle, evidence_url, presentation=presentation)
     if body is not None:
         return body
     ident = report["identity"]
@@ -399,6 +416,109 @@ def comment(report, bundle, evidence_url, proposed):
         lines.append("</details>")
     lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     return "\n\n".join(lines)
+
+
+def analysis_comment(report, bundle, evidence_url, presentation=None):
+    from .general import validate_verification
+    from .outcomes import OUTCOMES, REFUTED, VERIFIED
+
+    if report.get("completed") is False:
+        raise Abstain("Analysis is incomplete; publication stopped")
+    checked_findings(report, bundle, evidence_url)
+    if report.get("errors"):
+        raise Abstain("Analysis contains infrastructure errors; publication stopped")
+    ident = report["identity"]
+    if (report["findings"] or report.get("verified")) and ident.get("source_kind") != "pull-request-head":
+        raise Abstain("Synthetic or non-PR source identities cannot be published")
+    mappings = {}
+    if presentation is not None:
+        from .presentation import validate_artifact
+        mappings = validate_artifact(presentation, report, bundle)
+    repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
+    verified = {item["candidate"]["id"]: item for item in report.get("verified", [])}
+    for item in verified.values():
+        validate_verification(item, bundle)
+    findings = {item["candidate"]["id"]: item for item in report["findings"]}
+    properties = report.get("properties", [])
+    accepted_ids = {item["id"] for item in properties if item["status"] in (REFUTED, VERIFIED)}
+    if (len(verified) != len(report.get("verified", [])) or len(findings) != len(report["findings"])
+            or set(verified) & set(findings) or len(verified) + len(findings) > 10
+            or set(verified) | set(findings) != accepted_ids):
+        raise Abstain("Analysis outcomes do not match their accepted evidence")
+    if any(item["status"] not in OUTCOMES for item in properties):
+        raise Abstain("Unrecognized property outcome")
+    counts = {status: sum(item["status"] == status for item in properties) for status in OUTCOMES}
+    lines = [
+        marker(ident),
+        f"[Neuro-formal verification (NFV)]({PAPER}) selects nontrivial properties "
+        "from PR intent and source, tries verification, then tries refutation.",
+        f"# NFV: {counts[REFUTED]} refuted, {counts[VERIFIED]} verified in PR #{ident['number']}",
+        *preamble(ident, evidence_url),
+        "**These are results for translated models under their stated assumptions, "
+        "not proofs of source-code correctness or confirmed source bugs.**",
+        " · ".join(f"{status}: {counts[status]}" for status in OUTCOMES),
+    ]
+    if report.get("selection_omissions"):
+        lines.append(f"**Selection limit:** {len(report['selection_omissions'])} additional candidate "
+                     "checks were not selected within the ten-property budget.")
+    compact_sections = []
+    for index, item in enumerate(properties, 1):
+        status = item["status"]
+        label = "Inferred property" if item.get("origin") == "source" else "Intended property"
+        lines.extend([f"### P{index}", f"**{label}:** {text(item['property'])}",
+                      f"**Outcome: {status}**"])
+        if status == REFUTED:
+            evidence = findings.get(item.get("duplicate_of", item["id"]))
+            if evidence is None:
+                raise Abstain("Refuted property lacks accepted evidence")
+            if any(item.get(key) != evidence["candidate"].get(key)
+                   for key in ("path", "lines", "property", "quote", "origin")):
+                raise Abstain("Displayed refuted property differs from its checked evidence")
+            mapping = mappings.get(evidence["candidate"]["id"])
+            compact_sections.append((len(lines), "\n\n".join(
+                general_section(index, evidence, bundle, repo, commit, mapping, compact=True)[2:])))
+            lines.append("\n\n".join(
+                general_section(index, evidence, bundle, repo, commit, mapping)[2:]))
+        elif status == VERIFIED:
+            evidence = verified.get(item["id"])
+            if evidence is None:
+                raise Abstain("Verified property lacks accepted evidence")
+            if any(item.get(key) != evidence["candidate"].get(key)
+                   for key in ("path", "lines", "property", "quote", "origin")):
+                raise Abstain("Displayed verified property differs from its checked evidence")
+            translation = evidence["translation"]
+            conditions = [condition["description"] for condition in translation["assumptions"]]
+            lines.append("The property was verified for the translated model.")
+            label = "Captured source (inferred property)" if evidence["candidate"].get("origin") == "source" else "Quoted intention"
+            lines.append(f"**{label}:** " + text(evidence["candidate"]["quote"]))
+            lines.append("**Assumptions:** " + text("; ".join(conditions) or "No additional input restrictions."))
+            if translation.get("environment"):
+                lines.append("**Environment models:** " + text("; ".join(
+                    helper["description"] for helper in translation["environment"])))
+            lines.append("**Checked property:**\n\n" + dafny_block(
+                "\n".join("ensures " + clause for clause in translation["original_ensures"])))
+            lines.extend([
+                "<details><summary>Verified model and evidence</summary>",
+                f"Evidence: {code_span(evidence['evidence'])}; SHA-256 {code_span(evidence['dafny_sha256'])}.",
+            ])
+            compact_sections.append((len(lines),
+                                     "The full verified Dafny is retained in the linked run artifact."))
+            lines.extend([dafny_block(evidence["dafny"]), "</details>"])
+        elif item.get("diagnostic"):
+            diagnostic = re.sub("reachability", "input-domain check", item["diagnostic"], flags=re.I)
+            lines.append("<details><summary>Diagnostic</summary>\n\n" + text(diagnostic) + "\n\n</details>")
+    lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
+    body = "\n\n".join(lines)
+    for index, compact in sorted(compact_sections,
+                                 key=lambda item: len(lines[item[0]]) - len(item[1]), reverse=True):
+        if len(body) <= 60000:
+            break
+        if len(compact) < len(lines[index]):
+            lines[index] = compact
+            body = "\n\n".join(lines)
+    if len(body) > 60000:
+        raise Abstain("Publication exceeds bounded size")
+    return body
 
 
 def publish(api, report, bundle, evidence_url, category, apply=False, label=LABEL, target=None):

@@ -73,7 +73,7 @@ def normalize(value):
     return " ".join(value.casefold().split())
 
 
-def validate_claim(candidate, bundle):
+def validate_claim(candidate, bundle, allow_inferred=False, source_span=None):
     path = source_path(candidate["path"])
     lines = candidate["lines"]
     if (path not in bundle["changed"] or not isinstance(lines, list) or not lines
@@ -83,12 +83,20 @@ def validate_claim(candidate, bundle):
     first_line = source.get("line_start", 1)
     if not all(first_line <= n < first_line + len(source["text"].splitlines()) for n in lines):
         raise Abstain("Property anchor missing from captured source")
-    signal = next((x for x in bundle["signals"] if x["id"] == candidate["signal_id"]), None)
     quote = candidate["quote"]
-    # Line wrapping in commit messages and PR bodies is not part of the claim.
-    if (not signal or not isinstance(quote, str) or not quote.strip()
-            or " ".join(quote.split()) not in " ".join(signal["text"].split())):
-        raise Abstain("Property lacks an exact PR/commit evidence quote")
+    if allow_inferred and candidate.get("origin") == "source":
+        evidence_lines = range(source_span[0], source_span[1] + 1) if source_span else lines
+        evidence = "\n".join(source["text"].splitlines()[n - first_line] for n in evidence_lines)
+        if (candidate["signal_id"] != f"source:{path}" or not isinstance(quote, str)
+                or not quote.strip() or " ".join(quote.split()) not in " ".join(evidence.split())):
+            raise Abstain("Inferred property lacks an exact captured-source quote")
+    else:
+        if candidate.get("origin", "intent") != "intent":
+            raise Abstain("Unsupported property origin")
+        signal = next((x for x in bundle["signals"] if x["id"] == candidate["signal_id"]), None)
+        if (not signal or not isinstance(quote, str) or not quote.strip()
+                or " ".join(quote.split()) not in " ".join(signal["text"].split())):
+            raise Abstain("Property lacks an exact PR/commit evidence quote")
     if not isinstance(candidate.get("property"), str) or not candidate["property"].strip():
         raise Abstain("Missing intended property")
     if len(candidate["property"]) > 4000:

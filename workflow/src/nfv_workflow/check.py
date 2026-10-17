@@ -32,7 +32,7 @@ class Dafny:
         path.write_text(source, encoding="utf-8")
         keep = {"PATH", "SYSTEMROOT", "WINDIR", "DOTNET_ROOT", "DOTNET_ROOT_X64",
                 "HOME", "USERPROFILE", "LANG", "LC_ALL", "PATHEXT",
-                "NFV_Z3_PATH", "PYTHONPATH"}
+                "NFV_DAFNY_PATH", "NFV_Z3_PATH", "PYTHONPATH"}
         env = {k: v for k, v in os.environ.items() if k.upper() in keep}
         env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
         try:

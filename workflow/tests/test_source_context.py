@@ -38,7 +38,7 @@ class SourceContextTests(unittest.TestCase):
         self.assertEqual(("changed", 102, 108), (scope["function"], scope["first"], scope["last"]))
         self.assertEqual("102| // A documented method.\n103| int C::changed(\n"
                          "104|   int n\n105| ) const\n106| {\n107|   return helper(n);\n108| }"
-                         "\n\n101| class C {",
+                         "\n\n" + "\n".join(f"{101 + i}| {line}" for i, line in enumerate(source.splitlines())),
                          context["sources"]["main"]["numbered_lines"])
 
     def test_strings_comments_raw_strings_and_nested_blocks(self):
@@ -138,6 +138,21 @@ class SourceContextTests(unittest.TestCase):
         self.assertLessEqual(size(context), CONTEXT_BYTES)
         self.assertNotIn("large body", json.dumps(context))
 
+    def test_omission_notices_cannot_overflow_a_bounded_repository_context(self):
+        for padding in ("x" * 30000, "\N{EURO SIGN}" * 10000):
+            with self.subTest(multibyte=padding.startswith("\N{EURO SIGN}")):
+                helpers = "\n".join(
+                    f"struct Helper{i} {{\n int helper(int n) {{\n // {padding}\n return n;\n }}\n}};\n"
+                    for i in range(64))
+                bundle = {"sources": {"main": {"text": "int target(int n) {\n return n;\n}\n"},
+                                      "helpers.cpp": {"text": helpers}},
+                          "repository_context": [{"path": "helpers.cpp", "symbols": ["helper"]}]}
+                context = scoped_context(bundle, {"path": "main", "lines": [2], "language": "cpp"})
+                self.assertLessEqual(size(context), CONTEXT_BYTES)
+                self.assertIn("2|  return n;", context["sources"]["main"]["numbered_lines"])
+                self.assertIn(padding, context["sources"]["helpers.cpp"]["numbered_lines"])
+                self.assertIn("additional context-omission notices", context["context_omissions"][-1])
+
     def test_separate_functions_and_ambiguous_boundaries_abstain(self):
         with self.assertRaisesRegex(Abstain, "one identifiable function"):
             self.context("int f() {\n return 1;\n}\nint g() {\n return 2;\n}\n", [2, 5])
@@ -213,7 +228,7 @@ class RequestIntegrationTests(unittest.TestCase):
         chat = Chat([translation])
         report = self.execute(bundle, claim, chat, SyntaxFailure())
         self.assertEqual(1, len(chat.prompts))
-        self.assertIn("syntax-repair request exceeds", report["abstentions"][0]["reason"])
+        self.assertIn("syntax-repair request exceeds", report["failures"][0]["diagnostic"])
 
     def test_large_model_stops_proof_repair_before_inference(self):
         bundle, claim, translation = fixture()
@@ -221,7 +236,7 @@ class RequestIntegrationTests(unittest.TestCase):
         chat = Chat([translation])
         report = self.execute(bundle, claim, chat, FailingVerifier())
         self.assertEqual(1, len(chat.prompts))
-        self.assertIn("proof-repair request exceeds", report["abstentions"][0]["reason"])
+        self.assertIn("proof-repair request exceeds", report["failures"][0]["diagnostic"])
 
     def test_both_repairs_reuse_scope_and_shorten_verifier_logs(self):
         bundle, claim, translation = fixture()
@@ -238,14 +253,14 @@ class RequestIntegrationTests(unittest.TestCase):
 
         chat = Chat([translation, {"model": translation["model"]}])
         report = self.execute(bundle, claim, chat, VerboseVerifier(), limits=Limits(syntax_rounds=1))
-        self.assertIn("Type checking failed", report["abstentions"][0]["reason"])
+        self.assertIn("Type checking failed", report["failures"][0]["diagnostic"])
         syntax_payload = json.loads(chat.prompts[1])
 
         verifier = VerboseVerifier()
         verifier.resolve = FailingVerifier().resolve
         chat = Chat([translation, {"annotations": []}])
         report = self.execute(bundle, claim, chat, verifier, limits=Limits(proof_rounds=1))
-        self.assertIn("Negative check failed", report["abstentions"][0]["reason"])
+        self.assertIn("Neither verification nor refutation succeeded", report["failures"][0]["diagnostic"])
         proof_payload = json.loads(chat.prompts[1])
 
         self.assertEqual(syntax_payload["source_context"], proof_payload["source_context"])
@@ -265,7 +280,7 @@ class RequestIntegrationTests(unittest.TestCase):
             "// synth: modeled contract or structural syntax\n}\n")
         chat = Chat([translation])
         report = self.execute(bundle, claim, chat, FailingVerifier())
-        self.assertIn("escapes the scoped changed function", report["abstentions"][0]["reason"])
+        self.assertIn("escapes the scoped changed function", report["failures"][0]["diagnostic"])
 
     def test_translation_cannot_cite_omitted_external_computation(self):
         bundle, claim, translation = fixture()
@@ -283,7 +298,7 @@ class RequestIntegrationTests(unittest.TestCase):
                                       "source": {"path": "remote.c", "lines": [1, 2]}}]
         verifier = FailingVerifier()
         report = self.execute(bundle, claim, Chat([translation]), verifier)
-        self.assertIn("outside the supplied scoped context", report["abstentions"][0]["reason"])
+        self.assertIn("outside the supplied scoped context", report["failures"][0]["diagnostic"])
         self.assertFalse(verifier.operations)
 
     def test_environment_cannot_claim_an_omitted_implementation_contract(self):
@@ -303,7 +318,7 @@ class RequestIntegrationTests(unittest.TestCase):
                                       "source": {"path": "remote.c", "lines": [1, 2]}}]
         verifier = FailingVerifier()
         report = self.execute(bundle, claim, Chat([translation]), verifier)
-        self.assertIn("Environment contract cites source outside", report["abstentions"][0]["reason"])
+        self.assertIn("Environment contract cites source outside", report["failures"][0]["diagnostic"])
         self.assertFalse(verifier.operations)
 
 

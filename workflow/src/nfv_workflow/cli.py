@@ -37,40 +37,49 @@ def write_sources(bundle, directory):
         target.write_text(padding + record["text"], encoding="utf-8")
 
 
-async def propose(bundle, model, intent_only=False):
-    from nfv.shared.copilot_client import CopilotChat
+def input_index(bundle):
+    from .source_context import function_catalog
+    return {**{key: bundle[key] for key in ("identity", "signals", "changed")},
+            "function_catalog": function_catalog(bundle),
+            "repository_context": bundle.get("repository_context", []),
+            "captured_paths": sorted(bundle["sources"]),
+            "context_omissions": bundle.get("context_omissions", [])}
 
-    resource = "intent_prompt.txt" if intent_only else "proposal_prompt.txt"
-    prompt = importlib.resources.files("nfv_workflow").joinpath(resource).read_text()
-    async with CopilotChat(model=model, concurrency=1) as chat:
-        answer = await chat.ask(prompt, json.dumps(bundle), timeout=240)
-        raw = answer.text.strip()
-        if raw.startswith("```json") and raw.endswith("```"):
-            raw = raw[7:-3].strip()
-        return json.loads(raw)
+
+async def propose(bundle, model, intent_only=False, output=None):
+    async with inference_chat(model, "extraction") as chat:
+        if intent_only:
+            from .extraction import extract
+            return await extract(bundle, chat, output=output)
+        prompt = importlib.resources.files("nfv_workflow").joinpath("proposal_prompt.txt").read_text()
+        from .general import json_answer
+        return json_answer((await chat.ask(prompt, json.dumps(bundle), timeout=240)).text)
+
+
+def inference_chat(model, stage):
+    from .chat import WorkflowChat
+    if not model:
+        raise Abstain(f"{stage.capitalize()} requires an explicitly configured model")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        if not os.environ.get("COPILOT_GITHUB_TOKEN") and os.environ.get("GITHUB_AW") != "true":
+            raise Abstain(f"Actions {stage} inference requires a dedicated COPILOT_GITHUB_TOKEN")
+        os.environ.pop("GH_TOKEN", None)
+        os.environ.pop("GITHUB_TOKEN", None)
+    provider = awf_provider() if os.environ.get("GITHUB_AW") == "true" else None
+    return WorkflowChat(model=model, concurrency=1, provider=provider)
 
 
 async def run_general(bundle, properties, output, model, limits):
     from .general import run, select_properties
     if not select_properties(properties, bundle, rejected=[]):
-        # Nothing valid to translate; run still records each rejection as an abstention.
+        # Nothing valid to translate; run records each rejected property's audit failure.
         return await run(bundle, properties, output, None, limits)
     if not model:
         raise Abstain("General translation/repair requires an explicitly configured model")
     from nfv.shared.config import DAFNY_PATH
     if not DAFNY_PATH:
         raise Abstain("Install Dafny before starting billable model translation")
-    from nfv.shared.copilot_client import CopilotChat
-    # In Actions, the repository token is for collection/publication, not model
-    # identity. The dedicated Copilot token authenticates this tool-free client;
-    # inside the gh-aw agent sandbox, the AWF API proxy authenticates instead.
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        if not os.environ.get("COPILOT_GITHUB_TOKEN") and os.environ.get("GITHUB_AW") != "true":
-            raise Abstain("Actions general inference requires a dedicated COPILOT_GITHUB_TOKEN")
-        os.environ.pop("GH_TOKEN", None)
-        os.environ.pop("GITHUB_TOKEN", None)
-    provider = awf_provider() if os.environ.get("GITHUB_AW") == "true" else None
-    async with CopilotChat(model=model, concurrency=1, provider=provider) as chat:
+    async with inference_chat(model, "general") as chat:
         return await run(bundle, properties, output, chat, limits)
 
 
@@ -86,25 +95,21 @@ def awf_provider():
     so a placeholder key suffices.
     """
     env = os.environ
-    return {"type": "openai",
-            "wire_api": env.get("COPILOT_PROVIDER_WIRE_API") or "responses",
-            "base_url": env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL") or AWF_COPILOT_PROXY,
-            "api_key": AWF_PLACEHOLDER_KEY}
+    provider_type = env.get("COPILOT_PROVIDER_TYPE") or "openai"
+    if provider_type not in ("openai", "anthropic", "azure"):
+        raise Abstain("Unsupported AWF SDK provider type")
+    provider = {"type": provider_type,
+                "base_url": env.get("COPILOT_PROVIDER_BASE_URL") or env.get("COPILOT_API_URL") or AWF_COPILOT_PROXY,
+                "api_key": AWF_PLACEHOLDER_KEY}
+    if provider_type != "anthropic":
+        provider["wire_api"] = env.get("COPILOT_PROVIDER_WIRE_API") or "responses"
+    return provider
 
 
 async def refresh_presentation(report, bundle, model, timeout):
     from .presentation import refresh, validate_report
     validate_report(report, bundle)
-    if not model:
-        raise Abstain("Presentation refresh requires an explicitly configured model")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        if not os.environ.get("COPILOT_GITHUB_TOKEN") and os.environ.get("GITHUB_AW") != "true":
-            raise Abstain("Actions presentation inference requires a dedicated COPILOT_GITHUB_TOKEN")
-        os.environ.pop("GH_TOKEN", None)
-        os.environ.pop("GITHUB_TOKEN", None)
-    from nfv.shared.copilot_client import CopilotChat
-    provider = awf_provider() if os.environ.get("GITHUB_AW") == "true" else None
-    async with CopilotChat(model=model, concurrency=1, provider=provider) as chat:
+    async with inference_chat(model, "presentation") as chat:
         return await refresh(report, bundle, chat, timeout)
 
 
@@ -138,7 +143,7 @@ def audit_limits(env=None):
 
 
 def audit(proposals_path, limits):
-    """Agent-sandbox entry point: every input except the proposals is fixed by trusted steps."""
+    """Audit entry point: all inputs are fixed by trusted collection/extraction steps."""
     from .general import Limits
     from .publish import comment
     bundle_path, model = os.environ.get("NFV_BUNDLE"), os.environ.get("NFV_MODEL", "")
@@ -149,22 +154,44 @@ def audit(proposals_path, limits):
     if not isinstance(proposals, list):
         raise Abstain("Proposals must be a JSON array")
     output.mkdir(parents=True, exist_ok=True)
+    for name in ("comment.md", "presentation.json", "presentation-diagnostics.json", "report.json"):
+        (output / name).unlink(missing_ok=True)
     bundle = load(bundle_path)
     save(output / "bundle.json", bundle)
     save(output / "proposals.json", proposals)
     limits = limits if isinstance(limits, Limits) else Limits(*limits)
     report = asyncio.run(run_general(bundle, proposals, output, model, limits))
+    if report["errors"] or report.get("completed") is not True:
+        raise Abstain("NFV audit incomplete: " + "; ".join(report["errors"] or ["analysis interrupted"]))
+    presentation = None
+    if report["findings"]:
+        from .presentation import validate, validate_report
+        validate_report(report, bundle)
+        diagnostics = []
+        for finding in report["findings"]:
+            translation = finding["translation"]
+            try:
+                validate(translation.get("presentation"), translation, bundle)
+            except Abstain as exc:
+                diagnostics.append({"id": finding["candidate"]["id"], "diagnostic": str(exc)})
+        if diagnostics:
+            save(output / "presentation-diagnostics.json", diagnostics)
+            presentation = asyncio.run(refresh_presentation(report, bundle, model, limits.model_timeout))
+            save(output / "presentation.json", presentation)
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
-    summary = {"findings": len(report["findings"]), "abstentions": len(report.get("abstentions", [])),
+    summary = {"findings": len(report["findings"]), "verified": len(report.get("verified", [])),
+               "outcomes": {status: sum(item["status"] == status for item in report.get("properties", []))
+                            for status in ("refuted", "verified", "resources exhausted", "type-check/audit failure")},
                "errors": report["errors"]}
-    (output / "comment.md").write_text(comment(report, bundle, evidence, len(proposals)), encoding="utf-8")
+    (output / "comment.md").write_text(
+        comment(report, bundle, evidence, len(proposals), presentation=presentation), encoding="utf-8")
     summary["comment"] = str(output / "comment.md")
     return summary
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Conditional Dafny model refutations; no source execution")
+    parser = argparse.ArgumentParser(description="Conditional Dafny model analysis; no source execution")
     commands = parser.add_subparsers(dest="command", required=True)
     p = commands.add_parser("collect", help="Capture merged-PR event source and commentary using read-only API")
     p.add_argument("--event", required=True)
@@ -172,6 +199,15 @@ def main(argv=None):
     p.add_argument("--side", choices=("head", "base"), default="head",
                    help="base: pre-merge snapshot anchored on removed lines (before/after analysis; not publishable)")
     p.add_argument("--sources-dir", help="Also write captured sources as plain files with repository line numbers")
+    p = commands.add_parser("context-manifest", help="Validate source-context session output; never execute source")
+    p.add_argument("--bundle", required=True)
+    p.add_argument("--manifest", required=True)
+    p.add_argument("--out", required=True)
+    p = commands.add_parser("enrich", help="Capture additional context by immutable blob SHA")
+    p.add_argument("--bundle", required=True)
+    p.add_argument("--manifest", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--sources-dir")
     p = commands.add_parser("reanchor", help="Map head-side properties onto a base-side bundle's removed lines")
     p.add_argument("--bundle", required=True)
     p.add_argument("--properties", required=True)
@@ -180,16 +216,16 @@ def main(argv=None):
     p.add_argument("--bundle", required=True)
     p.add_argument("--model", required=True)
     p.add_argument("--out", required=True)
-    p = commands.add_parser("extract", help="Extract intended properties without bug-likelihood triage")
+    p = commands.add_parser("extract", help="Postulate nontrivial properties from intent and source")
     p.add_argument("--bundle", required=True)
     p.add_argument("--model", required=True)
     p.add_argument("--out", required=True)
-    p = commands.add_parser("run", help="General multi-language Dafny-only translation and refutation")
+    p = commands.add_parser("run", help="Dafny-only verification followed by conditional model refutation")
     p.add_argument("--bundle", required=True)
     p.add_argument("--properties", required=True)
     p.add_argument("--model", required=True)
     p.add_argument("--out", required=True)
-    p.add_argument("--syntax-rounds", type=int, default=6)
+    p.add_argument("--syntax-rounds", type=int, default=3)
     p.add_argument("--proof-rounds", type=int, default=10)
     p.add_argument("--verifier-timeout", type=int, default=60)
     p = commands.add_parser("check", help="Offline strict scalar-path checking; no inference or publication")
@@ -202,7 +238,7 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--mode", choices=("general", "scalar"), default="general")
     p.add_argument("--model", default=os.environ.get("NFV_MODEL", ""))
-    p.add_argument("--syntax-rounds", type=int, default=6)
+    p.add_argument("--syntax-rounds", type=int, default=3)
     p.add_argument("--proof-rounds", type=int, default=10)
     p.add_argument("--verifier-timeout", type=int, default=60)
     p = commands.add_parser("audit", help="Agent-sandbox run on the trusted bundle; writes a PR review")
@@ -230,6 +266,15 @@ def main(argv=None):
             save(args.out, bundle)
             if args.sources_dir:
                 write_sources(bundle, args.sources_dir)
+        elif args.command == "context-manifest":
+            from .repository_context import sanitize_manifest
+            sanitize_manifest(load(args.bundle), args.manifest, args.out)
+        elif args.command == "enrich":
+            from .repository_context import enrich
+            bundle = enrich(load(args.bundle), load(args.manifest), GitHub())
+            save(args.out, bundle)
+            if args.sources_dir:
+                write_sources(bundle, args.sources_dir)
         elif args.command == "reanchor":
             result = reanchor(load(args.properties), load(args.bundle))
             save(args.out, result["properties"])
@@ -237,7 +282,8 @@ def main(argv=None):
         elif args.command == "propose":
             save(args.out, asyncio.run(propose(load(args.bundle), args.model)))
         elif args.command == "extract":
-            save(args.out, asyncio.run(propose(load(args.bundle), args.model, intent_only=True)))
+            save(args.out, asyncio.run(propose(load(args.bundle), args.model, intent_only=True,
+                                              output=Path(args.out).parent)))
         elif args.command == "run":
             from .general import Limits
             limits = Limits(args.syntax_rounds, args.proof_rounds, args.verifier_timeout)

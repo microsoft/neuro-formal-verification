@@ -85,12 +85,18 @@ class Chat:
     def __init__(self, responses):
         self.responses = list(responses)
         self.prompts = []
+        self.last_translation = None
 
     async def ask(self, system, prompt, timeout):
         self.prompts.append(prompt)
-        response = self.responses.pop(0)
+        if not self.responses and '"typecheck":' in prompt and self.last_translation:
+            response = {"model": self.last_translation["model"]}
+        else:
+            response = self.responses.pop(0)
         if callable(response):
             response = response(prompt)
+        if isinstance(response, dict) and "entry_point" in response:
+            self.last_translation = copy.deepcopy(response)
         return SimpleNamespace(text=json.dumps(response), model="fake-model", api_calls=0)
 
 
@@ -138,7 +144,7 @@ class GeneralTests(unittest.TestCase):
         return asyncio.run(run(bundle, claims, self.directory, chat, **kwargs))
 
     def test_default_repair_budgets(self):
-        self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
+        self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (3, 10))
 
     def test_context_omits_unrelated_files(self):
         bundle, claim, _ = fixture()
@@ -154,7 +160,7 @@ class GeneralTests(unittest.TestCase):
         self.assertNotIn('"near.h"', prompt)
         self.assertNotIn('"far.h"', prompt)
         self.assertIn("All other function bodies and files are omitted", prompt)
-        self.assertIn("stop after inspecting", report["abstentions"][0]["reason"])
+        self.assertIn("stop after inspecting", report["failures"][0]["diagnostic"])
 
     def test_large_unrelated_file_content_does_not_block_changed_function(self):
         bundle, claim, _ = fixture()
@@ -165,7 +171,7 @@ class GeneralTests(unittest.TestCase):
 
         self.assertEqual(len(chat.prompts), 1)
         self.assertNotIn("x" * 1000, chat.prompts[0])
-        self.assertIn("scoped function reached model", report["abstentions"][0]["reason"])
+        self.assertIn("scoped function reached model", report["failures"][0]["diagnostic"])
 
     def test_reachability_probe_ignores_braces_in_provenance_comments(self):
         model = ("method Target(x: int) returns (r: int)\n  ensures r == x\n{\n"
@@ -209,7 +215,7 @@ class GeneralTests(unittest.TestCase):
             select_properties([unchanged], bundle)
         chat = Chat([{"abstain": "valid claim reached translation"}])
         report = self.execute_many(bundle, [unchanged, claim], chat)
-        reasons = [x["reason"] for x in report["abstentions"]]
+        reasons = [x["diagnostic"] for x in report["failures"]]
         self.assertTrue(any("not tied to added/changed head code" in r for r in reasons))
         self.assertTrue(any("valid claim reached translation" in r for r in reasons))
         self.assertEqual(report["errors"], [])
@@ -220,7 +226,7 @@ class GeneralTests(unittest.TestCase):
         self.execute(bundle, claim, chat)
         first = bundle["sources"][claim["path"]]["text"].splitlines()[0]
         self.assertIn(json.dumps(f"1| {first}")[1:-1], chat.prompts[0])
-        self.assertNotIn('"text":', chat.prompts[0].split("Translate this intended property", 1)[1])
+        self.assertNotIn('"text":', chat.prompts[0].split("\n", 1)[1])
 
     def test_proof_repair_budget_is_ten(self):
         bundle, claim, translation = fixture(invariant=False)
@@ -229,29 +235,30 @@ class GeneralTests(unittest.TestCase):
         report = self.execute(bundle, claim, chat, verifier=verifier)
         self.assertFalse(report["findings"])
         self.assertEqual(len(chat.prompts), 11)
-        self.assertEqual(sum(op == "verify" for op, _ in verifier.operations), 11)
-        self.assertIn("10 proof repairs", report["abstentions"][0]["reason"])
+        self.assertEqual(sum(op == "verify" for op, _ in verifier.operations), 12)
+        self.assertIn("10 proof repairs", report["failures"][0]["diagnostic"])
         entry = report["properties"][0]
-        self.assertEqual(entry["status"], "abstained")
+        self.assertEqual(entry["status"], "resources exhausted")
         self.assertEqual(entry["formalized"], translation["original_ensures"])
-        for operation, source in verifier.operations:
+        self.assertIn("ensures r == n", verifier.operations[1][1])
+        for operation, source in verifier.operations[2:]:
             if operation == "verify":
                 self.assertIn("ensures !((r == n))", source)
                 self.assertIn("method NfvWitnessCheck()", source)
 
-    def test_type_repair_budget_is_six(self):
+    def test_type_repair_budget_is_three(self):
         bundle, claim, translation = fixture()
         class TypeFailures(FailingVerifier):
             def resolve(self, source, directory):
                 self.operations.append(("resolve", source))
                 return {"outcome": "type_error", "exit_code": 2, "mode": "typecheck"}
         verifier = TypeFailures()
-        chat = Chat([translation] + [{"model": translation["model"]}] * 6)
+        chat = Chat([translation] + [{"model": translation["model"]}] * 3)
         report = self.execute(bundle, claim, chat, verifier=verifier)
         self.assertFalse(report["findings"])
-        self.assertEqual(len(chat.prompts), 7)
-        self.assertEqual(len(verifier.operations), 7)
-        self.assertIn("6 syntax repairs", report["abstentions"][0]["reason"])
+        self.assertEqual(len(chat.prompts), 4)
+        self.assertEqual(len(verifier.operations), 4)
+        self.assertIn("3 syntax repairs", report["failures"][0]["diagnostic"])
 
     def test_missing_verifier_does_not_spend_repair_calls(self):
         bundle, claim, translation = fixture()
@@ -269,7 +276,7 @@ class GeneralTests(unittest.TestCase):
         chat = Chat([translation, {"model": translation["model"].replace("r := r + 1;", "r := n;")}])
         report = self.execute(bundle, claim, chat, verifier=FailingVerifier())
         self.assertFalse(report["findings"])
-        self.assertIn("frozen computation", report["abstentions"][0]["reason"])
+        self.assertIn("frozen computation", report["failures"][0]["diagnostic"])
 
     def test_missing_or_fabricated_provenance_abstains(self):
         for change in ("missing", "fabricated"):
@@ -281,13 +288,13 @@ class GeneralTests(unittest.TestCase):
                 translation["model"] = translation["model"].replace("| return r + 1;", "| return r;")
             report = self.execute(bundle, claim, Chat([translation]), verifier=FailingVerifier())
             self.assertFalse(report["findings"], change)
-            self.assertTrue(report["abstentions"], change)
+            self.assertTrue(report["failures"], change)
 
     def test_missing_external_context_abstains(self):
         bundle, claim, translation = fixture()
         translation["required_context"].append("src/missing.h")
         report = self.execute(bundle, claim, Chat([translation]), verifier=FailingVerifier())
-        self.assertIn("Missing required source context", report["abstentions"][0]["reason"])
+        self.assertIn("Missing required source context", report["failures"][0]["diagnostic"])
 
     def test_unsafe_dafny_never_reaches_verifier(self):
         for unsafe in ("assume false;", "expect false;", "decreases *", "include \"secret.dfy\""):
@@ -309,7 +316,7 @@ class GeneralTests(unittest.TestCase):
         report = self.execute(bundle, claim, Chat([translation]), verifier=verifier)
         self.assertFalse(report["findings"])
         self.assertFalse(verifier.operations)
-        self.assertIn("shadowed", report["abstentions"][0]["reason"])
+        self.assertIn("shadowed", report["failures"][0]["diagnostic"])
 
     def test_noncanonical_line_separator_is_rejected(self):
         bundle, claim, translation = fixture()
@@ -335,7 +342,8 @@ class GeneralTests(unittest.TestCase):
                 return {"outcome": "timeout", "exit_code": None, "mode": "unbounded"}
         report = self.execute(bundle, claim, Chat([translation]), verifier=Unreachable())
         self.assertFalse(report["findings"])
-        self.assertIn("reachability", report["abstentions"][0]["reason"])
+        self.assertEqual(report["failures"][0]["reason"], "resources exhausted")
+        self.assertIn("Input-domain check", report["failures"][0]["diagnostic"])
 
     def test_bodyless_environment_is_rejected(self):
         bundle, claim, translation = fixture()
@@ -354,7 +362,7 @@ class GeneralTests(unittest.TestCase):
         event.write_text("{}")
         submitted.write_text(json.dumps({"items": [{"type": "nfv_submit", "proposals": json.dumps([claim])}]}))
         async def fake_run(bundle, properties, output, model, limits):
-            self.assertEqual((limits.syntax_rounds, limits.proof_rounds), (6, 10))
+            self.assertEqual((limits.syntax_rounds, limits.proof_rounds), (3, 10))
             self.assertEqual(model, "fake-model")
             return {"findings": [], "errors": []}
         with patch.object(cli, "collect", return_value=bundle), patch.object(cli, "run_general", side_effect=fake_run):
@@ -626,6 +634,37 @@ class GeneralTests(unittest.TestCase):
         self.assertEqual(report["findings"][0]["counters"]["syntax_repairs"], 1)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_undefined_sequence_access_is_repaired_before_freezing(self):
+        bundle, claim, translation = fixture()
+        source = ["int f(int* values) {", "  // Requires a nonempty input array.",
+                  "  return values[0];", "}"]
+        bundle["sources"][claim["path"]]["text"] = "\n".join(source) + "\n"
+        bundle["changed"][claim["path"]] = claim["lines"] = [3]
+        claim["quote"] = claim["property"] = bundle["signals"][0]["text"] = "Returns the first array element."
+        translation.update({
+            "model": f"// src: {claim['path']}:1 | {source[0]}\n"
+                     "method Target(values: seq<int>) returns (r: int)\n"
+                     "// synth: intended postcondition\n  ensures r == values[0]\n"
+                     "// synth: body\n{\n"
+                     f"// src: {claim['path']}:3 | {source[2].strip()}\n"
+                     "  r := values[0];\n// synth: end\n}\n",
+            "original_ensures": ["r == values[0]"], "source_span": [1, 4],
+            "assumptions": [], "source_notes": [],
+        })
+        translation.pop("witness")
+        repaired = translation["model"].replace(
+            "// synth: intended postcondition", "// synth: documented input domain\n"
+            "  requires |values| > 0\n// synth: intended postcondition")
+        conditions = [{"clause": "|values| > 0", "description": "The input array is nonempty.",
+                       "origin": "inferred", "optional": False}]
+        report = self.execute(bundle, claim, Chat([translation, {"model": repaired,
+                              "assumptions": conditions}]), limits=Limits(proof_rounds=0))
+        self.assertFalse(report["failures"], report)
+        self.assertEqual(len(report["verified"]), 1, report)
+        self.assertEqual(report["verified"][0]["translation"]["original_ensures"], ["r == values[0]"])
+        self.assertEqual(report["verified"][0]["counters"]["syntax_repairs"], 1)
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_actual_annotation_only_proof_repair(self):
         bundle, claim, translation = fixture(invariant=False)
         def repair(prompt):
@@ -637,26 +676,47 @@ class GeneralTests(unittest.TestCase):
         self.assertEqual(report["findings"][0]["counters"]["proof_repairs"], 1)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
-    def test_changed_goal_in_type_repair_is_rejected(self):
+    def test_unrelated_type_repair_cannot_replace_a_valid_goal(self):
         bundle, claim, correct = fixture()
         initial = copy.deepcopy(correct)
         initial["model"] = initial["model"].replace("r := 0;", "r := false;")
         wrong = correct["model"].replace("ensures r == n", "ensures r != n")
         report = self.execute(bundle, claim, Chat([initial, {"model": wrong}]), limits=Limits(proof_rounds=0))
-        self.assertFalse(report["findings"])
-        self.assertIn("goal was altered", report["abstentions"][0]["reason"])
+        self.assertEqual(len(report["findings"]), 1, report)
+        self.assertEqual(report["findings"][0]["translation"]["original_ensures"], ["r == n"])
+        self.assertNotIn("ensures r != n", report["findings"][0]["translation"]["model"])
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
-    def test_holding_modeled_property_abstains(self):
+    def test_unrelated_type_repair_cannot_drop_a_valid_goal(self):
+        bundle, claim, correct = fixture()
+        initial = copy.deepcopy(correct)
+        initial["model"] = initial["model"].replace("r := 0;", "r := false;")
+        missing = correct["model"].replace(
+            "// synth: modeled contract or structural syntax\n  ensures r == n\n", "")
+        report = self.execute(bundle, claim, Chat([initial, {"model": missing}]),
+                              limits=Limits(proof_rounds=0))
+        self.assertEqual(len(report["findings"]), 1, report)
+        self.assertEqual(report["findings"][0]["translation"]["original_ensures"], ["r == n"])
+        self.assertEqual(report["findings"][0]["counters"]["syntax_repairs"], 1)
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_holding_modeled_property_is_verified_without_a_witness(self):
         bundle, claim, translation = fixture()
+        bundle["identity"]["source_kind"] = "pull-request-head"
         bundle["sources"][claim["path"]]["text"] = bundle["sources"][claim["path"]]["text"].replace(
             "return r + 1;", "return r;")
         model = translation["model"].replace("| return r + 1;", "| return r;")
         position = model.rfind("r := r + 1;")
         translation["model"] = model[:position] + "r := r;" + model[position + len("r := r + 1;"):]
+        del translation["witness"]
         report = self.execute(bundle, claim, Chat([translation]), limits=Limits(proof_rounds=0))
         self.assertFalse(report["findings"])
-        self.assertIn("Negative check failed", report["abstentions"][0]["reason"])
+        self.assertFalse(report["failures"], report)
+        self.assertEqual(len(report["verified"]), 1, report)
+        self.assertEqual(report["properties"][0]["status"], "verified")
+        body = render(report, bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertIn("verified for the translated model", body)
+        self.assertIn("not proofs of source-code correctness", body)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_inconsistent_witness_does_not_refute_vacuously(self):
