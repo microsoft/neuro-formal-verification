@@ -310,6 +310,55 @@ class AnalysisTests(unittest.TestCase):
         self.assertIn(good, (drafts / "1.json").read_text())
         validate_translation(evidence["translation"], evidence["candidate"], self.bundle)
 
+    def test_boogie_resolution_failure_uses_draft_repairs_without_changing_goals(self):
+        class BackendFailure(Verifier):
+            def __call__(self, source, directory):
+                if not getattr(self, "crashed", False):
+                    self.crashed = True
+                    return {"outcome": "tool_error", "exit_code": 134, "mode": "unbounded",
+                            "stderr": "Unhandled exception. System.ArgumentException: "
+                                      "Boogie program had 2 resolution errors:\n"
+                                      "undeclared identifier: _t#0#2"}
+                return super().__call__(source, directory)
+        changed_goal = self.translation["model"].replace("ensures r == n", "ensures true")
+        report = self.execute([self.translation, {"model": changed_goal}],
+                              BackendFailure(positive=True))
+        self.assertTrue(report["completed"], report)
+        self.assertFalse(report["errors"], report)
+        evidence = report["verified"][0]
+        self.assertEqual(evidence["counters"]["syntax_repairs"], 1)
+        self.assertEqual(evidence["translation"]["original_ensures"], ["r == n"])
+        self.assertNotIn("ensures true", evidence["translation"]["model"])
+        draft = json.loads((self.directory / evidence["candidate"]["id"] /
+                            "drafts" / "0.json").read_text(encoding="utf-8"))
+        self.assertEqual(draft["typecheck"]["mode"], "backend-translation")
+
+    def test_persistent_boogie_resolution_failure_never_verifies_or_refutes(self):
+        class BackendFailure(Verifier):
+            def __call__(self, source, directory):
+                return {"outcome": "tool_error", "exit_code": 134, "mode": "unbounded",
+                        "stderr": "System.ArgumentException: Boogie program had 2 resolution errors:"}
+        report = self.execute([self.translation], BackendFailure())
+        self.assertTrue(report["completed"], report)
+        self.assertFalse(report["errors"], report)
+        self.assertFalse(report["verified"])
+        self.assertFalse(report["findings"])
+        self.assertEqual(report["properties"][0]["status"], INVALID)
+        self.assertIn("6 syntax repairs", report["failures"][0]["diagnostic"])
+        self.assertEqual(len(self.chat.prompts), 7)
+
+    def test_unrelated_backend_crashes_still_interrupt_the_audit(self):
+        class BackendFailure(Verifier):
+            def __call__(self, source, directory):
+                return {"outcome": "tool_error", "exit_code": 134, "mode": "unbounded",
+                        "stderr": "Unhandled exception. System.OutOfMemoryException"}
+        report = self.execute([self.translation], BackendFailure())
+        self.assertFalse(report["completed"], report)
+        self.assertFalse(report["verified"])
+        self.assertFalse(report["findings"])
+        self.assertIn("OutOfMemoryException", report["errors"][0])
+        self.assertEqual(len(self.chat.prompts), 1)
+
     def test_multiline_source_can_map_to_one_dafny_computation(self):
         model = self.translation["model"]
         path = self.claim["path"]

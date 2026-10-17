@@ -87,6 +87,8 @@ helpers, not just external source callees. The environment name is the exact
 Dafny declaration name; anchor its meaning in the captured source.
 Prefer a small, directly stated entry postcondition over a family of recursive
 specification helpers when both express the same whole property.
+Do not declare top-level const/type/newtype definitions. Inline a captured
+constant's actual value, or initialize a source-tagged local with that value.
 Give method helpers the postconditions callers need, justified by the captured
 source and proved from their bodies. Dafny callers cannot infer a method's
 returned value merely by reading its implementation.

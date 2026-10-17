@@ -380,6 +380,14 @@ class GeneralTests(unittest.TestCase):
         self.assertIn("missing metadata for ['SpecA', 'SpecB']", diagnostic)
         self.assertIn("metadata without declarations ['Absent']", diagnostic)
 
+    def test_unsupported_constant_diagnostic_names_the_construct_and_line(self):
+        bundle, claim, translation = fixture()
+        translation["model"] = "// synth: constant\nconst Status: int := 1\n" + translation["model"]
+        with self.assertRaises(Abstain) as caught:
+            validate_translation(translation, claim, bundle)
+        self.assertIn("construct 'const' on line 2", str(caught.exception))
+        self.assertIn("captured constant value", str(caught.exception))
+
     def test_cli_general_defaults_are_wired_to_evaluate(self):
         from nfv_workflow import cli
         bundle, claim, _ = fixture()

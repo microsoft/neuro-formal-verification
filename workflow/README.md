@@ -24,7 +24,9 @@ and branches, into the verifier's language.
   repairs** of the negative check.
   Draft audit diagnostics identify source-tag errors and missing helper metadata
   together. Definite-assignment and sequence-bound errors must be repaired before
-  the model is frozen.
+  the model is frozen. Drafts rejected by Dafny's Boogie resolution stage use the
+  same bounded draft-repair budget; they are never accepted without a successful
+  verifier run. Other verifier/tool failures still interrupt the audit.
 * The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
   `ready_for_review`). Drafts are skipped.
 

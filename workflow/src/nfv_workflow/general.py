@@ -71,7 +71,7 @@ class ToolFailure(RuntimeError):
 
 def require_tool(result):
     if result.get("outcome") == "tool_error":
-        raise ToolFailure("Dafny execution failed: " + str(result.get("stderr", ""))[-2000:])
+        raise ToolFailure("Dafny execution failed: " + str(result.get("stderr", ""))[:2000])
 
 
 @dataclass(frozen=True)
@@ -262,8 +262,17 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
             if (result.get("outcome") == "verified" and result.get("exit_code") == 0
                     and result.get("mode") == "typecheck"):
                 positive = verifier(current, directory / "verification")
-                require_tool(positive)
                 save(directory / "drafts" / f"{attempt}-verification.json", positive)
+                if (positive.get("outcome") == "tool_error"
+                        and re.search(r"System\.ArgumentException: Boogie program had \d+ resolution errors:",
+                                      positive.get("stderr", ""))):
+                    result = {**positive, "outcome": "audit_failure", "mode": "backend-translation",
+                              "stderr": "Dafny could not translate this draft into valid Boogie. "
+                                        "Simplify helper definitions or annotations without changing "
+                                        "the source property or entry postconditions; acceptance still "
+                                        "requires a successful verifier run.\n" + positive.get("stderr", "")}
+                else:
+                    require_tool(positive)
                 if re.search(r"(?m)^.*\.dfy\(\d+,\d+\): Error: [^\n]*(?:"
                              r"(?:index|bound)[^\n]*out of range|"
                              r"(?:upper|lower) bound[^\n]*(?:length|bound)|"

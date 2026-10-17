@@ -91,8 +91,15 @@ def audit(model, entry):
     if len(mentions) != 1:
         raise Abstain("Entry declaration is duplicated or shadowed by quoted source/model text")
     code = clean_code(model)
-    if re.search(r"\b(assume|expect|include|import|export|module|extern|abstract|opaque|iterator|yield|const|type|newtype|trait|codatatype)\b", code):
-        raise Abstain("Dafny model uses an unsafe or unsupported verification construct")
+    unsupported = re.search(
+        r"\b(assume|expect|include|import|export|module|extern|abstract|opaque|iterator|yield|const|type|newtype|trait|codatatype)\b",
+        code)
+    if unsupported:
+        line = code.count("\n", 0, unsupported.start()) + 1
+        advice = (" Inline the captured constant value or use a source-tagged initialized local; "
+                  "do not change its value." if unsupported[1] == "const" else "")
+        raise Abstain("Dafny model uses an unsafe or unsupported verification construct "
+                      f"'{unsupported[1]}' on line {line}.{advice}")
     if "{:" in code or re.search(r"\bdecreases\s+\*", code):
         raise Abstain("Attributes or nontermination escapes are prohibited")
     if re.search(r"\bNfv[A-Za-z0-9_]*", code):
