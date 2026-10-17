@@ -144,7 +144,7 @@ class GeneralTests(unittest.TestCase):
         return asyncio.run(run(bundle, claims, self.directory, chat, **kwargs))
 
     def test_default_repair_budgets(self):
-        self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (3, 10))
+        self.assertEqual((Limits().syntax_rounds, Limits().proof_rounds), (6, 10))
 
     def test_context_omits_unrelated_files(self):
         bundle, claim, _ = fixture()
@@ -246,19 +246,19 @@ class GeneralTests(unittest.TestCase):
                 self.assertIn("ensures !((r == n))", source)
                 self.assertIn("method NfvWitnessCheck()", source)
 
-    def test_type_repair_budget_is_three(self):
+    def test_type_repair_budget_is_six(self):
         bundle, claim, translation = fixture()
         class TypeFailures(FailingVerifier):
             def resolve(self, source, directory):
                 self.operations.append(("resolve", source))
                 return {"outcome": "type_error", "exit_code": 2, "mode": "typecheck"}
         verifier = TypeFailures()
-        chat = Chat([translation] + [{"model": translation["model"]}] * 3)
+        chat = Chat([translation] + [{"model": translation["model"]}] * 6)
         report = self.execute(bundle, claim, chat, verifier=verifier)
         self.assertFalse(report["findings"])
-        self.assertEqual(len(chat.prompts), 4)
-        self.assertEqual(len(verifier.operations), 4)
-        self.assertIn("3 syntax repairs", report["failures"][0]["diagnostic"])
+        self.assertEqual(len(chat.prompts), 7)
+        self.assertEqual(len(verifier.operations), 7)
+        self.assertIn("6 syntax repairs", report["failures"][0]["diagnostic"])
 
     def test_missing_verifier_does_not_spend_repair_calls(self):
         bundle, claim, translation = fixture()
@@ -354,6 +354,32 @@ class GeneralTests(unittest.TestCase):
         self.assertFalse(report["findings"])
         self.assertFalse(verifier.operations)
 
+    def test_translation_audit_reports_tags_and_all_missing_helper_metadata_together(self):
+        bundle, claim, translation = fixture()
+        path = claim["path"]
+        translation["model"] = (
+            f"// src: {path}:1 | int f(int n) {{\n"
+            "function SpecA(x: int): int\n"
+            "// synth: specification body\n{\n"
+            "// synth: incorrect computation tag\n  x\n"
+            "// synth: specification body ends\n}\n"
+            f"// src: {path}:1 | int f(int n) {{\n"
+            "function SpecB(x: int): int\n"
+            "// synth: specification body\n{\n"
+            f"// src: {path}:4 | return r + 1;\n  x + 1\n"
+            "// synth: specification body ends\n}\n"
+            + translation["model"])
+        translation["environment"] = [{
+            "name": "Absent", "kind": "source-derived", "description": "An absent helper.",
+            "source": {"path": path, "lines": [1]},
+        }]
+        with self.assertRaises(Abstain) as caught:
+            validate_translation(translation, claim, bundle)
+        diagnostic = str(caught.exception)
+        self.assertIn("Computation cannot hide behind a synthetic annotation tag", diagnostic)
+        self.assertIn("missing metadata for ['SpecA', 'SpecB']", diagnostic)
+        self.assertIn("metadata without declarations ['Absent']", diagnostic)
+
     def test_cli_general_defaults_are_wired_to_evaluate(self):
         from nfv_workflow import cli
         bundle, claim, _ = fixture()
@@ -362,7 +388,7 @@ class GeneralTests(unittest.TestCase):
         event.write_text("{}")
         submitted.write_text(json.dumps({"items": [{"type": "nfv_submit", "proposals": json.dumps([claim])}]}))
         async def fake_run(bundle, properties, output, model, limits):
-            self.assertEqual((limits.syntax_rounds, limits.proof_rounds), (3, 10))
+            self.assertEqual((limits.syntax_rounds, limits.proof_rounds), (6, 10))
             self.assertEqual(model, "fake-model")
             return {"findings": [], "errors": []}
         with patch.object(cli, "collect", return_value=bundle), patch.object(cli, "run_general", side_effect=fake_run):
@@ -632,6 +658,41 @@ class GeneralTests(unittest.TestCase):
                               limits=Limits(proof_rounds=0))
         self.assertEqual(len(report["findings"]), 1, report)
         self.assertEqual(report["findings"][0]["counters"]["syntax_repairs"], 1)
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_undefined_slice_bound_is_repaired_before_freezing(self):
+        bundle, claim, correct = fixture()
+        initial = copy.deepcopy(correct)
+        initial["model"] = initial["model"].replace("ensures r == n", "ensures r == [n][..2][0]")
+        initial["original_ensures"] = ["r == [n][..2][0]"]
+        report = self.execute(bundle, claim, Chat([initial, {"model": correct["model"]}]),
+                              limits=Limits(proof_rounds=0))
+        self.assertFalse(report["failures"], report)
+        self.assertEqual(len(report["findings"]), 1, report)
+        finding = report["findings"][0]
+        self.assertEqual(finding["counters"]["syntax_repairs"], 1)
+        self.assertEqual(finding["translation"]["original_ensures"], ["r == n"])
+        draft = json.loads((self.directory / finding["candidate"]["id"] /
+                            "drafts" / "0.json").read_text(encoding="utf-8"))
+        self.assertEqual(draft["typecheck"]["mode"], "well-definedness")
+        self.assertIn("upper bound", draft["typecheck"]["stdout"])
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_uninitialized_output_is_repaired_before_freezing(self):
+        bundle, claim, correct = fixture()
+        initial = copy.deepcopy(correct)
+        initial["model"] = initial["model"].replace(
+            f"// src: {claim['path']}:2 | int r = 0;\n  r := 0;\n", "", 1)
+        report = self.execute(bundle, claim, Chat([initial, {"model": correct["model"]}]),
+                              limits=Limits(proof_rounds=0))
+        self.assertFalse(report["failures"], report)
+        self.assertEqual(len(report["findings"]), 1, report)
+        finding = report["findings"][0]
+        self.assertEqual(finding["counters"]["syntax_repairs"], 1)
+        self.assertEqual(finding["translation"]["model"], correct["model"])
+        draft = json.loads((self.directory / finding["candidate"]["id"] /
+                            "drafts" / "0.json").read_text(encoding="utf-8"))
+        self.assertEqual(draft["typecheck"]["mode"], "well-definedness")
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_undefined_sequence_access_is_repaired_before_freezing(self):

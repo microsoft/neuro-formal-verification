@@ -57,7 +57,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Never drop an obligation. Preserve implication, disjunction and quantifier
   grouping. Progress counts the fixed whole review,
   not subchecks of one property.
-  Audit array/sequence range diagnostics before freezing a draft, without
+  Audit definite-assignment and array/sequence range diagnostics before freezing a draft, without
   changing or splitting conjectures. Prefer implementation-owned properties over
   test expectations refuted only by arbitrary environment responses.
 - Report UX (`publish.general_section`): a one-line NFV intro linking the paper
@@ -95,7 +95,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `publish.text()` escaping.
 - Only `nfv-workflow audit`/`evaluate` decide acceptance; agents never edit,
   summarize or add to generated report text.
-- Limits: at most 10 intended properties per PR, 3 syntax repairs and 10
+- Limits: at most 10 intended properties per PR, 6 syntax repairs and 10
   annotation-only proof repairs per property.
 - Do not modify the dataset or retained results in `paper/data` and
   `paper/results`; they are checksum-pinned and marked `-text` in

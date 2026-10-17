@@ -76,7 +76,7 @@ def require_tool(result):
 
 @dataclass(frozen=True)
 class Limits:
-    syntax_rounds: int = 3
+    syntax_rounds: int = 6
     proof_rounds: int = 10
     verifier_timeout: int = 60
     model_timeout: int = 240
@@ -264,11 +264,15 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
                 positive = verifier(current, directory / "verification")
                 require_tool(positive)
                 save(directory / "drafts" / f"{attempt}-verification.json", positive)
-                if re.search(r"(?m)^.*\.dfy\(\d+,\d+\): Error: [^\n]*(?:index|bound)[^\n]*out of range",
+                if re.search(r"(?m)^.*\.dfy\(\d+,\d+\): Error: [^\n]*(?:"
+                             r"(?:index|bound)[^\n]*out of range|"
+                             r"(?:upper|lower) bound[^\n]*(?:length|bound)|"
+                             r"definite-assignment|might be uninitialized|"
+                             r"(?:divisor|denominator)[^\n]*(?:zero|non-zero))",
                              positive.get("stdout", "") + positive.get("stderr", "")):
                     result = {**positive, "outcome": "audit_failure", "mode": "well-definedness",
-                              "stderr": "Draft array/sequence accesses are not established as "
-                                        "well-defined. Repair justified domains or proof annotations "
+                              "stderr": "Draft computation/contracts are not established as "
+                                        "well-defined. Repair definite assignment, justified domains or proof annotations "
                                         "before freezing the translation.\n" + positive.get("stderr", "")}
         except (Abstain, KeyError, TypeError, ValueError) as exc:
             result = {"outcome": "audit_failure", "stderr": str(exc), "stdout": ""}

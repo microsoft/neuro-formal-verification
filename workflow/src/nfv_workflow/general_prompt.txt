@@ -32,6 +32,12 @@ The preceding repository-context session may additionally supply relevant
 cross-file helper bodies, classes and constant tables. Use these captured
 definitions, not the context agent's guesses, to model their behavior. Their
 original repository line numbers and blob identities remain authoritative.
+Keep the model focused on the selected property. If a property depends only on
+whether a call is evaluated or on how the caller uses its result, retain the
+call and its control flow but expose the result as a disclosed abstract input
+when its internal algorithm is irrelevant. Read the captured callee and record
+why that abstraction is sufficient; do not invent its result or assume the
+property. Never omit callee effects or semantics needed by the property.
 Preserve imperative control flow, updates, branch guards, loops, and calls.
 Model language-specific numeric behavior, overflow, exceptions, references,
 aliasing, collections, and external effects explicitly. Heap/graph state can be
@@ -75,7 +81,15 @@ Mark supplied assumptions as inferred, even if motivated by source comments.
 Use optional=true only for additional environment/domain restrictions that can
 be deleted and rechecked; required applicability conditions must have
 optional=false.
-Every modeled external helper must have a body and environment metadata.
+EVERY non-entry callable must have a body and its own environment metadata,
+including mathematical specification functions, predicates and bookkeeping
+helpers, not just external source callees. The environment name is the exact
+Dafny declaration name; anchor its meaning in the captured source.
+Prefer a small, directly stated entry postcondition over a family of recursive
+specification helpers when both express the same whole property.
+Give method helpers the postconditions callers need, justified by the captured
+source and proved from their bodies. Dafny callers cannot infer a method's
+returned value merely by reading its implementation.
 
 ENVIRONMENT. Everything the slice calls but does not translate is environment.
 Do not abstain merely because a callee is implemented elsewhere. Read its
@@ -130,6 +144,17 @@ Before freezing, draft repair may correct syntax, types, computation and formal
 contracts to express the SAME immutable source property. Keep original_ensures,
 assumptions and environment metadata consistent with the corrected draft.
 Never weaken the property or invent input restrictions to make it prove.
+Do not assume Dafny output parameters start at false, zero or an empty sequence.
+Assign every output on every return path. For abstract call-occurrence flags,
+explicitly initialize the observation before the branch; anchor that
+bookkeeping at the captured function/condition and disclose its meaning.
+Make contracts well-defined as written: place output-length bounds before
+indexing or slicing outputs, and guard every quantified sequence access with
+the required index and length bounds. Prefer separate ensures clauses when a
+length fact must establish a later clause's domain; all clauses remain one
+whole property. Keep per-app and per-argument sequence lengths and offsets
+consistent, and carry their bounds and processed-prefix facts through loops.
+Do not add assumptions that restrict real inputs just to hide a proof failure.
 Every draft and its diagnostics are retained. Once fully audited and
 type-correct the complete model is frozen. Proof repair will use a separate
 annotation-only JSON protocol: computation, original/negated goal, witness, and

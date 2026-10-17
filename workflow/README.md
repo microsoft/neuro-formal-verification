@@ -20,8 +20,11 @@ and branches, into the verifier's language.
   Lean) can be added as backends. CBMC is used only by the paper artifact.
   Verifier-specific details below (constructs, annotations, versions) describe
   the Dafny backend.
-* Each property gets up to **3 syntax/type repairs** and **10 annotation-only
+* Each property gets up to **6 syntax/type repairs** and **10 annotation-only
   repairs** of the negative check.
+  Draft audit diagnostics identify source-tag errors and missing helper metadata
+  together. Definite-assignment and sequence-bound errors must be repaired before
+  the model is frozen.
 * The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
   `ready_for_review`). Drafts are skipped.
 
@@ -305,7 +308,7 @@ path does not require the model client.
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
    * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.
-   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (3, max 20),
+   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
      after another within the 360-minute job timeout.
@@ -403,7 +406,7 @@ nfv-workflow collect --event event.json --out .nfv-work\bundle.json
 # Explicitly billable extraction and general refutation; replace placeholders.
 $env:NFV_MODEL = "YOUR_APPROVED_MODEL"
 nfv-workflow extract --bundle .nfv-work\bundle.json --model $env:NFV_MODEL --out .nfv-work\properties.json
-nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\properties.json --model $env:NFV_MODEL --syntax-rounds 3 --proof-rounds 10 --out .nfv-work\evidence
+nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\properties.json --model $env:NFV_MODEL --syntax-rounds 6 --proof-rounds 10 --out .nfv-work\evidence
 ```
 
 Never commit credentials or local environment files. Model access and billing
@@ -422,7 +425,7 @@ nfv-workflow run --bundle .nfv-work\bundle-base.json --properties .nfv-work\prop
 
 `audit` is the AW entrypoint; `evaluate` is the standalone equivalent that also
 collects fresh source and reads properties from an `nfv_submit` item.
-Their defaults are `--mode general --syntax-rounds 3 --proof-rounds 10`.
+Their defaults are `--mode general --syntax-rounds 6 --proof-rounds 10`.
 `--verifier-timeout` defaults to 60 seconds. Each model request defaults to
 240 seconds, with a 30-minute per-property wall limit checked between operations.
 The ordinary maximum is **18 logical model requests per property**

@@ -154,14 +154,15 @@ def validate_translation(translation, claim, bundle, model=None):
             raise Abstain(f"Missing required source context: {path}")
     if claim["path"] not in translation["required_context"]:
         raise Abstain("Primary source absent from required context")
-    mapped, previous = [], []
+    mapped, previous, problems = [], [], []
     for number, line in enumerate(model.splitlines(), 1):
         if not line.strip():
             continue
         src, synth = SRC.fullmatch(line), SYNTH.fullmatch(line)
         if src:
             if previous and previous[0][0] == "synth":
-                raise Abstain("Source tag cannot replace a pending synthetic annotation")
+                problems.append(f"Line {number}: Source tag cannot replace a pending synthetic annotation")
+                previous = []
             path, origin, excerpt = src[1], int(src[2]), src[3]
             if anchor(bundle, path, origin).strip() != excerpt.strip():
                 raise Abstain("Fabricated source provenance excerpt")
@@ -171,25 +172,30 @@ def validate_translation(translation, claim, bundle, model=None):
             continue
         if synth:
             if previous:
-                raise Abstain("Synthetic tag cannot discard pending source provenance")
+                problems.append(f"Line {number}: Synthetic tag cannot discard pending source provenance")
             previous = [("synth",)]
             continue
         if line.lstrip().startswith("//"):
             if previous:
-                raise Abstain("Comment interrupts pending source provenance")
+                problems.append(f"Line {number}: Comment interrupts pending source provenance")
+                previous = []
             continue
         if not previous:
-            raise Abstain(f"Untagged Dafny line {number}")
+            problems.append(f"Untagged Dafny line {number}: {line.strip()[:160]}")
+            continue
         if previous[0][0] == "synth":
             if not SYNTH_CODE.fullmatch(line.strip()):
-                raise Abstain("Computation cannot hide behind a synthetic annotation tag")
+                problems.append(f"Line {number}: Computation cannot hide behind a synthetic annotation tag: "
+                                f"{line.strip()[:160]}")
         else:
             if re.match(r"\s*(requires|ensures)\b", line):
-                raise Abstain("Contracts must use synthetic tags, not frozen computation tags")
+                problems.append(f"Line {number}: Contracts must use synthetic tags, not frozen computation tags")
             for _, path, origin, excerpt in previous:
                 mapped.append({"model_line": number, "path": path,
                                "line": origin, "source": excerpt, "model": line.strip()})
         previous = []
+    if previous:
+        problems.append("A trailing provenance tag has no corresponding Dafny line")
     covered = {x["line"] for x in mapped if x["path"] == claim["path"]}
     required = set(claim["lines"])
     for line in range(first, last + 1):
@@ -198,9 +204,9 @@ def validate_translation(translation, claim, bundle, model=None):
             required.add(line)
     if not required <= covered:
         missing = sorted(required - covered)
-        raise Abstain(f"Source provenance does not cover the declared source slice: "
-                      f"{claim['path']} lines {missing[:30]}. Consecutive exact src tags may "
-                      "map multiple source lines to one Dafny computation line.")
+        problems.append(f"Source provenance does not cover the declared source slice: "
+                        f"{claim['path']} lines {missing[:30]}. Consecutive exact src tags may "
+                        "map multiple source lines to one Dafny computation line.")
     environment = translation.get("environment", [])
     if len(environment) > 30:
         raise Abstain("Environment context budget exceeded")
@@ -216,7 +222,11 @@ def validate_translation(translation, claim, bundle, model=None):
         for line in origin["lines"]:
             anchor(bundle, origin["path"], line)
     if declared_helpers != described_helpers:
-        raise Abstain("Helper declarations and environment metadata disagree")
+        problems.append("Helper declarations and environment metadata disagree: "
+                        f"missing metadata for {sorted(declared_helpers - described_helpers)}; "
+                        f"metadata without declarations {sorted(described_helpers - declared_helpers)}. "
+                        "Every non-entry callable, including specification functions and predicates, "
+                        "needs its own source-anchored environment entry.")
     if not translation.get("correspondence") or not translation.get("explanation"):
         raise Abstain("Missing conditional source correspondence/explanation")
     for note in translation.get("source_notes", []):
@@ -225,6 +235,11 @@ def validate_translation(translation, claim, bundle, model=None):
             raise Abstain("Invalid source overlay note")
         if note.get("kind") not in (None, "invariant", "spec"):
             raise Abstain("Source overlay kind must be invariant or spec")
+    if problems:
+        shown = problems[:40]
+        if len(problems) > len(shown):
+            shown.append(f"{len(problems) - len(shown)} additional translation audit errors omitted")
+        raise Abstain("Translation audit failed:\n" + "\n".join(shown))
     return mapped
 
 
