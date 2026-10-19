@@ -40,9 +40,9 @@ From a clone of the chosen repository, have the installer or coding assistant:
 
 - Install the NFV gh-aw package, including both the source-context and PR-review
   workflows.
-- Resolve the current HEAD of NFV's `main` branch to a full SHA, use it for both
+- Resolve the current HEAD of NFV's `dev` branch to a full SHA, use it for both
   the package and `NFV_RELEASE_SHA`, and set `NFV_MODEL` to a model available to
-  your Copilot account.
+  your Copilot account. Switch to `main` after release.
 - Prepare the workflow files and generated locks for review and commit.
 
 You do not need to install Dafny, Z3 or Python locally. The workflow provisions
@@ -65,7 +65,7 @@ repository's clone. No manual SHA selection is needed:
 ```powershell
 $TargetRepo = "OWNER/REPO"
 $NFV_MODEL = "APPROVED_MODEL_ID"
-$NFV_REF = "main"
+$NFV_REF = "dev" # Use "main" after release
 $NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
 if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
     throw "Could not resolve the NFV revision"
@@ -92,7 +92,7 @@ Commit both workflow `.md` files and both `.lock.yml` files under
 `.github\aw\`. Review any `.gitattributes` changes. Do not commit unrelated files
 or hand-edit generated locks. Keep the existing repair and spending limits.
 
-The resolved SHA stays pinned even if `main` moves later; the workflow does not
+The resolved SHA stays pinned even if `dev` moves later; the workflow does not
 auto-update. Use the [upgrade commands below](#upgrade-an-existing-installation)
 to update an existing installation. Do not repeat forking or token setup.
 
@@ -101,19 +101,19 @@ to update an existing installation. Do not repeat forking or token setup.
 <details>
 <summary>Optional: test another NFV revision</summary>
 
-Before running the installation block, change its `$NFV_REF = "main"` line to:
+Before running the installation block, change its `$NFV_REF = "dev"` line to:
 
 ```powershell
-$NFV_REF = "dev" # Or a trusted full 40-character commit SHA
+$NFV_REF = "TRUSTED_TEST_REF" # Or a trusted full 40-character commit SHA
 ```
 
 Use a test repository or fork. The same commands resolve that revision once
 and use the resulting SHA for both the package and runtime. Do not use a
 revision supplied by the PR being audited.
 
-For an existing installation, use the upgrade procedure below with
-`$NFV_REF = "dev"` or a trusted full SHA. To return to the default release, use
-the same upgrade procedure with `$NFV_REF = "main"`.
+For an existing installation, use the upgrade procedure below with the trusted
+test revision. To return to the current development default, use
+`$NFV_REF = "dev"`. After release, use `$NFV_REF = "main"` instead.
 
 </details>
 
@@ -205,7 +205,7 @@ run could still read the shared release variable.
 Resolve the new release once and refresh the installed package:
 
 ```powershell
-$NFV_REF = "main" # For testing, use "dev" or a trusted full commit SHA
+$NFV_REF = "dev" # Use "main" after release; a trusted full SHA also works
 $NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
 if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
     throw "Could not resolve the NFV revision"
@@ -235,7 +235,7 @@ gh workflow enable nfv-pr-review.lock.yml --repo $TargetRepo
 if ($LASTEXITCODE -ne 0) { throw "Could not resume NFV" }
 ```
 
-Use the **same SHA resolved above**, not a fresh lookup of `main`. If using a new
+Use the **same SHA resolved above**, not a fresh lookup of the branch. If using a new
 shell, restore `$TargetRepo` and that exact `$NFV_RELEASE_SHA` first. If any step
 fails, leave audits paused until the problem is resolved. Open or update a small
 non-draft PR to check the upgraded installation.
