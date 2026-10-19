@@ -11,19 +11,27 @@ bugs**. Failure to refute is not evidence of source correctness.
 
 ## Onboard with a coding agent
 
-Give a coding agent the task below, replacing `OWNER/REPO` with your target
-repository. It handles the setup; you choose an approved model and enter tokens
-securely. The agent needs a clone of the **target repository**, unless it already
-has that checkout. A separate local clone of NFV is not required.
+First clone the **target repository** and start Copilot inside it. Replace
+`OWNER/REPO` with your target repository and `REPO` with its local directory name:
+
+```powershell
+git clone https://github.com/OWNER/REPO.git
+Set-Location .\REPO
+copilot
+```
+
+If you already have a clone, enter its directory and run `copilot` there.
+Then paste the task below into Copilot, replacing `OWNER/REPO`. Copilot handles
+the setup; you choose an approved model and enter tokens securely.
+A separate local clone of NFV is not required.
 
 ```text
 Onboard NFV PR review in https://github.com/OWNER/REPO.
 Follow the client setup in:
 https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/README.md
 
-Clone the target repository if needed. Otherwise verify that the existing
-checkout belongs to this target and preserve any local changes. Start from
-its default branch; do not modify upstream.
+Work in this checkout. Verify that it belongs to the target repository and
+preserve any local changes. Start from its default branch; do not modify upstream.
 
 Resolve NFV dev HEAD once to a full immutable SHA. Use that same SHA for
 the workflow package and NFV_RELEASE_SHA. Use main after NFV's release.
