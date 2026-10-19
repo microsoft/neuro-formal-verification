@@ -199,7 +199,9 @@ under `workflow/tests/.general-scratch/`; never commit them.
 
 ## Conventions
 
-- Branch from and target `dev` with feature branches/PRs; never push to `main`.
+- Develop on `dev`, or use feature branches/PRs targeting `dev`. Before a release,
+  squash-merge the accumulated changes into `main`; do not promote intermediate
+  development commits or push directly to `main`. Keep `dev` for development.
 - Do not commit personal or local files: `prompts.txt`, `.vscode/`,
   `.github/skills/agentic-workflows/` (from `gh aw init`), `.nfv-work/`, `.nfv-scratch/`.
 - Keep docs concise and user-facing: describe the current behaviour, with no
