@@ -43,6 +43,14 @@ repository's default branch, including both workflow Markdown files,
 generated locks and package/action records. Review any .gitattributes
 changes. Do not merge without my approval.
 
+Do not run NFV on its own installation PR or require an NFV check for it.
+Keep the PR draft until nfv-pr-review.lock.yml is explicitly disabled and
+its disabled state is verified. Keep NFV disabled when marking the PR ready
+and merging it; a draft alone does not protect the ready_for_review event.
+If the workflow is not registered yet or cannot be disabled, leave the PR
+draft and report the block. Leave unrelated CI enabled. Enable NFV only
+after the installation merges into the base branch.
+
 Guide me through secure entry of COPILOT_GITHUB_TOKEN and NFV_RELEASE_TOKEN
 using GitHub settings or an interactive CLI prompt. Follow the README's
 token permissions. Never request tokens in chat, expose their values or
@@ -51,8 +59,8 @@ store them locally. Verify only that the required secret names exist.
 Keep the default budgets. Never check out or execute PR code. Do not create
 a synthetic test fixture or start billable audits without my approval.
 Report what is ready and what remains blocked. After installation reaches
-the base branch and I approve a pilot PR, check its actual generated comment
-and nfv-evidence artifact, not merely a green Actions job.
+the base branch and I approve a separate pilot PR, check its actual generated
+comment and nfv-evidence artifact, not merely a green Actions job.
 ```
 
 ## A. Choose the repository; fork it if needed
@@ -138,6 +146,24 @@ Commit both workflow `.md` files and both `.lock.yml` files under
 `.github\aw\`. Review any `.gitattributes` changes. Do not commit unrelated files
 or hand-edit generated locks. Keep the existing repair and spending limits.
 
+**Do not run NFV on its own installation PR.** Open that PR as a draft. Once
+GitHub registers the workflow, disable the reviewer and verify its state
+**before marking the PR ready or merging it**:
+
+```powershell
+gh workflow disable nfv-pr-review.lock.yml --repo $TargetRepo
+if ($LASTEXITCODE -ne 0) { throw "Keep the installation PR draft: could not disable NFV" }
+$NFV_WORKFLOW_STATE = gh api "repos/$TargetRepo/actions/workflows/nfv-pr-review.lock.yml" --jq .state
+if ($LASTEXITCODE -ne 0 -or $NFV_WORKFLOW_STATE -ne "disabled_manually") {
+    throw "Keep the installation PR draft: NFV is not confirmed disabled"
+}
+```
+
+If the workflow is not registered yet or cannot be disabled, leave the PR in
+draft and report the block. Marking a draft ready triggers NFV unless the
+reviewer is disabled. Keep it disabled through the merge; do not require an NFV
+check for this bootstrap PR. Leave unrelated CI enabled.
+
 The resolved SHA stays pinned even if `dev` moves later; the workflow does not
 auto-update. Use the [upgrade commands below](#upgrade-an-existing-installation)
 to update an existing installation. Do not repeat forking or token setup.
@@ -222,11 +248,19 @@ local `gh` login also needs NFV access to install the template. Once NFV is
 public and readable by the runner's normal token, this extra secret is no
 longer needed.
 
-**After setup:** merge the installation into the intended base branch, then open
-or update a small **non-draft PR in that repository**. NFV should post its
-generated audit comment. Check the actual comment and the run's `nfv-evidence`
-artifact, not just a green job. Fork-origin PRs may not receive secrets; do not
-switch to `pull_request_target` to expose them.
+**After setup:** with NFV still disabled, merge the approved installation PR into
+the intended base branch. Only after that merge, enable the reviewer:
+
+```powershell
+gh workflow enable nfv-pr-review.lock.yml --repo $TargetRepo
+if ($LASTEXITCODE -ne 0) { throw "Could not enable NFV after installation" }
+```
+
+With the user's approval, open or update a **separate, small non-draft PR in that
+repository**. NFV should post its generated audit comment. Check the actual
+comment and the run's `nfv-evidence` artifact, not just a green job.
+Fork-origin PRs may not receive secrets; do not switch to `pull_request_target`
+to expose them.
 
 ## Upgrade an existing installation
 

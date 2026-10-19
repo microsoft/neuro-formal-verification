@@ -135,6 +135,13 @@ under `workflow/tests/.general-scratch/`; never commit them.
 
 ## The PR reviewer agentic workflow (gh-aw)
 
+- Client bootstrap: never run NFV against its own initial installation PR or
+  require an NFV check for it. Keep that PR draft until `nfv-pr-review.lock.yml`
+  is disabled and its disabled state is verified; keep it disabled through
+  marking ready and merging. If the workflow is not registered or cannot be
+  disabled, leave the PR draft and report the block. Leave unrelated CI enabled.
+  Enable NFV only after installation reaches the base branch, then use a
+  separate user-approved pilot PR.
 - Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:

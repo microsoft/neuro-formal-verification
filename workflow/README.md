@@ -339,6 +339,12 @@ AW template, set the Copilot token, and set the private NFV read token.
    locks under `.github\aw\`. The checked-in locks are compiled with
    **gh aw v0.88.7**.
 
+The initial installation PR must not run NFV itself. Keep it draft until the
+reviewer workflow is disabled and its state verified, then keep NFV disabled
+through marking ready and merging. Enable it only after installation reaches
+the base branch, and use a separate approved pilot PR. Leave unrelated CI enabled;
+do not require an NFV check for the bootstrap PR.
+
 Trusted pre-agent steps check out the pinned release, install it, download
 official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256
 `a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179`), select its
