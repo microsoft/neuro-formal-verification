@@ -312,8 +312,9 @@ skill as an optional aid. The setup is: choose or fork a repository, install the
 AW template, set the Copilot token, and set the private NFV read token.
 
 1. Configure protected repository variables:
-   * `NFV_RELEASE_SHA`: reviewed full commit of
-     `microsoft/neuro-formal-verification`, containing these files.
+   * `NFV_RELEASE_SHA`: full commit of `microsoft/neuro-formal-verification`,
+     normally resolved once from `main` HEAD during installation. Use that same
+     SHA for the installed package; other trusted revisions are optional for testing.
    * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.
    * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny

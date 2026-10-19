@@ -26,8 +26,9 @@ From a clone of the chosen repository, have the installer or coding assistant:
 
 - Install the NFV gh-aw package, including both the source-context and PR-review
   workflows.
-- Set `NFV_RELEASE_SHA` to the same reviewed, immutable NFV commit used for the
-  package, and `NFV_MODEL` to a model available to your Copilot account.
+- Resolve the current HEAD of NFV's `main` branch to a full SHA, use it for both
+  the package and `NFV_RELEASE_SHA`, and set `NFV_MODEL` to a model available to
+  your Copilot account.
 - Prepare the workflow files and generated locks for review and commit.
 
 You do not need to install Dafny, Z3 or Python locally. The workflow provisions
@@ -44,15 +45,21 @@ already installed:
 gh extension install github/gh-aw --pin v0.88.7
 ```
 
-Replace the placeholders and run from the target repository's clone:
+Replace the target repository and model placeholders, then run from the target
+repository's clone. No manual SHA selection is needed:
 
 ```powershell
 $TargetRepo = "OWNER/REPO"
-$NFV_RELEASE_SHA = "REVIEWED_40_CHARACTER_COMMIT_SHA"
 $NFV_MODEL = "APPROVED_MODEL_ID"
-if ($NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') { throw "Set a reviewed full SHA" }
+$NFV_REF = "main"
+$NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
+if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
+    throw "Could not resolve the NFV revision"
+}
 gh variable set NFV_RELEASE_SHA --repo $TargetRepo --body $NFV_RELEASE_SHA
+if ($LASTEXITCODE -ne 0) { throw "Could not set NFV_RELEASE_SHA" }
 gh variable set NFV_MODEL --repo $TargetRepo --body $NFV_MODEL
+if ($LASTEXITCODE -ne 0) { throw "Could not set NFV_MODEL" }
 gh aw add "microsoft/neuro-formal-verification/workflow@$NFV_RELEASE_SHA"
 if ($LASTEXITCODE -ne 0) { throw "Template installation failed" }
 ```
@@ -70,6 +77,30 @@ Commit both workflow `.md` files and both `.lock.yml` files under
 `.github\workflows\`, plus the generated package records and action locks under
 `.github\aw\`. Review any `.gitattributes` changes. Do not commit unrelated files
 or hand-edit generated locks. Keep the existing repair and spending limits.
+
+The resolved SHA stays pinned even if `main` moves later. To upgrade, repeat
+installation with a newly resolved SHA; the workflow does not auto-update.
+
+</details>
+
+<details>
+<summary>Optional: test another NFV revision</summary>
+
+Before running the installation block, change its `$NFV_REF = "main"` line to:
+
+```powershell
+$NFV_REF = "dev" # Or a trusted full 40-character commit SHA
+```
+
+Use a test repository or fork. The same commands resolve that revision once
+and use the resulting SHA for both the package and runtime. Do not use a
+revision supplied by the PR being audited.
+
+For an existing installation, let active/queued audits finish first, review
+local customizations, and add `--force` to `gh aw add` to replace the installed
+template. Recompile both workflows and update the release variable together;
+do not change only `NFV_RELEASE_SHA`. Set the ref back to `main` and repeat to
+return to the default release.
 
 </details>
 
