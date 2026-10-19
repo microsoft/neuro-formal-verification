@@ -76,6 +76,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Repairs and the minimized Dafny are collapsed; `correspondence` stays in
   the evidence only. `general_prompt.txt` (REPORT UX) tells the translator to
   write these texts in source terms, without model details.
+  Refutations appear first without changing the original `P` labels or analysis
+  order. Verified properties use collapsed verification details with full
+  models in the artifact; failure diagnostics have 300-character excerpts.
+  Compact non-refutation details before refutation source/proof sections to
+  meet the 60,000-character comment budget; never mutate accepted evidence.
 - Source presentation is agent-authored report-only metadata, separate from
   verifier inputs/goals/computation. Each witness key has an exact captured
   source-expression anchor or an explicit abstract-input label and reason;

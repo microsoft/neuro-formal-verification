@@ -15,7 +15,7 @@ from nfv_workflow.general import Limits, run, select_properties, validate_verifi
 from nfv_workflow.github import Abstain
 from nfv_workflow.outcomes import EXHAUSTED, INVALID, OUTCOMES, REFUTED, VERIFIED
 from nfv_workflow.outcomes import InferenceFailure, ResourcesExhausted
-from nfv_workflow.publish import render
+from nfv_workflow.publish import dafny_block, render, text
 from nfv_workflow.repository_context import enrich, sanitize_manifest, validate_manifest
 from nfv_workflow.general_gates import BACKEND, SRC, clauses, validate_translation, with_postconditions
 from nfv_workflow.source_context import function_catalog, quoted_context, scoped_context
@@ -70,6 +70,9 @@ class AnalysisTests(unittest.TestCase):
         url = "https://github.com/local/synthetic/actions/runs/123"
         body = render(report, self.bundle, url)
         self.assertIn("verified for the translated model", body)
+        self.assertIn("<summary>Verification details</summary>", body)
+        self.assertIn("ensures r == n", body)
+        self.assertNotIn(report["verified"][0]["dafny"].rstrip(), body)
         self.assertIn("### P1\n\n**Intended property:** " + self.claim["property"], body)
         self.assertNotIn("## 1. " + self.claim["property"], body)
         self.assertIn("not proofs of source-code correctness", body)
@@ -189,21 +192,86 @@ class AnalysisTests(unittest.TestCase):
         self.assertIn("full Dafny", body)
         self.assertEqual(report, before)
 
-    def test_verified_model_compaction_starts_only_above_the_exact_comment_limit(self):
-        report = self.execute([self.translation], Verifier(positive=True))
+    def test_verified_models_are_compacted_before_refutation_details(self):
+        self.translation["model"] += "// " + "large model comment " * 1800 + "\n"
+        positive = self.execute([self.translation], Verifier(positive=True))
+        self.claim["property"] = "The result equals the nonnegative input."
+        report = self.execute([self.translation], Verifier())
+        report["properties"] = positive["properties"] + report["properties"]
+        report["verified"] = positive["verified"]
+        before = copy.deepcopy(report)
+        def large_checked_property(source):
+            if source == "ensures r == n":
+                source += "\n// " + "checked property detail " * 1400
+            return dafny_block(source)
+        with patch("nfv_workflow.publish.dafny_block", side_effect=large_checked_property):
+            body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertLessEqual(len(body), 60000)
+        self.assertIn("**Outcome: verified**", body)
+        self.assertIn("**Outcome: refuted**", body)
+        self.assertIn("**Changed code**", body)
+        self.assertIn("<summary>Minimized Dafny</summary>", body)
+        self.assertIn(report["findings"][0]["dafny"].rstrip(), body)
+        self.assertIn("Full verification details", body)
+        self.assertIn("full verified Dafny", body)
+        self.assertEqual(report, before)
+
+    def test_refutation_compaction_starts_only_above_the_exact_comment_limit(self):
+        report = self.execute([self.translation], Verifier())
         url = "https://github.com/local/synthetic/actions/runs/123"
         padding = "x" * (60000 - len(render(report, self.bundle, url)) - 3)
         self.translation["model"] += "//" + padding + "\n"
-        report = self.execute([self.translation], Verifier(positive=True))
+        report = self.execute([self.translation], Verifier())
         body = render(report, self.bundle, url)
         self.assertEqual(len(body), 60000)
         self.assertIn(padding, body)
         self.translation["model"] = self.translation["model"][:-1] + "x\n"
-        report = self.execute([self.translation], Verifier(positive=True))
+        report = self.execute([self.translation], Verifier())
         body = render(report, self.bundle, url)
         self.assertLessEqual(len(body), 60000)
         self.assertNotIn(padding, body)
-        self.assertIn("full verified Dafny", body)
+        self.assertIn("full Dafny", body)
+
+    def test_refutations_appear_first_without_changing_property_labels_or_evidence(self):
+        positive = self.execute([self.translation], Verifier(positive=True))
+        self.claim["property"] = "The result equals the nonnegative input."
+        first = self.execute([self.translation], Verifier())
+        self.claim["property"] = "The final result preserves the input value."
+        report = self.execute([self.translation], Verifier())
+        report["properties"] = [
+            {"id": "invalid", "property": "A failed property remains visible.",
+             "status": INVALID, "diagnostic": "Invalid model."},
+            *positive["properties"], *first["properties"], *report["properties"],
+            {"id": "exhausted", "property": "An exhausted property remains visible.",
+             "status": EXHAUSTED, "diagnostic": "Time budget exhausted."},
+        ]
+        report["verified"] = positive["verified"]
+        report["findings"] = first["findings"] + report["findings"]
+        before = copy.deepcopy(report)
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        headings = [line for line in body.splitlines() if line.startswith("### P")]
+        self.assertEqual(headings, ["### P3", "### P4", "### P1", "### P2", "### P5"])
+        for item in report["properties"]:
+            self.assertIn(text(item["property"]), body)
+            self.assertIn("**Outcome: " + item["status"] + "**", body)
+        self.assertEqual(report, before)
+
+    def test_failure_diagnostics_are_bounded_escaped_and_retained_in_evidence(self):
+        diagnostic = "</details> @someone ``` reachability " + "failure detail " * 5000
+        report = {"schema": 3, "mode": "general-model-analysis",
+                  "identity": self.bundle["identity"], "properties": [
+                      {"id": "failed", "property": "The intended property remains visible.",
+                       "status": INVALID, "diagnostic": diagnostic}],
+                  "findings": [], "verified": [], "errors": [], "completed": True}
+        before = copy.deepcopy(report)
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertLess(len(body), 3000)
+        self.assertIn(text(diagnostic.replace("reachability", "input-domain check")[:300]), body)
+        self.assertNotIn("reachability", body)
+        self.assertIn("Full diagnostic is retained in the linked run artifact.", body)
+        self.assertEqual(body.count("<details>"), 1)
+        self.assertEqual(body.count("</details>"), 1)
+        self.assertEqual(report, before)
 
     def test_failed_properties_use_short_headers_and_normal_sized_statements(self):
         properties = [

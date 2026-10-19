@@ -70,7 +70,8 @@ review approval or change request). It opens with a one-line description of NFV
 linking the [paper](https://arxiv.org/abs/2608.21516), before the issue count,
 the analyzed head and base, and the run link. Property sections use short
 headers (`P1`, `P2`, ...) with the full intended or inferred property statement
-in normal-sized text below the header. Each finding shows **Intended
+in normal-sized text below the header. Refutations appear first; property labels
+retain their original analysis numbering. Each finding shows **Intended
 property** in normal-sized text and its quote, **Input on which it fails**, and
 **Sketch of the failure**. A collapsed **Details** section shows the relevant
 code and call sites with natural-language loop invariants and specifications
@@ -84,9 +85,11 @@ call may be skipped by a branch or short-circuit condition.
 Saved reports without typed natural-language invariant/spec notes still show
 the retained input conditions, intended property, and helper specifications;
 missing loop descriptions are not fabricated during publication.
-When source or Dafny excerpts would exceed the comment-size limit, the report
-links to their full evidence in the run artifact instead. Every property,
-outcome, counterexample, retained condition and evidence hash remains visible.
+Verification and diagnostic details are compacted before any refutation details
+to fit the 60,000-character comment budget. If refutation excerpts still exceed
+that budget, the report links to their full evidence in the run artifact.
+Every property, outcome, counterexample, retained condition and evidence hash
+remains visible.
 If a refutation's source-presentation metadata is missing or invalid, `audit`
 records the diagnostic and requests a separate, hash-bound presentation from
 a tool-free session. Accepted proof evidence is unchanged and never rerun;
@@ -121,10 +124,14 @@ Sequences summarizing separate source predicate queries use anchored
 sequence.
 
 The comment summarizes the four outcomes and lists every selected property.
-Verified models show the checked Dafny `ensures`, assumptions and evidence;
-failures show their category and diagnostic. Source-inferred properties are
-labeled separately from quoted intentions. Each new push hides the previous
-NFV comment. Verifier models, repair logs and hashes are in the run's
+Verified properties put the checked Dafny `ensures`, assumptions and evidence in
+collapsed **Verification details**, with full verified models in the artifact
+rather than inline. Under size pressure, verification details link to the full
+artifact while retaining the assumptions and evidence hash.
+Failures show their category and a collapsed diagnostic excerpt of at most
+300 characters; full diagnostics remain in the artifact. Source-inferred
+properties are labeled separately from quoted intentions. Each new push hides
+the previous NFV comment. Verifier models, repair logs and hashes are in the run's
 `nfv-evidence` artifact. Interrupted audits retain incremental evidence marked
 incomplete; it cannot be published as a finished review.
 Provider/SDK failures and verifier infrastructure failures stop the audit,

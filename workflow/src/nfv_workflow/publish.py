@@ -462,7 +462,8 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
         lines.append(f"**Selection limit:** {len(report['selection_omissions'])} additional candidate "
                      "checks were not selected within the ten-property budget.")
     compact_sections = []
-    for index, item in enumerate(properties, 1):
+    for index, item in sorted(enumerate(properties, 1),
+                              key=lambda pair: pair[1]["status"] != REFUTED):
         status = item["status"]
         label = "Inferred property" if item.get("origin") == "source" else "Intended property"
         lines.extend([f"### P{index}", f"**{label}:** {text(item['property'])}",
@@ -475,7 +476,7 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
                    for key in ("path", "lines", "property", "quote", "origin")):
                 raise Abstain("Displayed refuted property differs from its checked evidence")
             mapping = mappings.get(evidence["candidate"]["id"])
-            compact_sections.append((len(lines), "\n\n".join(
+            compact_sections.append((status, len(lines), "\n\n".join(
                 general_section(index, evidence, bundle, repo, commit, mapping, compact=True)[2:])))
             lines.append("\n\n".join(
                 general_section(index, evidence, bundle, repo, commit, mapping)[2:]))
@@ -490,27 +491,42 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
             conditions = [condition["description"] for condition in translation["assumptions"]]
             lines.append("The property was verified for the translated model.")
             label = "Captured source (inferred property)" if evidence["candidate"].get("origin") == "source" else "Quoted intention"
-            lines.append(f"**{label}:** " + text(evidence["candidate"]["quote"]))
-            lines.append("**Assumptions:** " + text("; ".join(conditions) or "No additional input restrictions."))
+            assumptions = "**Assumptions:** " + text("; ".join(conditions) or "No additional input restrictions.")
+            evidence_line = (f"Evidence: {code_span(evidence['evidence'])}; "
+                             f"SHA-256 {code_span(evidence['dafny_sha256'])}.")
+            details = [
+                "<details><summary>Verification details</summary>\n",
+                f"**{label}:** " + text(evidence["candidate"]["quote"]),
+                assumptions,
+            ]
             if translation.get("environment"):
-                lines.append("**Environment models:** " + text("; ".join(
+                details.append("**Environment models:** " + text("; ".join(
                     helper["description"] for helper in translation["environment"])))
-            lines.append("**Checked property:**\n\n" + dafny_block(
-                "\n".join("ensures " + clause for clause in translation["original_ensures"])))
-            lines.extend([
-                "<details><summary>Verified model and evidence</summary>",
-                f"Evidence: {code_span(evidence['evidence'])}; SHA-256 {code_span(evidence['dafny_sha256'])}.",
+            details.extend([
+                "**Checked property:**\n\n" + dafny_block(
+                    "\n".join("ensures " + clause for clause in translation["original_ensures"])),
+                evidence_line,
+                "The full verified Dafny is retained in the linked run artifact.",
+                "</details>",
             ])
-            compact_sections.append((len(lines),
-                                     "The full verified Dafny is retained in the linked run artifact."))
-            lines.extend([dafny_block(evidence["dafny"]), "</details>"])
+            compact_sections.append((status, len(lines), "\n\n".join([
+                assumptions, evidence_line,
+                "Full verification details and the full verified Dafny are retained in the linked run artifact.",
+            ])))
+            lines.append("\n\n".join(details))
         elif item.get("diagnostic"):
             diagnostic = re.sub("reachability", "input-domain check", item["diagnostic"], flags=re.I)
-            lines.append("<details><summary>Diagnostic</summary>\n\n" + text(diagnostic) + "\n\n</details>")
+            excerpt = text(diagnostic[:300])
+            if len(diagnostic) > 300:
+                excerpt += "\n\nFull diagnostic is retained in the linked run artifact."
+            compact_sections.append((status, len(lines),
+                                     "The full diagnostic is retained in the linked run artifact."))
+            lines.append("<details><summary>Diagnostic</summary>\n\n" + excerpt + "\n\n</details>")
     lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     body = "\n\n".join(lines)
-    for index, compact in sorted(compact_sections,
-                                 key=lambda item: len(lines[item[0]]) - len(item[1]), reverse=True):
+    for _, index, compact in sorted(
+            compact_sections,
+            key=lambda item: (item[0] == REFUTED, -(len(lines[item[1]]) - len(item[2])))):
         if len(body) <= 60000:
             break
         if len(compact) < len(lines[index]):
