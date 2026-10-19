@@ -9,6 +9,44 @@ posts a generated PR comment. Proofs concern translated models under their
 assumptions; findings are **conditional MODEL refutations, not confirmed source
 bugs**. Failure to refute is not evidence of source correctness.
 
+## Onboard with a coding agent
+
+Give a coding agent the task below, replacing `OWNER/REPO` with your target
+repository. It handles the setup; you choose an approved model and enter tokens
+securely. The agent needs a clone of the **target repository**, unless it already
+has that checkout. A separate local clone of NFV is not required.
+
+```text
+Onboard NFV PR review in https://github.com/OWNER/REPO.
+Follow the client setup in:
+https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/README.md
+
+Clone the target repository if needed. Otherwise verify that the existing
+checkout belongs to this target and preserve any local changes. Start from
+its default branch; do not modify upstream.
+
+Resolve NFV dev HEAD once to a full immutable SHA. Use that same SHA for
+the workflow package and NFV_RELEASE_SHA. Use main after NFV's release.
+Ask me which approved Copilot model to use.
+
+Use gh-aw v0.88.7, installing it if missing. Install the NFV package and
+compile both workflows. Prepare a draft installation PR targeting this
+repository's default branch, including both workflow Markdown files,
+generated locks and package/action records. Review any .gitattributes
+changes. Do not merge without my approval.
+
+Guide me through secure entry of COPILOT_GITHUB_TOKEN and NFV_RELEASE_TOKEN
+using GitHub settings or an interactive CLI prompt. Follow the README's
+token permissions. Never request tokens in chat, expose their values or
+store them locally. Verify only that the required secret names exist.
+
+Keep the default budgets. Never check out or execute PR code. Do not create
+a synthetic test fixture or start billable audits without my approval.
+Report what is ready and what remains blocked. After installation reaches
+the base branch and I approve a pilot PR, check its actual generated comment
+and nfv-evidence artifact, not merely a green Actions job.
+```
+
 ## A. Choose the repository; fork it if needed
 
 If you have permission to install workflows and configure Actions secrets in
