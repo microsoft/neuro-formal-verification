@@ -20,6 +20,20 @@ it in your fork does not audit PRs opened in the upstream repository.
 Examples to try include mimalloc, LiteBox and Garnet; confirm the exact
 `OWNER/REPO` for nvx before installing there.
 
+When creating replay PRs, use plain change numbers rather than upstream
+issue/PR references or links in titles, descriptions and new commit messages.
+GitHub can otherwise add a "mentioned this pull request" event upstream; do not
+rely on lack of upstream write access to prevent it. A timeline event does not
+prove anyone received an email or inbox notification.
+Normalize references in copied descriptions and keep the exact originals in
+local evidence. This does not change NFV's generated audit reports or erase
+historical mentions.
+
+For a clickable link without a backlink, GitHub documents replacing
+`github.com` with `redirect.github.com`; see
+[avoiding backlinks](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls#avoiding-backlinks-to-linked-references).
+Avoid explicit user/team mentions in replay metadata too.
+
 ## B. Add NFV as an Agentic Workflow template
 
 From a clone of the chosen repository, have the installer or coding assistant:
