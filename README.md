@@ -14,6 +14,11 @@ This repository contains two components:
   comments the result. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
+To try the reviewer in another repository, follow the
+[onboarding guide](workflow/ONBOARDING.md) for installing the
+AW template and setting its two secrets, with an optional fork first. The helper
+skill is optional.
+
 ## Folder structure
 
 | Directory | Purpose |

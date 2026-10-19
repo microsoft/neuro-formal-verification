@@ -196,9 +196,9 @@ The existing AI-credit and wall-time budgets still apply.
    repair requests first deduplicate source rows already quoted by exact model
    provenance tags, retaining references and whitespace to reconstruct the full
    captured text. Unquoted cross-file source remains in the request; budgets are
-   not increased. Requests still too large exhaust their budget before inference. Up to three repair
-   requests may correct draft syntax, types and contracts while keeping the
-   source property fixed. Each draft and its diagnostics are saved. Trusted code
+   not increased. Requests still too large exhaust their budget before inference.
+   Up to six repair requests may correct draft syntax, types and contracts while
+   keeping the source property fixed. Each draft and its diagnostics are saved. Trusted code
    extracts the draft's actual postconditions rather than trusting a duplicate
    model-authored copy. Each attempt runs `dafny resolve`—**not verification of
    the original property**. The first fully audited, type-correct model is frozen.
@@ -306,6 +306,11 @@ path does not require the model client.
 
 ## Configure GitHub Agentic Workflows
 
+For a first installation in another repository, use the
+[onboarding guide](ONBOARDING.md), including the helper
+skill as an optional aid. The setup is: choose or fork a repository, install the
+AW template, set the Copilot token, and set the private NFV read token.
+
 1. Configure protected repository variables:
    * `NFV_RELEASE_SHA`: reviewed full commit of
      `microsoft/neuro-formal-verification`, containing these files.
@@ -323,11 +328,13 @@ path does not require the model client.
 3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
    fine-grained token with read-only *Contents* access to
    `microsoft/neuro-formal-verification`.
-4. Install the `aw.yml` package from this folder, which copies this repository's
-   `.github\workflows\nfv-pr-review.md` into yours and compiles it:
+4. Install the `aw.yml` package from this folder, which copies both
+   `.github\workflows\nfv-source-context.md` and `nfv-pr-review.md` into yours:
    `gh aw add microsoft/neuro-formal-verification/workflow@<NFV_RELEASE_SHA>`
-   (`--approve` acknowledges the `NFV_RELEASE_TOKEN` secret). Commit the Markdown,
-   its lock, and `.github\aw\packages\`. The checked-in lock is compiled with
+   Then review the sources and run
+   `gh aw compile nfv-source-context nfv-pr-review --approve`. Commit both
+   Markdown files and their locks, plus the generated package records and action
+   locks under `.github\aw\`. The checked-in locks are compiled with
    **gh aw v0.88.7**.
 
 Trusted pre-agent steps check out the pinned release, install it, download
