@@ -78,8 +78,9 @@ Commit both workflow `.md` files and both `.lock.yml` files under
 `.github\aw\`. Review any `.gitattributes` changes. Do not commit unrelated files
 or hand-edit generated locks. Keep the existing repair and spending limits.
 
-The resolved SHA stays pinned even if `main` moves later. To upgrade, repeat
-installation with a newly resolved SHA; the workflow does not auto-update.
+The resolved SHA stays pinned even if `main` moves later; the workflow does not
+auto-update. Use the [upgrade commands below](#upgrade-an-existing-installation)
+to update an existing installation. Do not repeat forking or token setup.
 
 </details>
 
@@ -96,11 +97,9 @@ Use a test repository or fork. The same commands resolve that revision once
 and use the resulting SHA for both the package and runtime. Do not use a
 revision supplied by the PR being audited.
 
-For an existing installation, let active/queued audits finish first, review
-local customizations, and add `--force` to `gh aw add` to replace the installed
-template. Recompile both workflows and update the release variable together;
-do not change only `NFV_RELEASE_SHA`. Set the ref back to `main` and repeat to
-return to the default release.
+For an existing installation, use the upgrade procedure below with
+`$NFV_REF = "dev"` or a trusted full SHA. To return to the default release, use
+the same upgrade procedure with `$NFV_REF = "main"`.
 
 </details>
 
@@ -168,6 +167,67 @@ or update a small **non-draft PR in that repository**. NFV should post its
 generated audit comment. Check the actual comment and the run's `nfv-evidence`
 artifact, not just a green job. Fork-origin PRs may not receive secrets; do not
 switch to `pull_request_target` to expose them.
+
+## Upgrade an existing installation
+
+**Repeat only the template installation and runtime pin update.** Keep the
+existing repository, secrets, model and budget settings. Replace a token only
+if it expired, was revoked, or needs different permissions.
+
+Run from a clean clone of the target repository in the same PowerShell session.
+First pause new audits and list existing runs:
+
+```powershell
+$TargetRepo = "OWNER/REPO"
+gh workflow disable nfv-pr-review.lock.yml --repo $TargetRepo
+if ($LASTEXITCODE -ne 0) { throw "Could not pause NFV" }
+gh run list --repo $TargetRepo --workflow nfv-pr-review.lock.yml --limit 100
+```
+
+**Wait until all existing NFV runs have completed**, including queued/waiting
+runs. Disabling a workflow does not cancel them. Do not continue while an old
+run could still read the shared release variable.
+
+Resolve the new release once and refresh the installed package:
+
+```powershell
+$NFV_REF = "main" # For testing, use "dev" or a trusted full commit SHA
+$NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
+if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
+    throw "Could not resolve the NFV revision"
+}
+git switch -c "nfv-upgrade-$($NFV_RELEASE_SHA.Substring(0, 12))"
+if ($LASTEXITCODE -ne 0) { throw "Could not create the upgrade branch" }
+gh aw add "microsoft/neuro-formal-verification/workflow@$NFV_RELEASE_SHA" --force
+if ($LASTEXITCODE -ne 0) { throw "Template upgrade failed" }
+gh aw compile nfv-source-context nfv-pr-review --approve
+if ($LASTEXITCODE -ne 0) { throw "Compilation failed" }
+git status --short
+git diff
+```
+
+`--force` replaces the installed templates, so review and deliberately reapply
+any local customizations. Commit the two workflow Markdown files, both generated
+locks and changed package/action records described in step B. Push the branch
+and merge it through your repository's normal review process. Do not advance
+the runtime pin before those files reach the base branch used by your PRs.
+
+**After that merge**, set the matching runtime pin and resume audits:
+
+```powershell
+gh variable set NFV_RELEASE_SHA --repo $TargetRepo --body $NFV_RELEASE_SHA
+if ($LASTEXITCODE -ne 0) { throw "Could not update the NFV runtime pin" }
+gh workflow enable nfv-pr-review.lock.yml --repo $TargetRepo
+if ($LASTEXITCODE -ne 0) { throw "Could not resume NFV" }
+```
+
+Use the **same SHA resolved above**, not a fresh lookup of `main`. If using a new
+shell, restore `$TargetRepo` and that exact `$NFV_RELEASE_SHA` first. If any step
+fails, leave audits paused until the problem is resolved. Open or update a small
+non-draft PR to check the upgraded installation.
+
+This updates NFV, not the gh-aw compiler. A standalone `gh aw update` or
+`gh aw upgrade` does not perform NFV's matching runtime-variable update.
 
 An assistant can use the bundled `nfv-pr-review` skill to carry out installation;
 you do not have to copy the skill into every target repository. For pipeline,
