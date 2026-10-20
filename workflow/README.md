@@ -314,9 +314,10 @@ path does not require the model client.
 ## Configure GitHub Agentic Workflows
 
 For a first installation in another repository, use the
-[onboarding guide](ONBOARDING.md), including the helper
-skill as an optional aid. The setup is: choose or fork a repository, install the
-AW template, set the Copilot token, and set the private NFV read token.
+[standalone Python installer](ONBOARDING.md#install-directly-without-an-agent)
+or the [coding-agent instructions](ONBOARDING.md#onboard-with-a-coding-agent).
+The helper skill is optional. The setup is: choose or fork a repository, install
+the AW template, set the Copilot token, and set the private NFV read token.
 
 1. Configure protected repository variables:
    * `NFV_RELEASE_SHA`: full commit of `microsoft/neuro-formal-verification`,

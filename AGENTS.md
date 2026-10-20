@@ -140,6 +140,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
 
 ## The PR reviewer agentic workflow (gh-aw)
 
+- `workflow/install.py` provides Linux-first, agent-free initial installation.
+  Keep its offline tests in `workflow/tests/test_install.py`
+  aligned with the draft/disable/post-merge bootstrap rules. Never run the
+  installer against a live client repository just to test changes.
 - Client bootstrap: never run NFV against its own initial installation PR or
   require an NFV check for it. Keep that PR draft until `nfv-pr-review.lock.yml`
   is disabled and its disabled state is verified; keep it disabled through

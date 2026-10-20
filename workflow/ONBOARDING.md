@@ -9,14 +9,90 @@ posts a generated PR comment. Proofs concern translated models under their
 assumptions; findings are **conditional MODEL refutations, not confirmed source
 bugs**. Failure to refute is not evidence of source correctness.
 
+## Install directly, without an agent
+
+Use [install.py](install.py) from a clean checkout of the target repository's
+default branch. It requires **Python 3.10+, Git, and an authenticated GitHub CLI
+(`gh`)**, with no extra Python packages. Linux is the default environment;
+the same Python CLI also works on Windows. No agent, local NFV clone or verifier
+is needed.
+Your GitHub CLI login needs access to both the target repository and NFV.
+
+Clone the target repository yourself, choose an approved model, and enter the
+secrets securely as described in [step C](#c-set-copilot_github_token) and
+[step D](#d-set-nfv_release_token-while-the-nfv-repository-is-private).
+The installer checks secret **names only**, not token values or validity.
+While NFV is private, both secrets are required; once it is public, only
+`COPILOT_GITHUB_TOKEN` is required.
+
+From the target checkout, download the installer at a trusted immutable NFV
+revision. Replace the repository and model placeholders:
+
+```bash
+TargetRepo="OWNER/REPO"
+Model="APPROVED_MODEL_ID"
+Release="$(gh api repos/microsoft/neuro-formal-verification/commits/dev --jq .sha)" &&
+    [[ "$Release" =~ ^[0-9a-f]{40}$ ]] &&
+    Installer="$(mktemp)" &&
+    gh api "repos/microsoft/neuro-formal-verification/contents/workflow/install.py?ref=$Release" \
+        --jq '.content | @base64d' > "$Installer"
+```
+
+If the download fails, stop and resolve the error. Review the downloaded script,
+then run it in the same shell:
+
+```bash
+python3 "$Installer" --repository "$TargetRepo" --model "$Model" --ref "$Release"
+```
+
+The script verifies the origin fetch/push URLs, a clean default-branch checkout
+matching the remote, and required secret names. It installs gh-aw v0.88.7 if
+absent, but does not replace a different installed compiler. It creates an
+`nfv-install-<revision>` branch, installs and compiles both NFV workflows, sets
+and reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, commits only installation files,
+pushes that branch, and opens a **draft** installation PR. The package and
+runtime use the same immutable revision. Existing budgets and unrelated CI
+are not changed.
+
+The script then disables NFV and verifies `disabled_manually`. If GitHub has
+not registered the workflow yet, or disabling fails, it exits with an error
+and leaves the PR draft. Once registration is available, retry the guard using
+the PR number printed by the installer:
+
+```bash
+python3 "$Installer" --repository "$TargetRepo" --verify-bootstrap --pull-request 123
+```
+
+**Do not mark the PR ready or merge until the guard succeeds.** Review the
+generated files, approve the installation, and keep NFV disabled through marking
+ready and merging. Do not require an NFV check for this installation PR.
+After it merges into the default branch, explicitly enable NFV:
+
+```bash
+python3 "$Installer" --repository "$TargetRepo" --enable-after-merge --pull-request 123
+```
+
+This checks the merge is retained on the default branch, both installed package
+revisions match the runtime pin, the model variable exists, and required secret
+names exist, before enabling the reviewer. None of these commands merge a PR,
+create a pilot PR, dispatch an audit, or execute inspected PR code.
+
+This script is for a **first installation**, not an upgrade. It refuses dirty
+checkouts and existing NFV files, leaving local changes untouched. If compilation,
+publication or configuration fails, inspect the reported branch/files before
+retrying; it does not automatically undo partial changes. Use the
+[upgrade procedure](#upgrade-an-existing-installation) for an installed reviewer.
+Keep the downloaded script until activation is complete. On Windows, use
+`python` instead of `python3` if that is your interpreter's command.
+
 ## Onboard with a coding agent
 
 First clone the **target repository** and start Copilot inside it. Replace
 `OWNER/REPO` with your target repository and `REPO` with its local directory name:
 
-```powershell
+```bash
 git clone https://github.com/OWNER/REPO.git
-Set-Location .\REPO
+cd REPO
 copilot
 ```
 
@@ -99,11 +175,12 @@ From a clone of the chosen repository, have the installer or coding assistant:
   your Copilot account. Switch to `main` after release.
 - Prepare the workflow files and generated locks for review and commit.
 
-You do not need to install Dafny, Z3 or Python locally. The workflow provisions
-its runtime. Organization policies must allow the generated Actions workflows.
+The workflow provisions Dafny, Z3 and its own Python runtime. Only the standalone
+installer needs a local Python interpreter; the manual commands below do not.
+Organization policies must allow the generated Actions workflows.
 
 <details>
-<summary>Commands for the installer (PowerShell)</summary>
+<summary>Manual installation commands (PowerShell)</summary>
 
 Use an authenticated GitHub CLI with access to the target and the NFV release.
 Use gh-aw v0.88.7, the compiler version tested with this template. If it is not
@@ -191,7 +268,8 @@ test revision. To return to the current development default, use
 
 ## C. Set `COPILOT_GITHUB_TOKEN`
 
-**The installer asks you to enter this token securely**, not paste it into chat.
+**Enter this token securely**, never in chat. The standalone installer checks
+only that its secret name exists.
 Create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&user_copilot_requests=read):
 
 - Use an account with an active Copilot license and access to the chosen model.
@@ -203,9 +281,9 @@ In the target repository, open **Settings > Secrets and variables > Actions >
 New repository secret** and save it as **`COPILOT_GITHUB_TOKEN`**.
 Alternatively, enter it at the interactive prompt:
 
-```powershell
-$TargetRepo = "OWNER/REPO"
-gh secret set COPILOT_GITHUB_TOKEN --repo $TargetRepo
+```bash
+TargetRepo="OWNER/REPO"
+gh secret set COPILOT_GITHUB_TOKEN --repo "$TargetRepo"
 ```
 
 Replace `OWNER/REPO` with the repository from step A, including your fork's owner
@@ -230,15 +308,15 @@ Complete any organization approval required and set an expiration.
 Save it as **`NFV_RELEASE_TOKEN`** in the same target repository's Actions
 secrets, using the Settings page or an interactive prompt:
 
-```powershell
-gh secret set NFV_RELEASE_TOKEN --repo $TargetRepo
+```bash
+gh secret set NFV_RELEASE_TOKEN --repo "$TargetRepo"
 ```
 
-Use the same `$TargetRepo` as step C. This command also prompts for the token.
+Use the same `TargetRepo` as step C. This command also prompts for the token.
 Confirm that both secret names are present without revealing their values:
 
-```powershell
-gh secret list --repo $TargetRepo
+```bash
+gh secret list --repo "$TargetRepo"
 ```
 
 The listing confirms storage, not token permissions or inference access.
@@ -249,11 +327,12 @@ public and readable by the runner's normal token, this extra secret is no
 longer needed.
 
 **After setup:** with NFV still disabled, merge the approved installation PR into
-the intended base branch. Only after that merge, enable the reviewer:
+the intended base branch. If you used the standalone installer, use its
+`--enable-after-merge` command above. For a manual installation, only after that
+merge, enable the reviewer:
 
-```powershell
-gh workflow enable nfv-pr-review.lock.yml --repo $TargetRepo
-if ($LASTEXITCODE -ne 0) { throw "Could not enable NFV after installation" }
+```bash
+gh workflow enable nfv-pr-review.lock.yml --repo "$TargetRepo"
 ```
 
 With the user's approval, open or update a **separate, small non-draft PR in that
