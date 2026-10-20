@@ -10,7 +10,7 @@ from nfv_workflow.general import Limits, run
 from nfv_workflow.github import Abstain
 from nfv_workflow.source_context import (CONTEXT_BYTES, REQUEST_BYTES, Function,
                                          caller_first, check_request, diagnostics,
-                                         root_levels, scoped_context, size)
+                                         functions, mask, root_levels, scoped_context, size)
 from test_general import Chat, FailingVerifier, SOURCES, fixture
 
 
@@ -75,6 +75,76 @@ class SourceContextTests(unittest.TestCase):
             with self.subTest(language=language):
                 anchor = 3 if language in ("javascript", "java") else 2
                 self.assertEqual(name, self.context(source, [anchor], language)["source_scope"]["function"])
+
+    def test_rust_continued_strings_preserve_function_boundaries_and_offsets(self):
+        for newline in ("\n", "\r\n"):
+            for prefix, value_type in (("", "&str"), ("b", "&[u8]")):
+                with self.subTest(newline=repr(newline), prefix=prefix):
+                    source = (f'const TEXT: {value_type} = {prefix}"first {{ \\\n'
+                              '    continuation }";\n'
+                              'fn changed() {\n'
+                              '    let text = "later";\n'
+                              '}\n').replace("\n", newline)
+                    clean = mask(source, "rust")
+                    self.assertEqual(len(source), len(clean))
+                    self.assertEqual([i for i, c in enumerate(source) if c == "\n"],
+                                     [i for i, c in enumerate(clean) if c == "\n"])
+                    self.assertNotIn("continuation", clean)
+                    self.assertEqual((1, 1), (clean.count("{"), clean.count("}")))
+                    definitions = functions({"text": source, "line_start": 101}, "rust")
+                    self.assertEqual([("changed", 103, 103, 103, 105)],
+                                     [(fn.name, fn.first, fn.declaration, fn.body, fn.last)
+                                      for fn in definitions])
+
+    def test_rust_continued_attribute_in_repository_context(self):
+        helper = ('#![allow(dead_code, reason = "first line \\\n'
+                  '    continuation")]\n'
+                  'pub(crate) enum Error {\n'
+                  '    Unexpected,\n'
+                  '}\n'
+                  'fn helper(n: i32) -> i32 {\n'
+                  '    let _ = "later";\n'
+                  '    n\n'
+                  '}\n')
+        bundle = {
+            "sources": {
+                "main.rs": {"text": "fn changed(n: i32) -> i32 {\n    helper(n)\n}\n"},
+                "helper.rs": {"text": helper},
+            },
+            "repository_context": [{"path": "helper.rs", "symbols": ["helper"]}],
+        }
+        context = scoped_context(bundle, {"path": "main.rs", "lines": [2], "language": "rust"})
+        self.assertEqual("changed", context["source_scope"]["function"])
+        self.assertIn(("helper.rs", "helper"),
+                      [(item["path"], item["name"]) for item in context["environment_declarations"]])
+        self.assertIn('7|     let _ = "later";', context["sources"]["helper.rs"]["numbered_lines"])
+
+    def test_rust_raw_bytes_characters_and_lifetimes(self):
+        source = ("fn changed<'a>(n: &'a i32) -> i32 {\n"
+                  '    let _ = br##"} " { "# "##;\n'
+                  "    let _ = (b'{', '}', '\\'', '\\n');\n"
+                  "    *n\n"
+                  "}\n")
+        definitions = functions({"text": source}, "rust")
+        self.assertEqual([("changed", 1, 5)],
+                         [(fn.name, fn.declaration, fn.last) for fn in definitions])
+        self.assertIn("&'a i32", mask(source, "rust"))
+        self.assertEqual((1, 1), (mask(source, "rust").count("{"), mask(source, "rust").count("}")))
+
+    def test_rust_visibility_and_function_types_are_not_function_definitions(self):
+        source = ("pub(crate) struct Data {\n"
+                  "    callback: fn(i32) -> i32,\n"
+                  "}\n"
+                  "pub(super) enum Choice {\n"
+                  "    Value(i32),\n"
+                  "}\n"
+                  "impl Data {\n"
+                  "    pub(crate) async fn changed<'a>(&'a self) -> i32 {\n"
+                  "        let callback: fn(i32) -> i32 = |n| { n + 1 };\n"
+                  "        callback(1)\n"
+                  "    }\n"
+                  "}\n")
+        self.assertEqual(["changed"], [fn.name for fn in functions({"text": source}, "rust")])
 
     def test_python_nested_function_and_decorators(self):
         source = ("class C:\n    # Documentation\n    @decorate\n    def outer(self):\n"

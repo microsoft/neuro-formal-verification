@@ -33,7 +33,8 @@ LITERAL_PREFIX = (
     r'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`')
 LITERALS = re.compile(LITERAL_PREFIX + r"|'(?:\\.|[^'\\])*'")
 RUST_LITERALS = re.compile(
-    r'r(?P<hashes>#{0,16})"[\s\S]*?"(?P=hashes)|' + LITERAL_PREFIX + r"|'(?:\\.|[^'\\\n])'")
+    r'//[^\n]*|/\*[\s\S]*?\*/|r(?P<hashes>#{0,16})"[\s\S]*?"(?P=hashes)'
+    r'|"(?:\\[\s\S]|[^"\\])*"' + r"|'(?:\\.|[^'\\\n])'")
 
 
 def unqualified_name(name):
@@ -111,14 +112,15 @@ def functions(record, language):
             continue
         if header.count("(") != header.count(")"):
             continue
-        explicit = re.search(r"\b(?:fn|function)\s+(\w+)\s*(?:<[^{}]*>)?\s*\(", header)
+        keyword = r"fn" if language == "rust" else r"(?:fn|function)"
+        explicit = re.search(r"\b" + keyword + r"\s+(\w+)\s*(?:<[^{}]*>)?\s*\(", header)
         go = re.search(r"\bfunc\s+(?:\([^)]*\)\s*)?(\w+)\s*\(", header)
         arrow = re.search(r"\b(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?"
                           r"(?:\([^)]*\)|[A-Za-z_]\w*)\s*(?::\s*[^=]+)?=>\s*$", header)
         operator = re.search(r"\b((?:[A-Za-z_]\w*::)*operator)\s*"
                              + CPP_OPERATOR_SYMBOL + r"\s*\(", header)
         ordinary = re.search(r"\b([A-Za-z_]\w*(?:::\w+)*)\s*\(", header)
-        match = explicit or go or arrow or operator or ordinary
+        match = explicit if language == "rust" else (explicit or go or arrow or operator or ordinary)
         if not match or match[1].split("::")[-1] in CONTROL:
             continue
         if not (explicit or go or arrow):

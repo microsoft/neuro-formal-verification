@@ -187,8 +187,11 @@ The existing AI-credit and wall-time budgets still apply.
    for other calls and referenced types/constants. These are lexical candidates,
    supplemented by bounded cross-file definitions from the context session,
    not resolved overloads or receiver types. It does not recursively expand the
-   call graph. Original repository line numbers are preserved; omitted bodies
-   are environment. Relevant captured callee bodies are translated as checked,
+   call graph. Rust function candidates require a `fn` declaration; visibility
+   qualifiers and function-pointer types are not function definitions. Rust
+   string and byte-string continuations are masked while preserving source
+   offsets and line numbers. Original repository line numbers are preserved;
+   omitted bodies are environment. Relevant captured callee bodies are translated as checked,
    source-derived helpers. Captured callers inform intent and applicability,
    without automatically restricting the entry's input domain to those calls.
    Ambiguous boundaries, anchors spanning separate functions, or a changed
