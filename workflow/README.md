@@ -15,6 +15,9 @@ The default path accepts source in **C, C++, Java, C#, Go, JavaScript, TypeScrip
 Python, and Rust** and translates the code each property is about, including loops
 and branches, into the verifier's language.
 
+Rust function capture supports fixed-size and nested array types in parameters
+and return types while preserving the original source line numbers.
+
 * **Verifier backends:** only **Dafny** (the retained NFV Dafny backend) is
   currently supported, and all source languages use it. Other verifiers (e.g.,
   Lean) can be added as backends. CBMC is used only by the paper artifact.

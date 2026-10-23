@@ -91,7 +91,17 @@ def functions(record, language):
         return result
     clean = mask(source, language)
     pairs, stack = {}, []
+    separators = list(clean) if language == "rust" else None
+    brackets = 0
     for index, char in enumerate(clean):
+        if separators is not None:
+            if char == "[":
+                brackets += 1
+            elif char == "]":
+                brackets -= 1
+            elif char == ";" and brackets > 0:
+                # Rust array-type semicolons do not end the function signature.
+                separators[index] = " "
         if char == "{":
             stack.append(index)
         elif char == "}":
@@ -100,9 +110,10 @@ def functions(record, language):
             pairs[stack.pop()] = index
     if stack:
         raise Abstain("Cannot identify function boundaries: incomplete captured source braces")
+    boundaries = clean if separators is None else "".join(separators)
     result = []
     for opening, closing in sorted(pairs.items()):
-        start = max(clean.rfind(";", 0, opening), clean.rfind("{", 0, opening),
+        start = max(boundaries.rfind(";", 0, opening), clean.rfind("{", 0, opening),
                     clean.rfind("}", 0, opening)) + 1
         header = clean[start:opening]
         # A declaration must start with a signature, not a control block or assignment.

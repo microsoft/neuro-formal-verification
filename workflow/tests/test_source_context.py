@@ -10,7 +10,7 @@ from nfv_workflow.general import Limits, run
 from nfv_workflow.github import Abstain
 from nfv_workflow.source_context import (CONTEXT_BYTES, REQUEST_BYTES, Function,
                                          caller_first, check_request, diagnostics,
-                                         functions, mask, root_levels, scoped_context, size)
+                                         function_catalog, functions, mask, root_levels, scoped_context, size)
 from test_general import Chat, FailingVerifier, SOURCES, fixture
 
 
@@ -145,6 +145,28 @@ class SourceContextTests(unittest.TestCase):
                   "    }\n"
                   "}\n")
         self.assertEqual(["changed"], [fn.name for fn in functions({"text": source}, "rust")])
+
+    def test_rust_array_types_preserve_function_boundaries_and_catalog(self):
+        for parameter in ("&[u8; 16]", "&[[u8; 4]; 2]", "[fn(u8) -> u8; 2]"):
+            for result in ("u8", "[u8; 16]", "[[u8; 4]; 2]"):
+                with self.subTest(parameter=parameter, result=result):
+                    source = ("const BEFORE: [u8; 4] = [0; 4];\n"
+                              "pub(super) fn changed(\n"
+                              f"    value: {parameter},\n"
+                              f") -> {result} {{\n"
+                              "    panic!()\n"
+                              "}\n"
+                              "fn after() {}\n")
+                    record = {"text": source, "line_start": 101}
+                    self.assertEqual(
+                        [("changed", 102, 104, 106), ("after", 107, 107, 107)],
+                        [(fn.name, fn.declaration, fn.body, fn.last)
+                         for fn in functions(record, "rust")])
+                    catalog = function_catalog({"sources": {"main.rs": record},
+                                                "changed": {"main.rs": [104, 105]}})
+                    self.assertEqual([], catalog["errors"])
+                    self.assertEqual([("changed", [104, 105])],
+                                     [(fn["name"], fn["lines"]) for fn in catalog["functions"]])
 
     def test_python_nested_function_and_decorators(self):
         source = ("class C:\n    # Documentation\n    @decorate\n    def outer(self):\n"
