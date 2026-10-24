@@ -131,9 +131,33 @@ def validate_artifact(artifact, report, bundle):
     return artifact["findings"]
 
 
+def source_windows(finding, bundle):
+    from .general import numbered
+
+    translation, claim = finding["translation"], finding["candidate"]
+    selected = {claim["path"]: set(range(translation["source_span"][0],
+                                        translation["source_span"][1] + 1))}
+    for row in finding["source_map"]:
+        selected.setdefault(row["path"], set()).add(row["line"])
+    for helper in translation.get("environment", []):
+        selected.setdefault(helper["source"]["path"], set()).update(helper["source"]["lines"])
+    for note in translation.get("source_notes", []):
+        selected.setdefault(note["path"], set()).add(note["line"])
+    sources = {}
+    for path, anchors in sorted(selected.items()):
+        record = bundle["sources"][path]
+        rows = numbered(record)["numbered_lines"].splitlines()
+        first = record.get("line_start", 1)
+        nearby = {line + offset for line in anchors for offset in range(-2, 3)}
+        sources[path] = {"blob_sha": record.get("blob_sha"), "numbered_lines": "\n".join(
+            rows[line - first] for line in sorted(nearby) if first <= line < first + len(rows))}
+    return sources
+
+
 async def refresh(report, bundle, chat, timeout=240):
     """One bounded tool-free call per accepted finding; no repairs or proof reruns."""
-    from .general import json_answer, numbered
+    from .general import json_answer
+    from .source_context import check_request
 
     validate_report(report, bundle)
     if not 1 <= timeout <= 600:
@@ -142,20 +166,19 @@ async def refresh(report, bundle, chat, timeout=240):
     results, calls = {}, []
     for finding in report["findings"]:
         translation = finding["translation"]
-        paths = {finding["candidate"]["path"]} | {row["path"] for row in finding["source_map"]}
-        paths.update(item["source"]["path"] for item in translation.get("environment", []))
+        sources = source_windows(finding, bundle)
         context = {
             "identity": bundle["identity"], "claim": finding["candidate"],
             "translation": {key: value for key, value in translation.items() if key != "presentation"},
             "source_map": finding["source_map"],
             "retained_assumptions": finding["retained_assumptions"],
-            "sources": {path: numbered(bundle["sources"][path]) for path in sorted(paths)},
+            "sources": sources,
+            "source_scope": "Captured entry and accepted source anchors with nearby rows; unrelated file lines omitted.",
             "context_omissions": [f"{path}: not used by the checked source mapping"
-                                 for path in translation["required_context"] if path not in paths],
+                                 for path in translation["required_context"] if path not in sources],
         }
         prompt = json.dumps(context)
-        if len(prompt) > 600000:
-            raise Abstain("Presentation context exceeds the bounded input budget")
+        check_request(system, prompt, "Source presentation")
         response = await chat.ask(system, prompt, timeout=timeout)
         value = json_answer(response.text)
         validate(value, translation, bundle)

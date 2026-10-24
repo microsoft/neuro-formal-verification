@@ -13,7 +13,7 @@ from test_general import Chat, FailingVerifier, fixture
 from nfv_workflow import cli
 from nfv_workflow.general import Limits, run
 from nfv_workflow.github import Abstain
-from nfv_workflow.presentation import refresh, validate, validate_artifact
+from nfv_workflow.presentation import refresh, source_windows, validate, validate_artifact
 from nfv_workflow.publish import render
 
 
@@ -96,6 +96,19 @@ class PresentationTests(unittest.TestCase):
         validate_artifact(artifact, report, self.bundle)
         self.assertTrue((output / "presentation-diagnostics.json").exists())
         self.assertEqual(json.loads((output / "report.json").read_text()), report)
+
+    def test_refresh_excludes_unrelated_file_rows_and_preserves_exact_anchors(self):
+        path = self.claim["path"]
+        self.bundle["sources"][path]["text"] += "\n" + ("// unrelated presentation context\n" * 20000)
+        report, _ = self.report()
+        chat = Chat([self.value])
+        artifact = asyncio.run(refresh(report, self.bundle, chat))
+        validate_artifact(artifact, report, self.bundle)
+        self.assertLess(len(chat.prompts[0].encode("utf-8")), 20000)
+        self.assertLess(json.loads(chat.prompts[0])["sources"][path]["numbered_lines"].count("unrelated"), 4)
+        self.assertIn("4|   return r + 1;", chat.prompts[0])
+        windows = source_windows(report["findings"][0], self.bundle)
+        self.assertIn(path, windows)
 
     def test_audit_uses_valid_inline_presentation_without_another_agent_call(self):
         report, _ = self.report({**self.translation, "presentation": self.value})

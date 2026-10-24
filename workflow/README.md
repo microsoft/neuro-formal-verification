@@ -125,6 +125,9 @@ If a refutation's source-presentation metadata is missing or invalid, `audit`
 records the diagnostic and requests a separate, hash-bound presentation from
 a tool-free session. Accepted proof evidence is unchanged and never rerun;
 invalid refreshed mappings still stop publication.
+Presentation requests include the captured entry and accepted source anchors
+with nearby rows, not entire files; the complete system/user payload must fit
+the same bounded request budget as analysis.
 `audit`, general `run` and `evaluate` generate the enabled follow-ups after
 acceptance. `present` remains proof-free, and `publish` only validates saved
 evidence. Both automatically read `followups.json` beside the report, or accept
