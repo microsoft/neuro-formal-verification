@@ -100,6 +100,8 @@ steps:
       NFV_PROOF_ROUNDS: ${{ vars.NFV_PROOF_ROUNDS }}
       NFV_VERIFIER_TIMEOUT: ${{ vars.NFV_VERIFIER_TIMEOUT }}
       NFV_PROPERTY_SECONDS: ${{ vars.NFV_PROPERTY_SECONDS }}
+      NFV_SIMPLIFY_REFUTATIONS: ${{ vars.NFV_SIMPLIFY_REFUTATIONS || 'true' }}
+      NFV_CHECK_FIXES: ${{ vars.NFV_CHECK_FIXES || 'true' }}
     run: |
       set -euo pipefail
       bundle="$RUNNER_TEMP/gh-aw/nfv/bundle.json"
@@ -122,6 +124,8 @@ steps:
         echo "NFV_PROOF_ROUNDS=$NFV_PROOF_ROUNDS"
         echo "NFV_VERIFIER_TIMEOUT=$NFV_VERIFIER_TIMEOUT"
         echo "NFV_PROPERTY_SECONDS=$NFV_PROPERTY_SECONDS"
+        echo "NFV_SIMPLIFY_REFUTATIONS=$NFV_SIMPLIFY_REFUTATIONS"
+        echo "NFV_CHECK_FIXES=$NFV_CHECK_FIXES"
         echo "NFV_OUT=/tmp/gh-aw/sandbox/agent/logs/nfv"
         echo "NFV_PYTHON=$(command -v python)"
       } >> "$GITHUB_ENV"
@@ -154,3 +158,9 @@ report or publish incremental evidence. Evidence is retained even on failure.
 
 Findings are conditional MODEL refutations, never source-confirmed bugs.
 Verification applies only to the translated model under its stated assumptions.
+Accepted refutations additionally receive bounded, default-on shorter-property
+and model-checked candidate-fix follow-ups. The trusted plugin validates these
+separately without changing whole-property acceptance or outcome counts. The
+repository variables `NFV_SIMPLIFY_REFUTATIONS` and `NFV_CHECK_FIXES` independently
+disable them when set to `false`. Source patches are suggestions, never applied,
+compiled or executed, and are not source-verified fixes.

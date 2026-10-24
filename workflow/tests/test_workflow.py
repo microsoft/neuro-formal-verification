@@ -1120,6 +1120,12 @@ class AuditTests(ScratchTest):
             self.assertIn(f"{name}: ${{{{ vars.{name} }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)
 
+    def test_workflow_exports_independent_default_on_followup_flags(self):
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-review.md").read_text(encoding="utf-8")
+        for name in ("NFV_SIMPLIFY_REFUTATIONS", "NFV_CHECK_FIXES"):
+            self.assertIn(f"{name}: ${{{{ vars.{name} || 'true' }}}}", text)
+            self.assertIn(f'echo "{name}=${name}"', text)
+
 
 @unittest.skipUnless(shutil.which("dafny"), "Dafny integration requires installed Dafny")
 class RealDafnyTests(ScratchTest):

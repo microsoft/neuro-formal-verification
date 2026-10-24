@@ -24,6 +24,8 @@ def review():
         raise Abstain("gh-aw must resolve the SDK provider through AWF reflection")
     awf_provider()
     limits = audit_limits()
+    from .followups import Options
+    Options.from_env()
     if not env.get("COPILOT_SDK_URI") or not env.get("COPILOT_CONNECTION_TOKEN"):
         raise Abstain("The gh-aw SDK sidecar and per-run connection token are required")
     if not all(env.get(key) for key in ("NFV_BUNDLE", "NFV_MODEL", "NFV_OUT")):

@@ -57,6 +57,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Never drop an obligation. Preserve implication, disjunction and quantifier
   grouping. Progress counts the fixed whole review,
   not subchecks of one property.
+  After acceptance, optional refutation follow-ups may separately prove a
+  shorter display projection and an entry-body repair of the complete property.
+  They never replace or split the accepted property, weaken its domain/helpers,
+  change its outcome, or count as additional properties. Keep their hash-bound
+  evidence separate in `followups.json`; rendering and `present` never run proofs.
   Audit definite-assignment and array/sequence range diagnostics before freezing a draft, without
   changing or splitting conjectures. Prefer implementation-owned properties over
   test expectations refuted only by arbitrary environment responses.
@@ -81,6 +86,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   models in the artifact; failure diagnostics have 300-character excerpts.
   Compact non-refutation details before refutation source/proof sections to
   meet the 60,000-character comment budget; never mutate accepted evidence.
+  Display shorter properties only after entailment with free inputs/outputs and
+  the frozen-model negative/input-domain checks. Label candidate patches
+  `refutation-with-fix (model-checked candidate)` only after complete-property,
+  general input-domain and original-witness proof/input-domain checks. Never
+  claim these are source-verified fixes or evidence of a confirmed source bug.
 - Source presentation is agent-authored report-only metadata, separate from
   verifier inputs/goals/computation. Each witness key has an exact captured
   source-expression anchor or an explicit abstract-input label and reason;

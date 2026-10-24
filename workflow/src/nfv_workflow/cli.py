@@ -69,8 +69,11 @@ def inference_chat(model, stage):
     return WorkflowChat(model=model, concurrency=1, provider=provider)
 
 
-async def run_general(bundle, properties, output, model, limits):
+async def run_general(bundle, properties, output, model, limits, followup_options=None):
     from .general import run, select_properties
+    from .followups import Options, run as run_followups
+    options = followup_options if followup_options is not None else Options.from_env()
+    (Path(output) / "followups.json").unlink(missing_ok=True)
     if not select_properties(properties, bundle, rejected=[]):
         # Nothing valid to translate; run records each rejected property's audit failure.
         return await run(bundle, properties, output, None, limits)
@@ -80,7 +83,31 @@ async def run_general(bundle, properties, output, model, limits):
     if not DAFNY_PATH:
         raise Abstain("Install Dafny before starting billable model translation")
     async with inference_chat(model, "general") as chat:
-        return await run(bundle, properties, output, chat, limits)
+        report = await run(bundle, properties, output, chat, limits)
+        if report.get("completed") is True and not report["errors"] and report["findings"]:
+            await run_followups(report, bundle, chat, output, limits, options)
+        return report
+
+
+def optional_artifact(report_path, name, explicit=None):
+    path = Path(explicit) if explicit else Path(report_path).with_name(name)
+    return load(path) if explicit or path.is_file() else None
+
+
+def followup_arguments(parser):
+    parser.add_argument("--simplify-refutations", action=argparse.BooleanOptionalAction, default=None,
+                        help="Check and display shorter refuted properties (default: true)")
+    parser.add_argument("--check-fixes", action=argparse.BooleanOptionalAction, default=None,
+                        help="Check candidate repairs against the complete property (default: true)")
+
+
+def followup_options(args):
+    from .followups import Options
+    if args.simplify_refutations is None and args.check_fixes is None:
+        return None
+    env = Options.from_env()
+    return Options(env.simplify if args.simplify_refutations is None else args.simplify_refutations,
+                   env.fixes if args.check_fixes is None else args.check_fixes)
 
 
 AWF_PLACEHOLDER_KEY = "dummy-byok-key-for-offline-mode"
@@ -142,7 +169,7 @@ def audit_limits(env=None):
         raise Abstain(str(exc)) from exc
 
 
-def audit(proposals_path, limits):
+def audit(proposals_path, limits, followup_options=None):
     """Audit entry point: all inputs are fixed by trusted collection/extraction steps."""
     from .general import Limits
     from .publish import comment
@@ -154,13 +181,14 @@ def audit(proposals_path, limits):
     if not isinstance(proposals, list):
         raise Abstain("Proposals must be a JSON array")
     output.mkdir(parents=True, exist_ok=True)
-    for name in ("comment.md", "presentation.json", "presentation-diagnostics.json", "report.json"):
+    for name in ("comment.md", "presentation.json", "presentation-diagnostics.json", "report.json", "followups.json"):
         (output / name).unlink(missing_ok=True)
     bundle = load(bundle_path)
     save(output / "bundle.json", bundle)
     save(output / "proposals.json", proposals)
     limits = limits if isinstance(limits, Limits) else Limits(*limits)
-    report = asyncio.run(run_general(bundle, proposals, output, model, limits))
+    extra = {"followup_options": followup_options} if followup_options is not None else {}
+    report = asyncio.run(run_general(bundle, proposals, output, model, limits, **extra))
     if report["errors"] or report.get("completed") is not True:
         raise Abstain("NFV audit incomplete: " + "; ".join(report["errors"] or ["analysis interrupted"]))
     presentation = None
@@ -185,7 +213,8 @@ def audit(proposals_path, limits):
                             for status in ("refuted", "verified", "resources exhausted", "type-check/audit failure")},
                "errors": report["errors"]}
     (output / "comment.md").write_text(
-        comment(report, bundle, evidence, len(proposals), presentation=presentation), encoding="utf-8")
+        comment(report, bundle, evidence, len(proposals), presentation=presentation,
+                followups=optional_artifact(output / "report.json", "followups.json")), encoding="utf-8")
     summary["comment"] = str(output / "comment.md")
     return summary
 
@@ -228,6 +257,7 @@ def main(argv=None):
     p.add_argument("--syntax-rounds", type=int, default=6)
     p.add_argument("--proof-rounds", type=int, default=10)
     p.add_argument("--verifier-timeout", type=int, default=60)
+    followup_arguments(p)
     p = commands.add_parser("check", help="Offline strict scalar-path checking; no inference or publication")
     p.add_argument("--bundle", required=True)
     p.add_argument("--proposals", required=True)
@@ -241,8 +271,10 @@ def main(argv=None):
     p.add_argument("--syntax-rounds", type=int, default=6)
     p.add_argument("--proof-rounds", type=int, default=10)
     p.add_argument("--verifier-timeout", type=int, default=60)
+    followup_arguments(p)
     p = commands.add_parser("audit", help="Agent-sandbox run on the trusted bundle; writes a PR review")
     p.add_argument("--proposals", required=True)
+    followup_arguments(p)
     p = commands.add_parser("present", help="Agent reverse-mapping of accepted evidence; no proof rerun or publication")
     p.add_argument("--bundle", required=True)
     p.add_argument("--report", required=True)
@@ -250,6 +282,7 @@ def main(argv=None):
     p.add_argument("--out", required=True, help="Directory for presentation.json and deterministic comment.md")
     p.add_argument("--evidence-url", required=True)
     p.add_argument("--model-timeout", type=int, choices=range(1, 601), default=240, metavar="1..600")
+    p.add_argument("--followups", help="Saved checked follow-ups (default: beside the report); no proof reruns")
     p = commands.add_parser("publish", help="Publish locally checked evidence; preview by default")
     p.add_argument("--bundle", required=True)
     p.add_argument("--report", required=True)
@@ -259,6 +292,8 @@ def main(argv=None):
     p.add_argument("--repository", default=None,
                    help="Repository for the Discussion (default: the PR repository)")
     p.add_argument("--apply", action="store_true")
+    p.add_argument("--followups", help="Saved checked follow-ups (default: beside the report)")
+    p.add_argument("--presentation", help="Saved source presentation (default: beside the report)")
     args = parser.parse_args(argv)
     try:
         if args.command == "collect":
@@ -287,7 +322,9 @@ def main(argv=None):
         elif args.command == "run":
             from .general import Limits
             limits = Limits(args.syntax_rounds, args.proof_rounds, args.verifier_timeout)
-            report = asyncio.run(run_general(load(args.bundle), load(args.properties), args.out, args.model, limits))
+            options = followup_options(args)
+            extra = {"followup_options": options} if options is not None else {}
+            report = asyncio.run(run_general(load(args.bundle), load(args.properties), args.out, args.model, limits, **extra))
             print(json.dumps({"findings": len(report["findings"]), "errors": report["errors"]}))
             if report["errors"]:
                 return 1
@@ -306,7 +343,9 @@ def main(argv=None):
             if args.mode == "general":
                 from .general import Limits
                 limits = Limits(args.syntax_rounds, args.proof_rounds, args.verifier_timeout)
-                report = asyncio.run(run_general(bundle, proposals, output, args.model, limits))
+                options = followup_options(args)
+                extra = {"followup_options": options} if options is not None else {}
+                report = asyncio.run(run_general(bundle, proposals, output, args.model, limits, **extra))
             else:
                 report = check(bundle, proposals, output)
             has_findings = bool(report["findings"]) and not report["errors"]
@@ -317,7 +356,7 @@ def main(argv=None):
             if report["errors"]:
                 return 1
         elif args.command == "audit":
-            summary = audit(args.proposals, audit_limits())
+            summary = audit(args.proposals, audit_limits(), followup_options(args))
             print(json.dumps(summary))
             if summary["errors"]:
                 return 1
@@ -329,13 +368,18 @@ def main(argv=None):
             validate_report(report, bundle)
             if checked_findings(report, bundle, args.evidence_url) is None:
                 raise Abstain("No accepted findings to present")
+            saved_followups = optional_artifact(args.report, "followups.json", args.followups)
+            if saved_followups is not None:
+                from .followups import validate_artifact
+                validate_artifact(saved_followups, report, bundle)
             output = Path(args.out)
             targets = [output / "presentation.json", output / "comment.md"]
             if any(target.resolve() in {Path(args.report).resolve(), Path(args.bundle).resolve()}
                    for target in targets):
                 raise Abstain("Presentation output cannot overwrite original evidence")
             artifact = asyncio.run(refresh_presentation(report, bundle, args.model, args.model_timeout))
-            body = render(report, bundle, args.evidence_url, presentation=artifact)
+            body = render(report, bundle, args.evidence_url, presentation=artifact,
+                          followups=saved_followups)
             targets[0].parent.mkdir(parents=True, exist_ok=True)
             targets[0].write_text(json.dumps(artifact, indent=2), encoding="utf-8", newline="\n")
             targets[1].write_text(body, encoding="utf-8", newline="\n")
@@ -348,7 +392,9 @@ def main(argv=None):
             api = GitHub()
             apply = args.apply and publication_allowed(api)
             result = publish(api, report, bundle, args.evidence_url, args.category, apply, args.label,
-                             args.repository)
+                             args.repository,
+                             presentation=optional_artifact(args.report, "presentation.json", args.presentation),
+                             followups=optional_artifact(args.report, "followups.json", args.followups))
             if result.get("body"):
                 Path(args.report).with_suffix(".md").write_text(result["body"], encoding="utf-8")
                 result.pop("body")

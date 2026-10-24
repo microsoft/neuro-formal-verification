@@ -60,6 +60,33 @@ environment assumptions, not that the source program is correct. A verified
 property gets an explicit note and checked postconditions. Resource limits and
 invalid models have separate diagnostics, not additional outcome categories.
 
+Accepted refutations have two independent, **default-on** follow-ups:
+**a shorter checked property** and **a model-checked candidate patch**. The shorter
+claim is displayed only when the complete property implies it with inputs and
+outputs free, and its negation and input-domain check pass on the frozen model
+and accepted counterexample. This is bounded projection search, not a guarantee
+of a globally minimal property or a proof of the natural-language wording.
+
+A candidate fix changes only the entry body: the complete property's goals,
+input interface, retained assumptions, helper contracts and helper bodies stay
+fixed. The repaired model must verify that complete property, pass the general
+input-domain check, and verify with the original witness and its input-domain
+check. Only then does the report say **refutation-with-fix (model-checked
+candidate)** and show the suggested source patch. The patch must replace a
+unique span inside the captured entry; it is data, never applied, built or
+executed. This strengthens the model-level evidence, **not** evidence of a
+confirmed source bug or a source-verified repair.
+
+There are at most two tool-free follow-up proposals per accepted refutation,
+with a separate time budget of up to 600 seconds (bounded by the property budget)
+and the configured per-call verifier limit. Each follow-up can succeed without
+the other. Unestablished follow-ups have explicit diagnostics and leave the
+accepted refutation unchanged; inference or verifier infrastructure failures
+stop publication. Native outcomes and property counts never change.
+Separate `followups.json` evidence binds to the unchanged report and source
+bundle and retains proposals, checks and patch/model hashes. Hashes bind
+provenance, not authentication or source/model semantic correspondence.
+
 ## What developers receive
 
 The source identity is the event's **immutable PR head SHA**, with the base SHA
@@ -73,7 +100,8 @@ review approval or change request). It opens with a one-line description of NFV
 linking the [paper](https://arxiv.org/abs/2608.21516), before the issue count,
 the analyzed head and base, and the run link. Property sections use short
 headers (`P1`, `P2`, ...) with the full intended or inferred property statement
-in normal-sized text below the header. Refutations appear first; property labels
+in normal-sized text below the header, or the shorter separately checked
+statement for an enriched refutation. Refutations appear first; property labels
 retain their original analysis numbering. Each finding shows **Intended
 property** in normal-sized text and its quote, **Input on which it fails**, and
 **Sketch of the failure**. A collapsed **Details** section shows the relevant
@@ -97,6 +125,13 @@ If a refutation's source-presentation metadata is missing or invalid, `audit`
 records the diagnostic and requests a separate, hash-bound presentation from
 a tool-free session. Accepted proof evidence is unchanged and never rerun;
 invalid refreshed mappings still stop publication.
+`audit`, general `run` and `evaluate` generate the enabled follow-ups after
+acceptance. `present` remains proof-free, and `publish` only validates saved
+evidence. Both automatically read `followups.json` beside the report, or accept
+`--followups PATH`; `publish` similarly accepts `--presentation PATH`.
+The original complete property and all accepted proof evidence remain in the
+artifact even when the visible property is shortened. Candidate patches are
+compacted to artifact references only if required by the comment-size budget.
 Draft array/sequence range errors are repaired before freezing, using the
 verifier's actual diagnostics to establish justified domains or annotations.
 An ordinary unproved postcondition instead proceeds to refutation; it is not
@@ -335,6 +370,12 @@ the AW template, set the Copilot token, and set the private NFV read token.
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
      after another within the 360-minute job timeout.
+   * Independent Boolean feature flags `NFV_SIMPLIFY_REFUTATIONS` and
+     `NFV_CHECK_FIXES` both default to `true`. Set either repository variable to
+     `false` to disable that follow-up; unset or empty keeps it enabled. Values
+     other than `true`/`false` fail explicitly. Local `audit`, `run` and general
+     `evaluate` also accept `--no-simplify-refutations` and `--no-check-fixes`
+     (or their positive forms) to override the environment independently.
 2. Configure the **`COPILOT_GITHUB_TOKEN`** secret used by the gh-aw Copilot
    engine: a fine-grained token owned by a Copilot-licensed user with
    *Copilot Requests: Read*. gh-aw rejects OAuth (`gho_`) tokens. The NFV

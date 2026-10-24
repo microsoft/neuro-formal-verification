@@ -130,7 +130,7 @@ def source_calls(finding):
     return declarations, result
 
 
-def relevant_code(claim, translation, finding, bundle, repo, commit):
+def relevant_code(claim, translation, finding, bundle, repo, commit, display_property=None):
     """The changed code and each called helper the check relied on, each headed by its
     natural-language specification. The refutation is a counterexample input, not a trace."""
     language = FENCES.get(claim["language"], "")
@@ -153,7 +153,7 @@ def relevant_code(claim, translation, finding, bundle, repo, commit):
     span = translation.get("source_span") or [min(claim["lines"]), max(claim["lines"])]
     spec = ["Spec (requires): " + translation["assumptions"][i]["description"]
             for i in finding["retained_assumptions"]]
-    spec.append("Spec (ensures, intended): " + claim["property"])
+    spec.append("Spec (ensures, intended): " + (display_property or claim["property"]))
     notes.setdefault((claim["path"], span[0]), [])[:0] = spec
     link, block = source_block(bundle, claim["path"], span[0], span[1], language, repo, commit, notes)
     entry = declarations[translation["entry_point"]]
@@ -176,7 +176,33 @@ def relevant_code(claim, translation, finding, bundle, repo, commit):
     return out
 
 
-def general_section(index, finding, bundle, repo, commit, presentation=None, compact=False):
+def followup_lines(followup, compact=False):
+    if not followup:
+        return []
+    lines = []
+    simple, fix = followup["simplification"], followup["fix"]
+    if simple["status"] == "not-established":
+        lines.append("A shorter checked property was not established; diagnostics are in `followups.json`.")
+    if fix["status"] == "checked":
+        lines.extend([
+            "**refutation-with-fix (model-checked candidate)**",
+            "**Suggested fix:** " + text(fix["description"]),
+        ])
+        if compact:
+            lines.append("The suggested source patch and model checks are retained in the linked run artifact.")
+        else:
+            lines.append(fenced("diff", fix["patch"]))
+        lines.extend([
+            "**Model checks:** The patched model verifies the property with unchanged input assumptions "
+            "and helper contracts. The counterexample input remains feasible.",
+            "**Limits:** The source patch is not applied, compiled or source-verified. " + text(fix["caveat"]),
+        ])
+    elif fix["status"] == "not-established":
+        lines.append("No model-checked fix was established; diagnostics are in `followups.json`.")
+    return lines
+
+
+def general_section(index, finding, bundle, repo, commit, presentation=None, compact=False, followup=None):
     from .general import validate_finding
     validate_finding(finding, bundle)
     claim, translation = finding["candidate"], finding["translation"]
@@ -218,12 +244,15 @@ def general_section(index, finding, bundle, repo, commit, presentation=None, com
         ])
     else:
         inputs = ", ".join(code_span(f"{k} = {json.dumps(v)}") for k, v in sorted(translation["witness"].items()))
+    shown = (followup["simplification"]["property"]
+             if followup and followup["simplification"]["status"] == "checked" else claim["property"])
     lines = [
         f"\n### {index}. Potential issue",
-        f"**{'Inferred property' if claim.get('origin') == 'source' else 'Intended property'}:** {text(claim['property'])}",
+        f"**{'Inferred property' if claim.get('origin') == 'source' else 'Intended property'}:** {text(shown)}",
         "> " + text(" ".join(str(claim["quote"]).split())),
         f"**Input on which it fails:** {inputs}",
         f"**Sketch of the failure:** {text(explanation)}",
+        *followup_lines(followup, compact),
     ]
     if compact:
         conditions = [translation["assumptions"][i]["description"]
@@ -240,7 +269,7 @@ def general_section(index, finding, bundle, repo, commit, presentation=None, com
         ]
     lines.extend([
         "<details><summary>Details</summary>\n",
-        *relevant_code(claim, translation, finding, bundle, repo, commit),
+        *relevant_code(claim, translation, finding, bundle, repo, commit, shown),
     ])
     removed = [value["description"] for i, value in enumerate(translation["assumptions"])
                if i not in finding["retained_assumptions"]]
@@ -362,9 +391,11 @@ def finding_lines(index, finding, bundle, repo, commit, presentation=None):
     return out
 
 
-def render(report, bundle, evidence_url, presentation=None):
+def render(report, bundle, evidence_url, presentation=None, followups=None):
     if report.get("schema") == 3 and report.get("mode") == "general-model-analysis":
-        return analysis_comment(report, bundle, evidence_url, presentation)
+        return analysis_comment(report, bundle, evidence_url, presentation, followups)
+    if followups is not None:
+        raise Abstain("Follow-ups require whole-property general analysis evidence")
     mappings = {}
     if presentation is not None:
         from .presentation import validate_artifact
@@ -387,9 +418,9 @@ def render(report, bundle, evidence_url, presentation=None):
     return body
 
 
-def comment(report, bundle, evidence_url, proposed, presentation=None):
+def comment(report, bundle, evidence_url, proposed, presentation=None, followups=None):
     """The PR comment: the findings report, or a short summary when nothing was refuted."""
-    body = render(report, bundle, evidence_url, presentation=presentation)
+    body = render(report, bundle, evidence_url, presentation=presentation, followups=followups)
     if body is not None:
         return body
     ident = report["identity"]
@@ -418,7 +449,7 @@ def comment(report, bundle, evidence_url, proposed, presentation=None):
     return "\n\n".join(lines)
 
 
-def analysis_comment(report, bundle, evidence_url, presentation=None):
+def analysis_comment(report, bundle, evidence_url, presentation=None, followups=None):
     from .general import validate_verification
     from .outcomes import OUTCOMES, REFUTED, VERIFIED
 
@@ -434,6 +465,10 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
     if presentation is not None:
         from .presentation import validate_artifact
         mappings = validate_artifact(presentation, report, bundle)
+    enrichments = {}
+    if followups is not None:
+        from .followups import validate_artifact as validate_followups
+        enrichments = validate_followups(followups, report, bundle)
     repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
     verified = {item["candidate"]["id"]: item for item in report.get("verified", [])}
     for item in verified.values():
@@ -466,7 +501,10 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
                               key=lambda pair: pair[1]["status"] != REFUTED):
         status = item["status"]
         label = "Inferred property" if item.get("origin") == "source" else "Intended property"
-        lines.extend([f"### P{index}", f"**{label}:** {text(item['property'])}",
+        extra = enrichments.get(item["id"])
+        shown = (extra["simplification"]["property"]
+                 if extra and extra["simplification"]["status"] == "checked" else item["property"])
+        lines.extend([f"### P{index}", f"**{label}:** {text(shown)}",
                       f"**Outcome: {status}**"])
         if status == REFUTED:
             evidence = findings.get(item.get("duplicate_of", item["id"]))
@@ -477,9 +515,9 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
                 raise Abstain("Displayed refuted property differs from its checked evidence")
             mapping = mappings.get(evidence["candidate"]["id"])
             compact_sections.append((status, len(lines), "\n\n".join(
-                general_section(index, evidence, bundle, repo, commit, mapping, compact=True)[2:])))
+                general_section(index, evidence, bundle, repo, commit, mapping, compact=True, followup=extra)[2:])))
             lines.append("\n\n".join(
-                general_section(index, evidence, bundle, repo, commit, mapping)[2:]))
+                general_section(index, evidence, bundle, repo, commit, mapping, followup=extra)[2:]))
         elif status == VERIFIED:
             evidence = verified.get(item["id"])
             if evidence is None:
@@ -537,8 +575,9 @@ def analysis_comment(report, bundle, evidence_url, presentation=None):
     return body
 
 
-def publish(api, report, bundle, evidence_url, category, apply=False, label=LABEL, target=None):
-    body = render(report, bundle, evidence_url)
+def publish(api, report, bundle, evidence_url, category, apply=False, label=LABEL, target=None,
+            presentation=None, followups=None):
+    body = render(report, bundle, evidence_url, presentation=presentation, followups=followups)
     if body is None:
         return {"status": "no-findings"}
     ident = report["identity"]
