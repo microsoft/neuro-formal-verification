@@ -3,6 +3,11 @@
 1. **Install and authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI.
    Authenticate both CLIs with your GitHub account.
 
+   For Microsoft-provided Copilot access, use the account assigned that Copilot
+   seat. Start `copilot`, use `/login` to sign in and `/model` to select
+   `gpt-5.6-sol` if available. Organization policies must allow CLI access and
+   the model. A Microsoft-owned checkout alone does not select Microsoft billing.
+
 2. **Confirm NFV access:** While NFV is private, your account needs read access
    to `microsoft/neuro-formal-verification`.
 
@@ -25,6 +30,23 @@
 
    Alternatively, use **Settings > Secrets and variables > Actions > New
    repository secret**. Never paste token values into agent chat.
+
+   **Direct organization billing is a separate setup:** In Microsoft-owned
+   repositories, a Microsoft organization administrator must allow **Copilot
+   CLI > Allow use of Copilot CLI billed to the organization**. Supported
+   Actions workflows can then authenticate with the built-in `GITHUB_TOKEN`
+   and these permissions, billing inference directly to the organization:
+
+   ```yaml
+   permissions:
+     contents: read
+     copilot-requests: write
+   ```
+
+   See [GitHub's organization-billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
+   **The current NFV workflow still requires `COPILOT_GITHUB_TOKEN`; this is
+   not a drop-in replacement.** Keep both secrets above while NFV is private;
+   this guide does not migrate NFV to organization-token authentication.
 
 5. **Ask the agent to install:** Start `copilot` inside the target checkout
    and paste the following, replacing `OWNER/repo`:
