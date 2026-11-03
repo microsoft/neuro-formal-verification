@@ -360,8 +360,9 @@ path does not require the model client.
 For a first installation in another repository, use the
 [standalone Python installer](ONBOARDING.md#install-directly-without-an-agent)
 or the [coding-agent instructions](ONBOARDING.md#onboard-with-a-coding-agent).
-The helper skill is optional. The setup is: choose or fork a repository, install
-the AW template, set the Copilot token, and set the private NFV read token.
+The helper skill is optional. The unified onboarding flow covers tools, target
+selection, secure token setup, an agent-created installation PR, configuration
+read-back, guarded post-merge activation and a separate approved pilot.
 
 1. Configure protected repository variables:
    * `NFV_RELEASE_SHA`: full commit of `microsoft/neuro-formal-verification`,

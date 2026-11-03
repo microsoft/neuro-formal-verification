@@ -1,41 +1,174 @@
 # NFV PR audit onboarding
 
-Setup has four steps: **choose or fork a repository, install the NFV Agentic
-Workflow template, set the Copilot token, and set the private NFV read token**.
-The helper skill is optional; installing it is not a prerequisite for PR audits.
+Follow this single flow for any target repository. The agent installs and
+configures NFV, creates the installation PR, verifies the configuration and
+enables the reviewer after merge. You choose the repository and model, enter
+tokens securely, approve the merge and authorize a separate pilot audit.
+The helper skill is optional; no local NFV clone or verifier is required.
 
-By default, install the latest commit on NFV's default branch. You do not need
-to choose a branch or commit: the installer or coding agent resolves it once
-and pins the same revision for the workflow package and runtime. Existing
-installations stay pinned until explicitly upgraded. A trusted revision can
-be selected for testing.
+The default release is the latest commit on NFV's default branch. The agent
+resolves it once and pins the same revision for the package and runtime.
+You do not need to choose a branch or SHA. Existing installations remain pinned
+until explicitly upgraded; another trusted revision is an optional override.
 
-NFV is a prototype implementation. It tries verification, then refutation, and
-posts a generated PR comment. Proofs concern translated models under their
-assumptions; findings are **conditional MODEL refutations, not confirmed source
-bugs**. Failure to refute is not evidence of source correctness.
+NFV is a prototype implementation. Findings are **conditional MODEL refutations,
+not confirmed source bugs**. Verification concerns translated models under their
+assumptions; failure to refute is not evidence of source correctness.
+
+## Onboard with a coding agent
+
+### 1. Install tools and authenticate
+
+Install **Git, GitHub CLI (`gh`) and Copilot CLI**, then authenticate both CLIs
+with your GitHub account. Python 3.10+ is also needed if the agent uses the
+standalone installer. The workflow provisions its own Python, Dafny and Z3.
+
+### 2. Choose and clone the target repository
+
+Use a repository where you can push an installation branch, open a PR, configure
+Actions secrets/variables and disable or enable workflows. Otherwise, create an
+approved fork or standalone test copy. Enable Actions there as needed, after
+reviewing inherited workflows and organization policies.
+
+While NFV is private, your local authenticated `gh` account also needs read access
+to `microsoft/neuro-formal-verification`. This is separate from the runner's
+`NFV_RELEASE_TOKEN` below.
+
+Clone **`OWNER/repo`**, the repository where audit PRs will be opened, and start
+from its clean default branch. Installing in a fork does not audit upstream PRs.
+An independent copy does not reproduce GitHub's fork permissions.
+
+### 3. Create and store the required tokens
+
+Store these as **Actions secrets in `OWNER/repo`**, not in NFV:
+
+| Secret | Token permissions |
+|---|---|
+| `COPILOT_GITHUB_TOKEN` | Fine-grained PAT from an account with an active Copilot license and access to the approved model. Personal resource owner; **Account permissions > Copilot Requests: Read**. Repository write access is not needed. |
+| `NFV_RELEASE_TOKEN` | While NFV is private: a separate fine-grained PAT owned by someone with NFV access. Select NFV's resource owner, restrict access to **only `microsoft/neuro-formal-verification`**, and grant **Contents: Read-only**. Complete required organization approval. |
+
+Set expirations. Use **Settings > Secrets and variables > Actions > New
+repository secret**, or enter each value at the secure CLI prompt:
+
+```text
+gh secret set COPILOT_GITHUB_TOKEN --repo OWNER/repo
+gh secret set NFV_RELEASE_TOKEN --repo OWNER/repo
+```
+
+Never paste tokens into agent chat, command arguments or local files. Do not
+substitute the `gh auth login` OAuth token for the Copilot PAT. The agent may
+list secret names, never values. A stored name does **not** establish token
+validity, permissions, organization approval or model access.
+
+### 4. Start the agent and request installation
+
+Start a fresh Copilot session **inside the target checkout**:
+
+```text
+git clone https://github.com/OWNER/repo.git
+cd repo
+copilot
+```
+
+If already cloned, enter that checkout instead. Paste:
+
+```text
+Install NFV following workflow/ONBOARDING.md in
+https://github.com/microsoft/neuro-formal-verification.
+
+Target repository: OWNER/repo
+Approved Copilot model ID: APPROVED_MODEL_ID
+NFV release: Default
+```
+
+The agent must confirm the target, model and selected release before making
+changes. Ask for missing choices rather than assuming a model or repository.
+Use the supplied approved model without asking again. The default release is
+selected automatically; do not make the user choose a branch or SHA.
+
+### 5. Agent creates and verifies the installation PR
+
+The agent must:
+
+- Verify both `origin` fetch/push URLs, the target's default branch, a clean
+  checkout matching the remote, NFV read access and required secret names.
+  Preserve local changes; never modify upstream.
+- Use **gh-aw v0.88.7**. Resolve the trusted NFV release once, install the package
+  at that SHA and compile **both** `nfv-source-context` and `nfv-pr-review`.
+  Keep default budgets and unrelated CI unchanged.
+- Set **repository Actions variables** `NFV_RELEASE_SHA` and `NFV_MODEL`, read
+  them back and compare them with the selected release and approved model.
+  Variables and secret names are safe to display; secret values are not.
+- Commit and push only installation files, then **open a draft PR** targeting
+  the target's default branch. Include both workflow Markdown files, both
+  generated locks and package/action records; review `.gitattributes` changes.
+  Do not assume a fixed number of changed files or leave PR creation to the user.
+- Disable `nfv-pr-review.lock.yml` and verify **`disabled_manually`** before the
+  PR can be marked ready or merged. If registration or disabling fails, leave
+  the PR draft and report the block. Do not require an NFV check on this PR.
+
+Before asking for merge approval, the agent must report observed values:
+
+| Check | Required confirmation |
+|---|---|
+| Target and base | Exact `OWNER/repo`, default branch and installation PR URL |
+| `NFV_RELEASE_SHA` | Read-back value equals the chosen full SHA |
+| `NFV_MODEL` | Read-back value equals the approved model ID |
+| Package pins | Both installed workflow `.md` files have `source:` pins ending in `workflow@` followed by that same SHA |
+| Secrets | Required names present; token validity/model access not yet proven |
+| Reviewer | `disabled_manually`; installation PR still draft |
+
+Check package pins from the installation PR's captured head before merge.
+Never check out or execute inspected PR code.
+
+### 6. Enable the reviewer
+
+Review the installation PR and approve its merge. The agent may mark it ready
+and merge only with your approval, keeping NFV disabled throughout. A draft
+alone does not protect the `ready_for_review` event. You can also merge it
+yourself and tell the agent to continue.
+
+After merge, the agent must verify the merge is retained on the actual default
+branch, **not an assumed `main` branch**. Read back the two variables and required
+secret names again. Check both package pins from the merged default-branch
+snapshot, compare the model with the user's approval, then enable NFV and
+verify **`active`**.
+
+The standalone installer's `--enable-after-merge` command performs the merge,
+package/runtime, model-presence and secret-name checks before activation; the
+agent must also compare the observed model with the approved model. Report
+the target, base SHA, release/model values, matching package pins, secret-name
+presence and final workflow state. Do not claim activation from a successful
+command alone. If any check fails, leave NFV disabled and explain the block.
+
+### 7. Approve a separate pilot and its billable audit
+
+After activation, approve a **separate small implementation-change PR**, parented
+on the installed base branch, and its billable inference. An empty commit or
+documentation-only dummy PR is not a meaningful audit pilot.
+
+The agent checks the actual generated PR comment and the run's `nfv-evidence`
+artifact: `completed: true`, no global errors and recorded property outcomes
+with native evidence. A green Actions job alone is insufficient. Report verified,
+refuted, resources exhausted and type-check/audit failure outcomes honestly;
+do not increase budgets or claim source correctness.
+
+For the first pilot, use a branch in the target repository. External fork-origin
+PRs may not receive secrets; never switch to `pull_request_target` to expose them.
+Never manually edit generated NFV report text.
 
 ## Install directly, without an agent
 
-Use [install.py](install.py) from a clean checkout of the target repository's
-default branch. It requires **Python 3.10+, Git, and an authenticated GitHub CLI
-(`gh`)**, with no extra Python packages. Linux is the default environment;
-the same Python CLI also works on Windows. No agent, local NFV clone or verifier
-is needed.
-Your GitHub CLI login needs access to both the target repository and NFV.
+<details>
+<summary>Optional manual reference: standalone installer and activation</summary>
 
-Clone the target repository yourself, choose an approved model, and enter the
-secrets securely as described in [step C](#c-set-copilot_github_token) and
-[step D](#d-set-nfv_release_token-while-the-nfv-repository-is-private).
-The installer checks secret **names only**, not token values or validity.
-While NFV is private, both secrets are required; once it is public, only
-`COPILOT_GITHUB_TOKEN` is required.
-
-From the target checkout, download the installer at a trusted immutable NFV
-revision. Replace the repository and model placeholders:
+Use [install.py](install.py) with Python 3.10+, Git and authenticated `gh`; no extra
+Python packages are needed. From the clean target default-branch checkout, after
+storing secrets, download the installer outside the checkout at the selected
+immutable release. Linux/bash example:
 
 ```bash
-TargetRepo="OWNER/REPO"
+TargetRepo="OWNER/repo"
 Model="APPROVED_MODEL_ID"
 Release="$(gh api repos/microsoft/neuro-formal-verification/commits/HEAD --jq .sha)" &&
     [[ "$Release" =~ ^[0-9a-f]{40}$ ]] &&
@@ -44,372 +177,76 @@ Release="$(gh api repos/microsoft/neuro-formal-verification/commits/HEAD --jq .s
         --jq '.content | @base64d' > "$Installer"
 ```
 
-If the download fails, stop and resolve the error. Review the downloaded script,
-then run it in the same shell:
+Stop if downloading fails. Review the script, then run in the same shell:
 
 ```bash
 python3 "$Installer" --repository "$TargetRepo" --model "$Model" --ref "$Release"
 ```
 
-The script verifies the origin fetch/push URLs, a clean default-branch checkout
-matching the remote, and required secret names. It installs gh-aw v0.88.7 if
-absent, but does not replace a different installed compiler. It creates an
-`nfv-install-<revision>` branch, installs and compiles both NFV workflows, sets
-and reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, commits only installation files,
-pushes that branch, and opens a **draft** installation PR. The package and
-runtime use the same immutable revision. Existing budgets and unrelated CI
-are not changed.
+The installer installs the pinned compiler if absent, sets and reads back the
+variables, compiles both workflows, commits/pushes installation files, opens a
+draft PR and disables the reviewer. It does not merge or launch an audit.
+It refuses an existing installation or dirty checkout and does not replace a
+different installed compiler. Preserve partial work and resolve reported errors;
+do not blindly reinstall.
 
-The script then disables NFV and verifies `disabled_manually`. If GitHub has
-not registered the workflow yet, or disabling fails, it exits with an error
-and leaves the PR draft. Once registration is available, retry the guard using
-the PR number printed by the installer:
+If workflow registration blocked disabling, retain the draft and retry only:
 
 ```bash
 python3 "$Installer" --repository "$TargetRepo" --verify-bootstrap --pull-request 123
 ```
 
-**Do not mark the PR ready or merge until the guard succeeds.** Review the
-generated files, approve the installation, and keep NFV disabled through marking
-ready and merging. Do not require an NFV check for this installation PR.
-After it merges into the default branch, explicitly enable NFV:
+Replace `123` with the installation PR number. Verify the step 5 checklist, then
+approve and merge while NFV remains disabled. After merge:
 
 ```bash
 python3 "$Installer" --repository "$TargetRepo" --enable-after-merge --pull-request 123
 ```
 
-This checks the merge is retained on the default branch, both installed package
-revisions match the runtime pin, the model variable exists, and required secret
-names exist, before enabling the reviewer. None of these commands merge a PR,
-create a pilot PR, dispatch an audit, or execute inspected PR code.
+Keep the installer until activation is complete. On Windows, use `python` instead
+of `python3` if appropriate. For an explicit trusted test release, replace the
+initial `HEAD` lookup with that trusted revision; never use a PR-supplied ref.
 
-This script is for a **first installation**, not an upgrade. It refuses dirty
-checkouts and existing NFV files, leaving local changes untouched. If compilation,
-publication or configuration fails, inspect the reported branch/files before
-retrying; it does not automatically undo partial changes. Use the
-[upgrade procedure](#upgrade-an-existing-installation) for an installed reviewer.
-Keep the downloaded script until activation is complete. On Windows, use
-`python` instead of `python3` if that is your interpreter's command.
-
-## Onboard with a coding agent
-
-First clone the **target repository** and start Copilot inside it. Replace
-`OWNER/REPO` with your target repository and `REPO` with its local directory name:
-
-```bash
-git clone https://github.com/OWNER/REPO.git
-cd REPO
-copilot
-```
-
-If you already have a clone, enter its directory and run `copilot` there.
-Then paste the task below into Copilot, replacing `OWNER/REPO`. Copilot handles
-the setup, including committing and pushing the installation branch and opening
-a draft PR. You choose an approved model, enter tokens securely and approve
-the merge; the agent handles disabling NFV before merge and enabling it afterward.
-A separate local clone of NFV is not required.
+The following read-only checks work in PowerShell or bash:
 
 ```text
-Onboard NFV PR review in https://github.com/OWNER/REPO.
-Follow workflow/ONBOARDING.md in:
-https://github.com/microsoft/neuro-formal-verification
-
-Work in this checkout. Verify that it belongs to the target repository and
-preserve any local changes. Start from its default branch; do not modify upstream.
-
-Use the default release selection described in the onboarding guide.
-Ask me which approved Copilot model to use.
-
-Use gh-aw v0.88.7, installing it if missing. Install the NFV package and
-compile both workflows. Create a draft installation PR targeting this
-repository's default branch, including both workflow Markdown files,
-generated locks and package/action records. Commit and push the installation
-branch and open the PR; do not leave these steps for me. Review any .gitattributes
-changes. Do not merge without my approval.
-
-Do not run NFV on its own installation PR or require an NFV check for it.
-Keep the PR draft until nfv-pr-review.lock.yml is explicitly disabled and
-its disabled state is verified. Keep NFV disabled when marking the PR ready
-and merging it; a draft alone does not protect the ready_for_review event.
-If the workflow is not registered yet or cannot be disabled, leave the PR
-draft and report the block. Leave unrelated CI enabled. Enable NFV only
-after the installation merges into the base branch.
-
-Guide me through secure entry of COPILOT_GITHUB_TOKEN and NFV_RELEASE_TOKEN
-using GitHub settings or an interactive CLI prompt. Follow the README's
-token permissions. Never request tokens in chat, expose their values or
-store them locally. Verify only that the required secret names exist.
-
-Keep the default budgets. Never check out or execute PR code. Do not create
-a synthetic test fixture or start billable audits without my approval.
-Report what is ready and what remains blocked. After installation reaches
-the base branch and I approve a separate pilot PR, check its actual generated
-comment and nfv-evidence artifact, not merely a green Actions job.
+gh variable list --repo OWNER/repo
+gh secret list --repo OWNER/repo
+gh api repos/OWNER/repo/actions/workflows/nfv-pr-review.lock.yml --jq .state
 ```
 
-## A. Choose the repository; fork it if needed
-
-If you have permission to install workflows and configure Actions secrets in
-the repository, use it directly. Otherwise, create a fork you control and enable
-**GitHub Actions** in that fork.
-
-Install NFV in the repository **where the PRs to audit will be opened**. Installing
-it in your fork does not audit PRs opened in the upstream repository.
-Examples to try include mimalloc, LiteBox and Garnet; confirm the exact
-`OWNER/REPO` for nvx before installing there.
-
-When creating replay PRs, use plain change numbers rather than upstream
-issue/PR references or links in titles, descriptions and new commit messages.
-GitHub can otherwise add a "mentioned this pull request" event upstream; do not
-rely on lack of upstream write access to prevent it. A timeline event does not
-prove anyone received an email or inbox notification.
-Normalize references in copied descriptions and keep the exact originals in
-local evidence. This does not change NFV's generated audit reports or erase
-historical mentions.
-
-For a clickable link without a backlink, GitHub documents replacing
-`github.com` with `redirect.github.com`; see
-[avoiding backlinks](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls#avoiding-backlinks-to-linked-references).
-Avoid explicit user/team mentions in replay metadata too.
-
-## B. Add NFV as an Agentic Workflow template
-
-From a clone of the chosen repository, have the installer or coding assistant:
-
-- Install the NFV gh-aw package, including both the source-context and PR-review
-  workflows.
-- Resolve the latest commit on NFV's default branch to a full SHA, use it for both
-  the package and `NFV_RELEASE_SHA`, and set `NFV_MODEL` to a model available to
-  your Copilot account.
-- Prepare the workflow files and generated locks for review and commit.
-
-The workflow provisions Dafny, Z3 and its own Python runtime. Only the standalone
-installer needs a local Python interpreter; the manual commands below do not.
-Organization policies must allow the generated Actions workflows.
-
-<details>
-<summary>Manual installation commands (PowerShell)</summary>
-
-Use an authenticated GitHub CLI with access to the target and the NFV release.
-Use gh-aw v0.88.7, the compiler version tested with this template. If it is not
-already installed:
-
-```powershell
-gh extension install github/gh-aw --pin v0.88.7
-```
-
-Replace the target repository and model placeholders, then run from the target
-repository's clone. No manual SHA selection is needed:
-
-```powershell
-$TargetRepo = "OWNER/REPO"
-$NFV_MODEL = "APPROVED_MODEL_ID"
-$NFV_REF = "HEAD" # Latest commit on NFV's default branch
-$NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
-if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
-    throw "Could not resolve the NFV revision"
-}
-gh variable set NFV_RELEASE_SHA --repo $TargetRepo --body $NFV_RELEASE_SHA
-if ($LASTEXITCODE -ne 0) { throw "Could not set NFV_RELEASE_SHA" }
-gh variable set NFV_MODEL --repo $TargetRepo --body $NFV_MODEL
-if ($LASTEXITCODE -ne 0) { throw "Could not set NFV_MODEL" }
-gh aw add "microsoft/neuro-formal-verification/workflow@$NFV_RELEASE_SHA"
-if ($LASTEXITCODE -ne 0) { throw "Template installation failed" }
-```
-
-Review the installed Markdown, then compile:
-
-```powershell
-gh aw compile nfv-source-context nfv-pr-review --approve
-if ($LASTEXITCODE -ne 0) { throw "Compilation failed" }
-git status --short
-git diff
-```
-
-Commit both workflow `.md` files and both `.lock.yml` files under
-`.github\workflows\`, plus the generated package records and action locks under
-`.github\aw\`. Review any `.gitattributes` changes. Do not commit unrelated files
-or hand-edit generated locks. Keep the existing repair and spending limits.
-
-**Do not run NFV on its own installation PR.** Open that PR as a draft. Once
-GitHub registers the workflow, disable the reviewer and verify its state
-**before marking the PR ready or merging it**:
-
-```powershell
-gh workflow disable nfv-pr-review.lock.yml --repo $TargetRepo
-if ($LASTEXITCODE -ne 0) { throw "Keep the installation PR draft: could not disable NFV" }
-$NFV_WORKFLOW_STATE = gh api "repos/$TargetRepo/actions/workflows/nfv-pr-review.lock.yml" --jq .state
-if ($LASTEXITCODE -ne 0 -or $NFV_WORKFLOW_STATE -ne "disabled_manually") {
-    throw "Keep the installation PR draft: NFV is not confirmed disabled"
-}
-```
-
-If the workflow is not registered yet or cannot be disabled, leave the PR in
-draft and report the block. Marking a draft ready triggers NFV unless the
-reviewer is disabled. Keep it disabled through the merge; do not require an NFV
-check for this bootstrap PR. Leave unrelated CI enabled.
-
-The resolved SHA stays pinned even if NFV's default branch moves later; the workflow does not
-auto-update. Use the [upgrade commands below](#upgrade-an-existing-installation)
-to update an existing installation. Do not repeat forking or token setup.
+For package pins, read `.github/workflows/nfv-source-context.md` and
+`.github/workflows/nfv-pr-review.md` at the captured installation head before
+merge and the actual default-branch SHA afterward. Compare each `source:` revision
+to `NFV_RELEASE_SHA`; do not assume `main` or reuse a SHA from an example.
 
 </details>
 
-<details>
-<summary>Optional: test another NFV revision</summary>
+## Historical replay PRs
 
-Before running the installation block, change its `$NFV_REF` line to:
-
-```powershell
-$NFV_REF = "TRUSTED_TEST_REF" # Or a trusted full 40-character commit SHA
-```
-
-Use a test repository or fork. The same commands resolve that revision once
-and use the resulting SHA for both the package and runtime. Do not use a
-revision supplied by the PR being audited.
-
-For an existing installation, use the upgrade procedure below with the trusted
-test revision. To return to the default release selection, use `$NFV_REF = "HEAD"`.
-
-</details>
-
-## C. Set `COPILOT_GITHUB_TOKEN`
-
-**Enter this token securely**, never in chat. The standalone installer checks
-only that its secret name exists.
-Create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new?name=COPILOT_GITHUB_TOKEN&user_copilot_requests=read):
-
-- Use an account with an active Copilot license and access to the chosen model.
-- Set **Resource owner** to your personal account, not an organization.
-- Under **Account permissions**, grant **Copilot Requests: Read**. Repository
-  write access is not needed for this token. Set an expiration.
-
-In the target repository, open **Settings > Secrets and variables > Actions >
-New repository secret** and save it as **`COPILOT_GITHUB_TOKEN`**.
-Alternatively, enter it at the interactive prompt:
-
-```bash
-TargetRepo="OWNER/REPO"
-gh secret set COPILOT_GITHUB_TOKEN --repo "$TargetRepo"
-```
-
-Replace `OWNER/REPO` with the repository from step A, including your fork's owner
-if applicable. The command prompts for the token; do not supply its value as a
-command-line argument.
-
-This token authorizes billable model inference. Do not substitute the OAuth
-token from `gh auth login`, put the token value in a command argument, or commit
-it to a file.
-
-## D. Set `NFV_RELEASE_TOKEN` while the NFV repository is private
-
-This is a **separate read token for
-`microsoft/neuro-formal-verification`**, not a read token for the repository
-being audited.
-
-Create a fine-grained PAT owned by someone who already has access to NFV.
-Select the NFV repository's resource owner, restrict repository access to
-**only `microsoft/neuro-formal-verification`**, and grant **Contents: Read-only**.
-Complete any organization approval required and set an expiration.
-
-Save it as **`NFV_RELEASE_TOKEN`** in the same target repository's Actions
-secrets, using the Settings page or an interactive prompt:
-
-```bash
-gh secret set NFV_RELEASE_TOKEN --repo "$TargetRepo"
-```
-
-Use the same `TargetRepo` as step C. This command also prompts for the token.
-Confirm that both secret names are present without revealing their values:
-
-```bash
-gh secret list --repo "$TargetRepo"
-```
-
-The listing confirms storage, not token permissions or inference access.
-
-The runner uses this token to download the trusted NFV implementation. Your
-local `gh` login also needs NFV access to install the template. Once NFV is
-public and readable by the runner's normal token, this extra secret is no
-longer needed.
-
-**After setup:** with NFV still disabled, merge the approved installation PR into
-the intended base branch. If you used the standalone installer, use its
-`--enable-after-merge` command above. For a manual installation, only after that
-merge, enable the reviewer:
-
-```bash
-gh workflow enable nfv-pr-review.lock.yml --repo "$TargetRepo"
-```
-
-With the user's approval, open or update a **separate, small non-draft PR in that
-repository**. NFV should post its generated audit comment. Check the actual
-comment and the run's `nfv-evidence` artifact, not just a green job.
-Fork-origin PRs may not receive secrets; do not switch to `pull_request_target`
-to expose them.
+Use plain change numbers in replay titles, descriptions and new commit messages,
+not upstream issue/PR references or direct GitHub links. Normalize copied
+descriptions, retain exact originals in local evidence and avoid user/team
+mentions. For clickable original-PR links, use GitHub's documented
+[`redirect.github.com` no-backlink URL](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/autolinked-references-and-urls#avoiding-backlinks-to-linked-references).
+This does not make public replays private, edit generated reports or erase
+historical references. Lack of upstream write access does not prevent backlinks.
 
 ## Upgrade an existing installation
 
-**Repeat only the template installation and runtime pin update.** Keep the
-existing repository, secrets, model and budget settings. Replace a token only
-if it expired, was revoked, or needs different permissions.
+Ask the agent to upgrade using this guide. Keep the existing repository, secrets,
+approved model and budgets; replace tokens only when necessary. Do not rerun
+the first-installation script against an existing installation.
 
-Run from a clean clone of the target repository in the same PowerShell session.
-First pause new audits and list existing runs:
+The agent disables NFV and waits for **all active/queued runs to finish** before
+changing shared configuration. It resolves the trusted release once, replaces
+the installed package with `gh aw add ... --force`, recompiles both workflows
+and opens an upgrade PR. Review and retain intentional local customizations.
 
-```powershell
-$TargetRepo = "OWNER/REPO"
-gh workflow disable nfv-pr-review.lock.yml --repo $TargetRepo
-if ($LASTEXITCODE -ne 0) { throw "Could not pause NFV" }
-gh run list --repo $TargetRepo --workflow nfv-pr-review.lock.yml --limit 100
-```
+After the approved merge, update `NFV_RELEASE_SHA` to that same resolved SHA,
+verify both merged package pins, model and required secret names, enable NFV
+and read back `active`. Repeat the separate approved pilot. Leave audits paused
+on any failure. A standalone `gh aw update` or `gh aw upgrade` does not update
+NFV's runtime variable.
 
-**Wait until all existing NFV runs have completed**, including queued/waiting
-runs. Disabling a workflow does not cancel them. Do not continue while an old
-run could still read the shared release variable.
-
-Resolve the new release once and refresh the installed package:
-
-```powershell
-$NFV_REF = "HEAD" # Latest commit on NFV's default branch; a trusted full SHA also works
-$NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
-if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
-    throw "Could not resolve the NFV revision"
-}
-git switch -c "nfv-upgrade-$($NFV_RELEASE_SHA.Substring(0, 12))"
-if ($LASTEXITCODE -ne 0) { throw "Could not create the upgrade branch" }
-gh aw add "microsoft/neuro-formal-verification/workflow@$NFV_RELEASE_SHA" --force
-if ($LASTEXITCODE -ne 0) { throw "Template upgrade failed" }
-gh aw compile nfv-source-context nfv-pr-review --approve
-if ($LASTEXITCODE -ne 0) { throw "Compilation failed" }
-git status --short
-git diff
-```
-
-`--force` replaces the installed templates, so review and deliberately reapply
-any local customizations. Commit the two workflow Markdown files, both generated
-locks and changed package/action records described in step B. Push the branch
-and merge it through your repository's normal review process. Do not advance
-the runtime pin before those files reach the base branch used by your PRs.
-
-**After that merge**, set the matching runtime pin and resume audits:
-
-```powershell
-gh variable set NFV_RELEASE_SHA --repo $TargetRepo --body $NFV_RELEASE_SHA
-if ($LASTEXITCODE -ne 0) { throw "Could not update the NFV runtime pin" }
-gh workflow enable nfv-pr-review.lock.yml --repo $TargetRepo
-if ($LASTEXITCODE -ne 0) { throw "Could not resume NFV" }
-```
-
-Use the **same SHA resolved above**, not a fresh lookup of the branch. If using a new
-shell, restore `$TargetRepo` and that exact `$NFV_RELEASE_SHA` first. If any step
-fails, leave audits paused until the problem is resolved. Open or update a small
-non-draft PR to check the upgraded installation.
-
-This updates NFV, not the gh-aw compiler. A standalone `gh aw update` or
-`gh aw upgrade` does not perform NFV's matching runtime-variable update.
-
-An assistant can use the bundled `nfv-pr-review` skill to carry out installation;
-you do not have to copy the skill into every target repository. For pipeline,
-budget and evidence details, see the
-[workflow README](https://github.com/microsoft/neuro-formal-verification/blob/main/workflow/README.md).
+For pipeline, budgets and evidence details, see the [workflow README](README.md).

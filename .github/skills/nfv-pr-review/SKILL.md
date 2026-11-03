@@ -18,44 +18,33 @@ User docs are in `workflow/README.md`.
 
 ## Bootstrap a repository
 
-Run these from a clone of the target repository's default branch.
+Follow the single [onboarding guide](../../../workflow/ONBOARDING.md), including
+its configuration-confirmation tables. If this skill was copied, retrieve
+`workflow/ONBOARDING.md` from the trusted NFV release. Do not maintain a separate
+installation procedure here.
 
-1. **Prerequisites.** `gh` must be authenticated with write access to the target
-   repo. Install gh-aw v0.88.7 or later with `gh extension install github/gh-aw`.
-2. **Pick a release.** Use a full 40-hex commit of this repository, normally the
-   head of `dev`:
-   `git ls-remote https://github.com/microsoft/neuro-formal-verification refs/heads/dev`.
-3. **Install and compile.**
-   ```
-   gh aw add microsoft/neuro-formal-verification/workflow@<sha> --force
-   gh aw compile nfv-pr-review --approve
-   ```
-   Commit `.github/workflows/nfv-pr-review.md`, `nfv-pr-review.lock.yml` and
-   `.github/aw/` (the package record and actions lock) to the default branch.
-   Do not commit unrelated files that `gh aw` touched.
-4. **Configure.** Use the same `<sha>` as in step 3.
-   ```
-   gh variable set NFV_RELEASE_SHA -b <sha>
-   gh variable set NFV_MODEL -b <model id>
-   gh secret set COPILOT_GITHUB_TOKEN
-   ```
-   - The secret is a fine-grained PAT with the **Copilot Requests** permission.
-     Have the user enter it at the interactive prompt. Never ask for it in chat,
-     echo it, or write it to a file.
-   - If the runner cannot read `microsoft/neuro-formal-verification`, also set
-     the secret `NFV_RELEASE_TOKEN` (read-only contents access to it).
-   - In this repository itself, the workflow is already installed, so only the
-     variables and the secret are needed.
-5. **Test.** Open or update a **non-draft** PR whose base branch already contains
-   the workflow (`pull_request` runs use the workflow from the PR merge ref).
-   Watch it with
-   `gh run list --workflow nfv-pr-review.lock.yml -L 3`, then read the PR
-   comment. Drafts are skipped by design: all jobs show as skipped.
+Confirm the target repository and approved model. Default to the latest commit
+on NFV's default branch, resolved once for both the package and runtime.
+Guide the user through secure token entry; never receive or display token values.
+Create the installation branch, commit and push it, and open a **draft PR**.
+Use gh-aw v0.88.7 and compile both workflows.
+
+Read back `NFV_RELEASE_SHA`, `NFV_MODEL`, both installed package pins, required
+secret names and workflow state. Report observed values, not just commands run;
+secret-name presence does not prove validity or model access.
+Never run NFV on its installation PR. Verify the reviewer is disabled before
+marking ready or merging, keep it disabled through the approved merge, then
+recheck the merged default-branch snapshot before enabling and verifying `active`.
+Leave the PR draft if disabling is blocked; leave unrelated CI enabled.
+Only start a separate pilot and billable audit with user approval, and check its
+generated comment and completed native evidence rather than a green job alone.
 
 ## Upgrade
 
-Repeat steps 3–4 with a new `<sha>`. Always update `NFV_RELEASE_SHA` together
-with the installed workflow; the run checks out the plugin at that commit.
+Follow the onboarding guide's upgrade section. Pause new audits, wait for
+active/queued runs to finish and keep the model, secrets and budgets. Update the
+package and runtime together, verify merged configuration, then re-enable and
+check a separately approved pilot.
 
 ## Troubleshoot a run
 
