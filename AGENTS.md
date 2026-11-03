@@ -161,6 +161,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
   disabled, leave the PR draft and report the block. Leave unrelated CI enabled.
   Enable NFV only after installation reaches the base branch, then use a
   separate user-approved pilot PR.
+- Audits run only on a Draft-to-Ready transition by an actor with repository
+  write, maintain or admin access. Opening, reopening and pushing commits do
+  not authorize audits; repeat the transition for a re-audit. Keep both inference
+  sessions behind gh-aw's role/activation checks and retain default fork blocking.
 - Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
@@ -182,7 +186,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `completed: false` until analysis finishes and cannot be published. Retain
   completed or interrupted evidence in the separate `nfv-evidence` artifact.
 - Configuration: repository variables `NFV_RELEASE_SHA` (40-hex commit of this
-  repo) and `NFV_MODEL`; secret `COPILOT_GITHUB_TOKEN`; optional
+  repo) and `NFV_MODEL`; default PAT billing requires `COPILOT_GITHUB_TOKEN`.
+  Installer `--billing organization` is explicit opt-in for organization-owned
+  targets with the CLI-billing policy enabled; it sets all three
+  `copilot-requests` permissions to `write` instead of `none`, without PAT
+  fallback. Preserve the selected mode through upgrades. Both modes need
   `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
 - Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
   `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string

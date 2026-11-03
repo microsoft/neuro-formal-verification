@@ -16,37 +16,33 @@
    `OWNER/repo` locally and start from its clean default branch. Audit PRs must
    be opened in this repository; a fork's installation does not audit upstream PRs.
 
-4. **Set the two Actions secrets:** Create `COPILOT_GITHUB_TOKEN`, a fine-grained
-   PAT from a licensed Copilot account with **Account permissions > Copilot
-   Requests: Read** and access to your chosen model. Create a separate
-   `NFV_RELEASE_TOKEN` with **Contents: Read-only** access to private NFV and
-   any required organization approval. Store them in `OWNER/repo` using the
-   secure prompts:
+4. **Choose billing and set the required secrets:** **PAT billing is the
+   default**, including for personal repositories. Create `COPILOT_GITHUB_TOKEN`,
+   a fine-grained PAT from a licensed Copilot account with **Account permissions >
+   Copilot Requests: Read** and access to your chosen model:
 
    ```text
    gh secret set COPILOT_GITHUB_TOKEN --repo OWNER/repo
+   ```
+
+   To opt into **organization billing**, the target must be organization-owned
+   and an administrator must enable **Copilot CLI > Allow use of Copilot CLI
+   billed to the organization** and permit the model. Select `organization`
+   in step 5; no `COPILOT_GITHUB_TOKEN` is needed or used for inference, and
+   there is no automatic PAT fallback.
+
+   **Both modes**, while NFV is private, need a separate `NFV_RELEASE_TOKEN`
+   with **Contents: Read-only** access to private NFV and any required
+   organization approval:
+
+   ```text
    gh secret set NFV_RELEASE_TOKEN --repo OWNER/repo
    ```
 
    Alternatively, use **Settings > Secrets and variables > Actions > New
    repository secret**. Never paste token values into agent chat.
 
-   **Direct organization billing is a separate setup:** In Microsoft-owned
-   repositories, a Microsoft organization administrator must allow **Copilot
-   CLI > Allow use of Copilot CLI billed to the organization**. Supported
-   Actions workflows can then authenticate with the built-in `GITHUB_TOKEN`
-   and these permissions, billing inference directly to the organization:
-
-   ```yaml
-   permissions:
-     contents: read
-     copilot-requests: write
-   ```
-
    See [GitHub's organization-billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
-   **The current NFV workflow still requires `COPILOT_GITHUB_TOKEN`; this is
-   not a drop-in replacement.** Keep both secrets above while NFV is private;
-   this guide does not migrate NFV to organization-token authentication.
 
 5. **Ask the agent to install:** Start `copilot` inside the target checkout
    and paste the following, replacing `OWNER/repo`:
@@ -57,24 +53,29 @@
 
    Target repository: OWNER/repo
    Model: gpt-5.6-sol (default)
+   Billing: pat (default; use organization to opt in)
    NFV release: Default
    ```
 
-   Use `gpt-5.6-sol` unless you approve another model; your Copilot account must
-   have access to it. The agent resolves the latest NFV default-branch commit
+   Use `gpt-5.6-sol` unless you approve another model; the selected billing
+   identity must have access. The agent uses `workflow/install.py` (Python 3.10+)
+   with `--billing organization` only when explicitly selected; otherwise it
+   retains PAT billing. It resolves the latest NFV default-branch commit
    once, pins the package and runtime to it, and installs both workflows using
    gh-aw v0.88.7. It creates and pushes a **draft installation PR**, sets and
-   reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, confirms both package pins and
-   required secret names, and disables the reviewer. If it cannot verify
-   `disabled_manually`, it must leave the PR draft and report the block.
+   reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, confirms both package pins,
+   billing permissions and required secret names, and disables the reviewer.
+   If it cannot verify `disabled_manually`, it must leave the PR draft and
+   report the block.
    Secret-name presence does not prove token validity or model access.
 
 6. **Enable the reviewer:** Review and approve merging the installation PR
    **with NFV still disabled**; never run NFV on its own installation PR or
    require its check. Leave unrelated CI enabled. After merge, ask the agent to
    confirm both merged package pins match `NFV_RELEASE_SHA`, `NFV_MODEL` matches
-   your approved model and both required secret names exist. Leave NFV disabled
-   if any check fails. Then enable and verify:
+   your approved model, both workflows agree on billing and the required secret
+   names for that mode exist. Leave NFV disabled if any check fails. Then
+   enable and verify:
 
    ```text
    gh workflow enable nfv-pr-review.lock.yml --repo OWNER/repo
@@ -84,14 +85,23 @@
    Expected state: **`active`**. Alternatively, use **GitHub > Actions >
    NFV PR reviewer > Enable workflow**, then verify the state above.
 
-7. **Approve a separate pilot:** Authorize a small code-change PR, parented on
-   the installed base branch, and its billable audit. Have the agent check the
+7. **Approve a separate pilot:** Create a small **draft** code-change PR,
+   parented on the installed base branch. A trusted repository writer
+   (write, maintain or admin access) authorizes its billable audit by marking
+   it **Ready for review**. Only this transition triggers NFV; opening,
+   reopening or pushing commits does not. To re-audit, convert it to draft and
+   have a trusted writer mark it ready again. Have the agent check the
    actual generated NFV comment and `nfv-evidence` report with `completed: true`,
    no global errors and recorded property outcomes, not merely a green Actions
    job. Findings are **conditional MODEL refutations, never confirmed source
    bugs**; failure to refute is not evidence of correctness.
+   For organization billing, also confirm usage attribution in the organization's
+   billing dashboard; configuration checks do not prove policy or model access.
 
 NFV is a prototype implementation. Never check out or execute inspected PR code,
 edit generated reports or expose secrets through `pull_request_target`.
+Fork-origin PRs remain blocked by default. Keep GitHub's outside-contributor
+workflow approvals and protect workflow-file changes; the ready gate is not a
+blanket guarantee against credit abuse.
 For optional manual installation and upgrades, see the
 [workflow reference](README.md#configure-github-agentic-workflows).

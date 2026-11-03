@@ -807,14 +807,37 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("  - .github/workflows/nfv-source-context.md\n", manifest)
         self.assertTrue((self.package / "README.md").exists())
 
-    def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
+    def test_reviewer_triggers_only_on_trusted_draft_to_ready(self):
         source, lock = self.source(), self.lock()
-        self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", source)
-        self.assertIn("if: github.event.pull_request.draft == false", source)
+        self.assertIn("types: [ready_for_review]", source)
+        self.assertIn("roles: [admin, maintainer, write]", source)
+        condition = "github.event.action == 'ready_for_review' && github.event.pull_request.draft == false"
+        self.assertIn(f"if: {condition}", source)
+        events = lock.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertEqual(re.findall(r"(?m)^      - (\w+)$", events), ["ready_for_review"])
+        self.assertIn('GH_AW_REQUIRED_ROLES: "admin,maintainer,write"', lock)
+        self.assertIn("activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}", lock)
+        activation = lock.split("\n  activation:", 1)[1].split("\n  agent:", 1)[0]
+        self.assertIn("needs.pre_activation.outputs.activated == 'true'", activation)
+        caller = lock.split("\n  repository_context:", 1)[1].split("\n  safe_outputs:", 1)[0]
+        self.assertIn("needs: activation", caller)
+        self.assertIn(f"if: {condition}", caller)
+        self.assertIn("github.event.pull_request.head.repo.id == github.repository_id", lock)
         self.assertNotIn("slash_command", source)
         self.assertNotIn("pull_request_target", lock)
         self.assertNotIn("roles: all", source)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
+
+    def test_billing_defaults_preserve_pat_auth_and_allow_an_org_billed_caller(self):
+        source, lock = self.source(), self.lock()
+        worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        self.assertIn("  copilot-requests: none\n", source)
+        self.assertIn("      copilot-requests: none\n", source)
+        self.assertIn("  copilot-requests: none\n", worker)
+        self.assertIn("      COPILOT_GITHUB_TOKEN:\n        required: false\n", worker)
+        for compiled in (lock, (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")):
+            self.assertNotRegex(compiled, r"(?m)^\s+copilot-requests: write$")
+            self.assertIn("secrets.COPILOT_GITHUB_TOKEN", compiled)
 
     def test_evaluation_is_owned_by_a_deterministic_sandboxed_sdk_driver(self):
         source, lock = self.source(), self.lock()
