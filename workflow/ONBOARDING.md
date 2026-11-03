@@ -4,6 +4,12 @@ Setup has four steps: **choose or fork a repository, install the NFV Agentic
 Workflow template, set the Copilot token, and set the private NFV read token**.
 The helper skill is optional; installing it is not a prerequisite for PR audits.
 
+By default, install the latest commit on NFV's default branch. You do not need
+to choose a branch or commit: the installer or coding agent resolves it once
+and pins the same revision for the workflow package and runtime. Existing
+installations stay pinned until explicitly upgraded. A trusted revision can
+be selected for testing.
+
 NFV is a prototype implementation. It tries verification, then refutation, and
 posts a generated PR comment. Proofs concern translated models under their
 assumptions; findings are **conditional MODEL refutations, not confirmed source
@@ -31,7 +37,7 @@ revision. Replace the repository and model placeholders:
 ```bash
 TargetRepo="OWNER/REPO"
 Model="APPROVED_MODEL_ID"
-Release="$(gh api repos/microsoft/neuro-formal-verification/commits/dev --jq .sha)" &&
+Release="$(gh api repos/microsoft/neuro-formal-verification/commits/HEAD --jq .sha)" &&
     [[ "$Release" =~ ^[0-9a-f]{40}$ ]] &&
     Installer="$(mktemp)" &&
     gh api "repos/microsoft/neuro-formal-verification/contents/workflow/install.py?ref=$Release" \
@@ -98,25 +104,27 @@ copilot
 
 If you already have a clone, enter its directory and run `copilot` there.
 Then paste the task below into Copilot, replacing `OWNER/REPO`. Copilot handles
-the setup; you choose an approved model and enter tokens securely.
+the setup, including committing and pushing the installation branch and opening
+a draft PR. You choose an approved model, enter tokens securely and approve
+the merge; the agent handles disabling NFV before merge and enabling it afterward.
 A separate local clone of NFV is not required.
 
 ```text
 Onboard NFV PR review in https://github.com/OWNER/REPO.
-Follow the client setup in:
-https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/README.md
+Follow workflow/ONBOARDING.md in:
+https://github.com/microsoft/neuro-formal-verification
 
 Work in this checkout. Verify that it belongs to the target repository and
 preserve any local changes. Start from its default branch; do not modify upstream.
 
-Resolve NFV dev HEAD once to a full immutable SHA. Use that same SHA for
-the workflow package and NFV_RELEASE_SHA. Use main after NFV's release.
+Use the default release selection described in the onboarding guide.
 Ask me which approved Copilot model to use.
 
 Use gh-aw v0.88.7, installing it if missing. Install the NFV package and
-compile both workflows. Prepare a draft installation PR targeting this
+compile both workflows. Create a draft installation PR targeting this
 repository's default branch, including both workflow Markdown files,
-generated locks and package/action records. Review any .gitattributes
+generated locks and package/action records. Commit and push the installation
+branch and open the PR; do not leave these steps for me. Review any .gitattributes
 changes. Do not merge without my approval.
 
 Do not run NFV on its own installation PR or require an NFV check for it.
@@ -170,9 +178,9 @@ From a clone of the chosen repository, have the installer or coding assistant:
 
 - Install the NFV gh-aw package, including both the source-context and PR-review
   workflows.
-- Resolve the current HEAD of NFV's `dev` branch to a full SHA, use it for both
+- Resolve the latest commit on NFV's default branch to a full SHA, use it for both
   the package and `NFV_RELEASE_SHA`, and set `NFV_MODEL` to a model available to
-  your Copilot account. Switch to `main` after release.
+  your Copilot account.
 - Prepare the workflow files and generated locks for review and commit.
 
 The workflow provisions Dafny, Z3 and its own Python runtime. Only the standalone
@@ -196,7 +204,7 @@ repository's clone. No manual SHA selection is needed:
 ```powershell
 $TargetRepo = "OWNER/REPO"
 $NFV_MODEL = "APPROVED_MODEL_ID"
-$NFV_REF = "dev" # Use "main" after release
+$NFV_REF = "HEAD" # Latest commit on NFV's default branch
 $NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
 if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
     throw "Could not resolve the NFV revision"
@@ -241,7 +249,7 @@ draft and report the block. Marking a draft ready triggers NFV unless the
 reviewer is disabled. Keep it disabled through the merge; do not require an NFV
 check for this bootstrap PR. Leave unrelated CI enabled.
 
-The resolved SHA stays pinned even if `dev` moves later; the workflow does not
+The resolved SHA stays pinned even if NFV's default branch moves later; the workflow does not
 auto-update. Use the [upgrade commands below](#upgrade-an-existing-installation)
 to update an existing installation. Do not repeat forking or token setup.
 
@@ -250,7 +258,7 @@ to update an existing installation. Do not repeat forking or token setup.
 <details>
 <summary>Optional: test another NFV revision</summary>
 
-Before running the installation block, change its `$NFV_REF = "dev"` line to:
+Before running the installation block, change its `$NFV_REF` line to:
 
 ```powershell
 $NFV_REF = "TRUSTED_TEST_REF" # Or a trusted full 40-character commit SHA
@@ -261,8 +269,7 @@ and use the resulting SHA for both the package and runtime. Do not use a
 revision supplied by the PR being audited.
 
 For an existing installation, use the upgrade procedure below with the trusted
-test revision. To return to the current development default, use
-`$NFV_REF = "dev"`. After release, use `$NFV_REF = "main"` instead.
+test revision. To return to the default release selection, use `$NFV_REF = "HEAD"`.
 
 </details>
 
@@ -364,7 +371,7 @@ run could still read the shared release variable.
 Resolve the new release once and refresh the installed package:
 
 ```powershell
-$NFV_REF = "dev" # Use "main" after release; a trusted full SHA also works
+$NFV_REF = "HEAD" # Latest commit on NFV's default branch; a trusted full SHA also works
 $NFV_RELEASE_SHA = gh api "repos/microsoft/neuro-formal-verification/commits/$NFV_REF" --jq .sha
 if ($LASTEXITCODE -ne 0 -or $NFV_RELEASE_SHA -notmatch '^[0-9a-f]{40}$') {
     throw "Could not resolve the NFV revision"

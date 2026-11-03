@@ -149,6 +149,7 @@ class FakeCLI:
 
 class InstallerTests(unittest.TestCase):
     def run_case(self, phase="install", **case):
+        trusted_ref = case.pop("trusted_ref", None)
         root = Path(__file__).parent / ".general-scratch" / uuid.uuid4().hex
         root.mkdir(parents=True)
         self.addCleanup(shutil.rmtree, root)
@@ -162,6 +163,8 @@ class InstallerTests(unittest.TestCase):
         argv += ["--model", "approved-model"] if phase == "install" else [
             "--verify-bootstrap" if phase == "guard" else "--enable-after-merge", "--pull-request", "7",
         ]
+        if trusted_ref is not None:
+            argv += ["--ref", trusted_ref]
         installer = INSTALL.Installer(INSTALL.options(argv))
         installer.root = root
         fake = FakeCLI(root, phase, **case)
@@ -182,7 +185,7 @@ class InstallerTests(unittest.TestCase):
         self.assertIsNone(error)
         self.assertIn(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}"], calls)
         self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"], calls)
-        self.assertEqual(sum("/commits/dev" in " ".join(call) for call in calls), 1)
+        self.assertEqual(sum("/commits/HEAD" in " ".join(call) for call in calls), 1)
         self.assertIn("--draft", next(call for call in calls if call[:3] == ["gh", "pr", "create"]))
         for name, value in (("NFV_RELEASE_SHA", RELEASE), ("NFV_MODEL", "approved-model")):
             self.assertIn(["gh", "variable", "set", name, "--repo", "owner/project", "--body", value], calls)
@@ -207,6 +210,16 @@ class InstallerTests(unittest.TestCase):
                 self.assertIn(reason, error)
                 self.assertFalse(any(call[0] == "git" and call[1] in ("switch", "add", "commit", "push")
                                      or call[:3] == ["gh", "variable", "set"] for call in calls))
+
+    def test_explicit_trusted_revision_overrides_default_branch(self):
+        for ref, encoded in (("release/candidate", "release%2Fcandidate"), ("b" * 40, "b" * 40)):
+            with self.subTest(ref=ref):
+                error, calls, _ = self.run_case(trusted_ref=ref)
+                self.assertIsNone(error)
+                resolutions = [call[-1] for call in calls if call[:2] == ["gh", "api"]
+                               and f"repos/{INSTALL.PACKAGE}/commits/" in call[-1]]
+                self.assertEqual([f"repos/{INSTALL.PACKAGE}/commits/{encoded}"], resolutions)
+                self.assertIn(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}"], calls)
 
     def test_compiler_is_installed_only_when_absent(self):
         error, calls, _ = self.run_case(missing_extension=True)

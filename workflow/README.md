@@ -365,7 +365,7 @@ the AW template, set the Copilot token, and set the private NFV read token.
 
 1. Configure protected repository variables:
    * `NFV_RELEASE_SHA`: full commit of `microsoft/neuro-formal-verification`,
-     resolved once from `dev` HEAD during development (`main` after release).
+     resolved once from the latest commit on NFV's default branch.
      Use that same SHA for the installed package; other trusted revisions are
      optional for testing.
    * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.

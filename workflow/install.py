@@ -34,7 +34,7 @@ def options(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", required=True, metavar="OWNER/REPO")
     parser.add_argument("--model", help="Approved Copilot model ID; required for installation")
-    parser.add_argument("--ref", default="dev", help="Trusted NFV ref (default: dev; main after release)")
+    parser.add_argument("--ref", default="HEAD", help="Trusted NFV ref (default: latest commit on NFV's default branch)")
     phase = parser.add_mutually_exclusive_group()
     phase.add_argument("--verify-bootstrap", action="store_true", help="Retry disabling NFV for the draft installation PR")
     phase.add_argument("--enable-after-merge", action="store_true", help="Enable NFV after the installation PR merges")
