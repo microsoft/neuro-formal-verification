@@ -123,23 +123,28 @@ Never check out or execute inspected PR code.
 
 ### 6. Enable the reviewer
 
-Review the installation PR and approve its merge. The agent may mark it ready
-and merge only with your approval, keeping NFV disabled throughout. A draft
-alone does not protect the `ready_for_review` event. You can also merge it
-yourself and tell the agent to continue.
+Approve and merge the installation PR **with NFV still disabled**. After merge,
+have the agent recheck the configuration table above against the actual default
+branch: both package pins must match `NFV_RELEASE_SHA`, `NFV_MODEL` must match
+your approved model, and the required secret names must be present. If a check
+fails, leave NFV disabled and report the block.
 
-After merge, the agent must verify the merge is retained on the actual default
-branch, **not an assumed `main` branch**. Read back the two variables and required
-secret names again. Check both package pins from the merged default-branch
-snapshot, compare the model with the user's approval, then enable NFV and
-verify **`active`**.
+Enable the reviewer:
 
-The standalone installer's `--enable-after-merge` command performs the merge,
-package/runtime, model-presence and secret-name checks before activation; the
-agent must also compare the observed model with the approved model. Report
-the target, base SHA, release/model values, matching package pins, secret-name
-presence and final workflow state. Do not claim activation from a successful
-command alone. If any check fails, leave NFV disabled and explain the block.
+```text
+gh workflow enable nfv-pr-review.lock.yml --repo OWNER/repo
+```
+
+Verify its state:
+
+```text
+gh api repos/OWNER/repo/actions/workflows/nfv-pr-review.lock.yml --jq .state
+```
+
+Expected output: **`active`**.
+
+Alternatively, open **`OWNER/repo` on GitHub > Actions > NFV PR reviewer >
+Enable workflow**, then verify the state with the command above.
 
 ### 7. Approve a separate pilot and its billable audit
 
