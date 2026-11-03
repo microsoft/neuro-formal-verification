@@ -357,19 +357,21 @@ path does not require the model client.
 
 ## Configure GitHub Agentic Workflows
 
-For a first installation in another repository, use the
-[standalone Python installer](ONBOARDING.md#install-directly-without-an-agent)
-or the [coding-agent instructions](ONBOARDING.md#onboard-with-a-coding-agent).
-The helper skill is optional. The unified onboarding flow covers tools, target
-selection, secure token setup, an agent-created installation PR, configuration
-read-back, guarded post-merge activation and a separate approved pilot.
+For a first installation in another repository, follow the
+[seven-step onboarding guide](ONBOARDING.md). The helper skill is optional.
+For manual setup, the [standalone installer](install.py) requires Python 3.10+,
+Git and authenticated `gh`; run `python install.py --help` for its installation,
+bootstrap-verification and post-merge activation options.
 
 1. Configure protected repository variables:
    * `NFV_RELEASE_SHA`: full commit of `microsoft/neuro-formal-verification`,
      resolved once from the latest commit on NFV's default branch.
      Use that same SHA for the installed package; other trusted revisions are
      optional for testing.
-   * `NFV_MODEL`: explicitly approved model ID for extraction and translation/repair.
+   * `NFV_MODEL`: model ID for extraction and translation/repair. Onboarding and
+     the installer default to `gpt-5.6-sol`; use `--model` to select another
+     approved model. The Copilot account must have access. Activation and upgrades
+     retain the configured model rather than resetting it to the default.
    * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
@@ -403,6 +405,29 @@ reviewer workflow is disabled and its state verified, then keep NFV disabled
 through marking ready and merging. Enable it only after installation reaches
 the base branch, and use a separate approved pilot PR. Leave unrelated CI enabled;
 do not require an NFV check for the bootstrap PR.
+
+**Historical replay PRs:** Use plain change numbers, not upstream issue/PR
+references, direct GitHub links or user/team mentions. Normalize copied
+descriptions and retain exact originals in local evidence. Clickable provenance
+can use GitHub's documented `redirect.github.com` no-backlink URLs; these do not
+make replays private or erase historical references. Never edit generated reports.
+
+### Upgrade an existing installation
+
+Ask the agent to upgrade; do not rerun the first-installation script against an
+existing installation. Keep the approved model, secrets and budgets. Disable
+new audits and wait for all active/queued runs to finish before changing shared
+configuration.
+
+Resolve the trusted NFV release once, replace the package with
+`gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
+both workflows and open an upgrade PR. Retain intentional local customizations.
+After the approved merge, update `NFV_RELEASE_SHA` to that same SHA, verify both
+merged package pins, the model and required secret names, then enable NFV and
+read back `active`. Repeat a separately approved pilot; leave audits paused on
+failure. `gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.
+
+### Runtime and evidence
 
 Trusted pre-agent steps check out the pinned release, install it, download
 official `dafny-4.11.0-x64-ubuntu-22.04.zip` (SHA-256

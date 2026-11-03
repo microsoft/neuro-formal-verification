@@ -19,12 +19,13 @@ User docs are in `workflow/README.md`.
 ## Bootstrap a repository
 
 Follow the single [onboarding guide](../../../workflow/ONBOARDING.md), including
-its configuration-confirmation tables. If this skill was copied, retrieve
+its seven-step setup and verification checks. If this skill was copied, retrieve
 `workflow/ONBOARDING.md` from the trusted NFV release. Do not maintain a separate
 installation procedure here.
 
-Confirm the target repository and approved model. Default to the latest commit
-on NFV's default branch, resolved once for both the package and runtime.
+Confirm the target repository. Use `gpt-5.6-sol` unless the user approves another
+model; confirm the account has access. Default to the latest commit on NFV's
+default branch, resolved once for both the package and runtime.
 Guide the user through secure token entry; never receive or display token values.
 Create the installation branch, commit and push it, and open a **draft PR**.
 Use gh-aw v0.88.7 and compile both workflows.
@@ -41,7 +42,8 @@ generated comment and completed native evidence rather than a green job alone.
 
 ## Upgrade
 
-Follow the onboarding guide's upgrade section. Pause new audits, wait for
+Follow the [workflow reference's upgrade section](../../../workflow/README.md#upgrade-an-existing-installation).
+Pause new audits, wait for
 active/queued runs to finish and keep the model, secrets and budgets. Update the
 package and runtime together, verify merged configuration, then re-enable and
 check a separately approved pilot.

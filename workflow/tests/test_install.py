@@ -150,6 +150,7 @@ class FakeCLI:
 class InstallerTests(unittest.TestCase):
     def run_case(self, phase="install", **case):
         trusted_ref = case.pop("trusted_ref", None)
+        model = case.pop("model", "approved-model")
         root = Path(__file__).parent / ".general-scratch" / uuid.uuid4().hex
         root.mkdir(parents=True)
         self.addCleanup(shutil.rmtree, root)
@@ -160,9 +161,12 @@ class InstallerTests(unittest.TestCase):
             installed.parent.mkdir(parents=True)
             installed.write_text("Existing installation\n", encoding="utf-8")
         argv = ["--repository", "owner/project"]
-        argv += ["--model", "approved-model"] if phase == "install" else [
-            "--verify-bootstrap" if phase == "guard" else "--enable-after-merge", "--pull-request", "7",
-        ]
+        if phase == "install":
+            if model is not None:
+                argv += ["--model", model]
+        else:
+            argv += ["--verify-bootstrap" if phase == "guard" else "--enable-after-merge",
+                     "--pull-request", "7"]
         if trusted_ref is not None:
             argv += ["--ref", trusted_ref]
         installer = INSTALL.Installer(INSTALL.options(argv))
@@ -195,6 +199,13 @@ class InstallerTests(unittest.TestCase):
         staged = next(call for call in calls if call[:2] == ["git", "add"])
         self.assertEqual(set(staged[3:]), set(INSTALL.WORKFLOW_FILES) |
                          {".github/aw/actions-lock.json", ".gitattributes"})
+
+    def test_omitted_model_installs_and_reads_back_default(self):
+        error, calls, _ = self.run_case(model=None)
+        self.assertIsNone(error)
+        self.assertIn(["gh", "variable", "set", "NFV_MODEL", "--repo", "owner/project",
+                       "--body", "gpt-5.6-sol"], calls)
+        self.assertIn(["gh", "variable", "get", "NFV_MODEL", "--repo", "owner/project"], calls)
 
     def test_invalid_checkout_or_missing_secret_does_not_mutate_repository(self):
         reasons = {
@@ -301,11 +312,13 @@ class InstallerTests(unittest.TestCase):
 
     def test_invalid_cli_combinations_fail_before_commands(self):
         for argv in (
-            ["--repository", "owner/project"],
             ["--repository", "owner/project", "--enable-after-merge"],
             ["--repository", "owner/project", "--verify-bootstrap", "--pull-request", "0"],
             ["--repository", "https://github.com/owner/project", "--model", "approved"],
             ["--repository", "owner/project", "--model", "not a model"],
+            ["--repository", "owner/project", "--model", ""],
+            ["--repository", "owner/project", "--enable-after-merge", "--pull-request", "7",
+             "--model", "gpt-5.6-sol"],
         ):
             with self.subTest(argv=argv), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 INSTALL.options(argv)

@@ -33,7 +33,7 @@ class InstallError(ValueError):
 def options(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", required=True, metavar="OWNER/REPO")
-    parser.add_argument("--model", help="Approved Copilot model ID; required for installation")
+    parser.add_argument("--model", help="Approved Copilot model ID (installation default: gpt-5.6-sol)")
     parser.add_argument("--ref", default="HEAD", help="Trusted NFV ref (default: latest commit on NFV's default branch)")
     phase = parser.add_mutually_exclusive_group()
     phase.add_argument("--verify-bootstrap", action="store_true", help="Retry disabling NFV for the draft installation PR")
@@ -45,8 +45,11 @@ def options(argv=None):
     if args.verify_bootstrap or args.enable_after_merge:
         if not args.pull_request or args.pull_request < 1 or args.model:
             parser.error("Follow-up phases require --pull-request NUMBER, without --model")
-    elif not args.model or not re.fullmatch(MODEL, args.model) or args.pull_request:
-        parser.error("Installation requires --model APPROVED_MODEL, without --pull-request")
+    else:
+        if args.model is None:
+            args.model = "gpt-5.6-sol"
+        if not re.fullmatch(MODEL, args.model) or args.pull_request:
+            parser.error("Installation requires a valid --model, without --pull-request")
     if not args.ref or any(ord(char) < 32 for char in args.ref):
         parser.error("--ref must be a nonempty trusted NFV revision")
     return args
