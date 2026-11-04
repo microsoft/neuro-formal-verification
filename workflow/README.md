@@ -393,6 +393,31 @@ descriptions and retain exact originals in local evidence. Clickable provenance
 can use GitHub's documented `redirect.github.com` no-backlink URLs; these do not
 make replays private or erase historical references. Never edit generated reports.
 
+### Repository permission policies
+
+When installing or upgrading, compare the generated locks' **job-level**
+permissions with the target repository's CI tests and workflow-policy allowlists.
+An existing rule that only one workflow may write issues can reject NFV even
+when its workflows compile correctly.
+
+With gh-aw v0.88.7, both of these generated reviewer jobs request `issues: write`
+and `pull-requests: write`:
+
+* `nfv-pr-review.lock.yml:safe_outputs`
+* `nfv-pr-review.lock.yml:conclusion`
+
+These jobs publish the PR comment and report failures, missing tools and
+incomplete runs. If the repository restricts writers, obtain approval for these
+specific exceptions, retain existing approved writers and keep rejecting all
+others. Update the policy's tests and documentation and run the affected checks
+before merging. This is separate from `copilot-requests` inference billing.
+
+Do not disable permission tests, grant workflow-wide write access, give the
+analysis jobs issue/PR write permissions or strip generated permissions to make
+CI pass: doing so weakens isolation or can remove reporting. Review the actual
+locks for the pinned compiler; do not hand-edit generated files. If the required
+exceptions cannot be approved, leave installation blocked.
+
 ### Inference billing
 
 Select `--billing pat` (default) or explicitly opt into `--billing organization`;
@@ -428,6 +453,8 @@ Resolve the trusted NFV release once, replace the package with
 `gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
 both workflows and open an upgrade PR. Reapply the approved billing permissions
 after package replacement, and retain intentional local customizations.
+Recheck [repository permission policies](#repository-permission-policies) against
+the regenerated jobs.
 After the approved merge, update `NFV_RELEASE_SHA` to that same SHA, verify both
 merged package pins, the model, billing permissions and required secret names,
 then enable NFV and read back `active`. Repeat a separately approved pilot; leave audits paused on
