@@ -15,6 +15,7 @@ from unittest.mock import patch
 from nfv_workflow import sandbox
 from nfv_workflow.cli import save
 from nfv_workflow.github import Abstain
+from nfv_workflow.outcomes import InferenceFailure, OUTCOMES
 
 
 class SandboxTests(unittest.TestCase):
@@ -26,6 +27,7 @@ class SandboxTests(unittest.TestCase):
         self.bundle = {"identity": {"head_sha": "a" * 40}}
         save(self.bundle_path, self.bundle)
         self.environment = {
+            "HOME": str(Path.home()), "USERPROFILE": str(Path.home()),
             "GITHUB_AW": "true", "AWF_REFLECT_ENABLED": "1",
             "COPILOT_PROVIDER_BASE_URL": "http://api-proxy:12345",
             "COPILOT_PROVIDER_TYPE": "openai",
@@ -52,7 +54,8 @@ class SandboxTests(unittest.TestCase):
         self.assertEqual(json.loads(Path(proposals).read_text()), [])
         save(self.output / "report.json", {"completed": True})
         (self.output / "comment.md").write_text(self.body, encoding="utf-8", newline="\n")
-        return {"errors": [], "findings": 0, "comment": str(self.output / "comment.md")}
+        return {"errors": [], "findings": 0, "comment": str(self.output / "comment.md"),
+                "outcomes": {outcome: 0 for outcome in OUTCOMES}}
 
     def submit(self, command, **kwargs):
         self.calls.append("submit")
@@ -62,12 +65,98 @@ class SandboxTests(unittest.TestCase):
         self.assertEqual(kwargs["timeout"], 60)
         return SimpleNamespace(returncode=0, stdout="queued", stderr="")
 
-    def execute(self, extract=None, audit=None, submit=None):
+    def execute(self, extract=None, audit=None, submit=None, main=False):
         with patch.dict(os.environ, self.environment, clear=True), \
                 patch.object(sandbox, "propose", side_effect=extract or self.extract), \
                 patch.object(sandbox, "audit", side_effect=audit or self.audit), \
                 patch.object(sandbox.subprocess, "run", side_effect=submit or self.submit):
+            if main:
+                self.stdout, self.stderr = io.StringIO(), io.StringIO()
+                with redirect_stdout(self.stdout), redirect_stderr(self.stderr):
+                    return sandbox.main()
             return sandbox.review()
+
+    def test_all_completed_property_outcomes_submit_the_unchanged_comment(self):
+        for outcome in OUTCOMES:
+            def completed(proposals, limits):
+                summary = self.audit(proposals, limits)
+                save(self.output / "report.json", {"completed": True, "errors": [],
+                                                  "properties": [{"status": outcome}]})
+                return {**summary, "findings": int(outcome == "refuted"),
+                        "outcomes": {name: int(name == outcome) for name in OUTCOMES}}
+            with self.subTest(outcome=outcome):
+                self.assertEqual(self.execute(audit=completed, main=True), 0)
+                status = json.loads((self.output / "review-status.json").read_text())
+                self.assertEqual(status["status"], "completed")
+                self.assertTrue(status["completed"])
+                self.assertTrue(status["analysis_completed"])
+                self.assertEqual(status["identity"], self.bundle["identity"])
+                self.assertEqual(status["publication"], "submitted")
+                self.assertEqual(status["outcomes"][outcome], 1)
+                self.assertEqual(set(status["outcomes"]), set(OUTCOMES))
+                self.assertEqual(self.calls, ["extract", "audit", "submit"])
+                self.assertEqual((self.output / "comment.md").read_text(encoding="utf-8"), self.body)
+                self.assertNotIn("diagnostic", status)
+                shutil.rmtree(self.output)
+                self.calls.clear()
+
+    def test_driver_infrastructure_failures_have_separate_stage_bound_evidence(self):
+        async def provider_failure(*args, **kwargs):
+            self.calls.append("extract")
+            raise InferenceFailure("Provider HTTP 403")
+        def incomplete_audit(proposals, limits):
+            summary = self.audit(proposals, limits)
+            save(self.output / "report.json", {"completed": False, "errors": ["verifier unavailable"]})
+            return {**summary, "errors": ["verifier unavailable"]}
+        def failed_submission(command, **kwargs):
+            self.submit(command, **kwargs)
+            return SimpleNamespace(returncode=1, stdout="", stderr="MCP tool failed")
+        for stage, options, analysis_completed, publication in (
+                ("extraction", {"extract": provider_failure}, False, "not_attempted"),
+                ("audit", {"audit": incomplete_audit}, False, "not_attempted"),
+                ("publication", {"submit": failed_submission}, True, "unconfirmed")):
+            with self.subTest(stage=stage):
+                self.assertEqual(self.execute(**options, main=True), 1)
+                status = json.loads((self.output / "review-status.json").read_text())
+                self.assertEqual(status["status"], "infrastructure_failure")
+                self.assertFalse(status["completed"])
+                self.assertEqual(status["stage"], stage)
+                self.assertEqual(status["identity"], self.bundle["identity"])
+                self.assertEqual(status["analysis_completed"], analysis_completed)
+                self.assertEqual(status["publication"], publication)
+                self.assertTrue(status["diagnostic"])
+                self.assertEqual(self.stdout.getvalue(), "")
+                self.assertIn('"status": "infrastructure_failure"', self.stderr.getvalue())
+                if stage != "publication":
+                    self.assertNotIn("submit", self.calls)
+                if stage == "extraction":
+                    self.assertFalse((self.output / "report.json").exists())
+                    self.assertNotIn("outcomes", status)
+                else:
+                    report = json.loads((self.output / "report.json").read_text())
+                    self.assertEqual(report["completed"], analysis_completed)
+                shutil.rmtree(self.output)
+                self.calls.clear()
+
+    def test_setup_failure_records_no_verdict_or_fabricated_snapshot(self):
+        self.environment["COPILOT_SDK_URI"] = ""
+        self.assertEqual(self.execute(main=True), 1)
+        status = json.loads((self.output / "review-status.json").read_text())
+        self.assertEqual(status["status"], "infrastructure_failure")
+        self.assertEqual(status["stage"], "setup")
+        self.assertNotIn("identity", status)
+        self.assertNotIn("outcomes", status)
+        self.assertFalse((self.output / "report.json").exists())
+        self.assertFalse(self.calls)
+
+    def test_retry_cannot_overwrite_the_first_attempt_status_or_resubmit(self):
+        self.assertEqual(self.execute(main=True), 0)
+        path = self.output / "review-status.json"
+        original = path.read_bytes()
+        self.assertEqual(self.execute(main=True), 1)
+        self.assertEqual(path.read_bytes(), original)
+        self.assertEqual(self.calls, ["extract", "audit", "submit"])
+        self.assertIn("Could not retain NFV review status artifact", self.stderr.getvalue())
 
     def test_foreground_extraction_audit_and_verbatim_submission_in_order(self):
         summary = self.execute()
@@ -139,13 +228,16 @@ class SandboxTests(unittest.TestCase):
     def test_process_failure_is_nonzero_with_an_explicit_diagnostic(self):
         from nfv_workflow.outcomes import InferenceFailure
         stdout, stderr = io.StringIO(), io.StringIO()
-        for error in (Abstain("incomplete"), InferenceFailure("Provider HTTP 403")):
-            with patch.object(sandbox, "review", side_effect=error), \
+        for error in (Abstain("incomplete"), InferenceFailure("Provider HTTP 403"),
+                      RuntimeError("SDK transport unavailable")):
+            with patch.dict(os.environ, {}, clear=True), \
+                    patch.object(sandbox, "review", side_effect=error), \
                     redirect_stdout(stdout), redirect_stderr(stderr):
                 self.assertEqual(sandbox.main(), 1)
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("NFV sandbox audit failed: incomplete", stderr.getvalue())
         self.assertIn("NFV sandbox audit failed: Provider HTTP 403", stderr.getvalue())
+        self.assertIn("NFV sandbox audit failed: SDK transport unavailable", stderr.getvalue())
 
     @unittest.skipUnless(shutil.which("node"), "Node.js is not installed")
     def test_sdk_shim_strips_platform_auth_preserving_sidecar_token_output_and_exit_status(self):

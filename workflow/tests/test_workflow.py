@@ -951,6 +951,13 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("never fabricate a", prompt)
         self.assertIn("report or publish incremental evidence", prompt)
 
+    def test_attempt_status_is_separate_from_completed_property_outcomes(self):
+        prompt = self.source().split("\n---\n", 1)[1]
+        self.assertIn("Completed analyses submit all four property outcomes", prompt)
+        self.assertIn("property type-check/audit failures", prompt)
+        self.assertIn("review-status.json", prompt)
+        self.assertIn("never fabricates a completed", prompt)
+
     def test_extraction_targets_implementation_not_invented_solver_responses(self):
         intent = (Path(__file__).parents[1] / "src/nfv_workflow/intent_prompt.txt").read_text(encoding="utf-8")
         self.assertIn("Prefer changed implementation functions", intent)

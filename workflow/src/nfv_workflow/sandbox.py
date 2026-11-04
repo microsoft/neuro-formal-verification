@@ -14,7 +14,9 @@ from .github import Abstain
 from .outcomes import InferenceFailure
 
 
-def review():
+def review(status=None):
+    status = {} if status is None else status
+    status["stage"] = "setup"
     env = os.environ
     if env.get("GITHUB_AW") != "true" or env.get("AWF_REFLECT_ENABLED") != "1":
         raise Abstain("NFV sandbox driver requires the gh-aw AWF runtime")
@@ -35,19 +37,27 @@ def review():
     # A harness retry must not restart an audit or submit a second write intent.
     with (output / "sandbox-run.json").open("x", encoding="utf-8") as stream:
         json.dump({"execution": "sandboxed-foreground"}, stream)
+    status["stage"] = "inputs"
     bundle = load(env["NFV_BUNDLE"])
+    status["identity"] = bundle["identity"]
     save(output / "bundle.json", bundle)
+    status["stage"] = "extraction"
     proposals = asyncio.run(propose(bundle, env["NFV_MODEL"], intent_only=True, output=output))
     if load(output / "extraction.json").get("completed") is not True:
         raise Abstain("Property extraction is incomplete")
     proposals_path = output / "proposals.json"
     save(proposals_path, proposals)
+    status["stage"] = "audit"
     summary = audit(proposals_path, limits)
     if summary["errors"] or load(output / "report.json").get("completed") is not True:
         raise Abstain("NFV audit did not produce a complete error-free report")
+    status["analysis_completed"] = True
+    status["outcomes"] = summary["outcomes"]
     body = (output / "comment.md").read_text(encoding="utf-8")
     if not body.strip():
         raise Abstain("NFV audit produced an empty report")
+    status["stage"] = "publication"
+    status["publication"] = "unconfirmed"
     result = subprocess.run(
         ["safeoutputs", "add_comment", "."],
         input=json.dumps({"body": body}, ensure_ascii=False),
@@ -57,14 +67,40 @@ def review():
                                      "stdout": result.stdout, "stderr": result.stderr})
     if result.returncode:
         raise Abstain("Safe-output submission failed: " + result.stderr[-2000:])
+    status["publication"] = "submitted"
     return {**summary, "publication": "submitted"}
 
 
+def record_status(status):
+    print(json.dumps({"event": "review_status", **status}), file=sys.stderr, flush=True)
+    output = os.environ.get("NFV_OUT")
+    if not output:
+        print("NFV_OUT unavailable; review status retained in logs only", file=sys.stderr, flush=True)
+        return
+    path = Path(output) / "review-status.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x", encoding="utf-8", newline="\n") as stream:
+        json.dump(status, stream, indent=2)
+
+
 def main():
+    status = {"schema": 1, "kind": "nfv-review-attempt", "status": "in_progress",
+              "completed": False, "analysis_completed": False,
+              "stage": "setup", "publication": "not_attempted"}
     try:
-        print(json.dumps(review()), flush=True)
-    except (Abstain, InferenceFailure, OSError, ValueError, subprocess.SubprocessError) as exc:
+        summary = review(status)
+        status.update(status="completed", completed=True)
+        record_status(status)
+        print(json.dumps(summary), flush=True)
+    except (Abstain, InferenceFailure, OSError, ValueError, KeyError, TypeError, RuntimeError,
+            subprocess.SubprocessError) as exc:
+        status.update(status="infrastructure_failure", completed=False, diagnostic=str(exc))
         print(f"NFV sandbox audit failed: {exc}", file=sys.stderr, flush=True)
+        try:
+            record_status(status)
+        except OSError as write_error:
+            print(f"Could not retain NFV review status artifact: {write_error}",
+                  file=sys.stderr, flush=True)
         return 1
     return 0
 
