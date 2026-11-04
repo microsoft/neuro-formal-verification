@@ -31,7 +31,18 @@ and return types while preserving the original source line numbers.
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
 * The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
-  `ready_for_review`). Drafts are skipped.
+  `ready_for_review`) whose changed paths include a supported source suffix.
+  Drafts and documentation/configuration/submodule-only PRs are skipped before
+  either inference session starts. Keep NFV advisory, not a required merge check.
+
+The source-context agent selects only paths from a captured, supported-source
+inventory and emits a files/symbols list, not snapshot metadata. Trusted code
+binds it to the captured PR identity, validates every path and identifier, then
+uploads the manifest. The handoff transfers it only after successful validation,
+without trying to download an absent artifact after a preparation failure.
+The analysis independently validates the identity and recaptures helper bodies
+by immutable blob SHA. Invalid hints remain explicit
+preparation failures; they never become an empty successful formal review.
 
 ## What a finding means
 
