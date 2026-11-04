@@ -8,6 +8,7 @@ permissions:
   contents: read
   pull-requests: read
   issues: read
+  copilot-requests: none
 engine:
   id: copilot
   model: ${{ vars.NFV_MODEL }}
@@ -32,6 +33,7 @@ jobs:
       contents: read
       issues: read
       pull-requests: read
+      copilot-requests: none
     uses: ./.github/workflows/nfv-source-context.lock.yml
     secrets: inherit
   agent:

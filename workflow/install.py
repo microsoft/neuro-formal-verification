@@ -24,16 +24,47 @@ WORKFLOW_FILES = (
 )
 SHA = r"[0-9a-f]{40}"
 MODEL = r"[A-Za-z0-9][A-Za-z0-9_.:/-]*"
+BILLING_SCOPES = {
+    ".github/workflows/nfv-source-context.md": ("  ",),
+    ".github/workflows/nfv-pr-review.md": ("  ", "      "),
+}
 
 
 class InstallError(ValueError):
     pass
 
 
+def workflow_billing(source, path):
+    frontmatter = source.split("\n---\n", 1)[0]
+    entries = re.findall(r"(?m)^([ \t]*)copilot-requests:[ \t]*(.*)$", frontmatter)
+    if not entries:
+        # Older PAT-only releases omitted this permission.
+        return "pat"
+    if (tuple(indent for indent, _ in entries) != BILLING_SCOPES[path]
+            or len({value for _, value in entries}) != 1
+            or entries[0][1] not in ("none", "write")):
+        raise InstallError(f"Invalid or inconsistent Copilot billing permissions: {path}")
+    return "organization" if entries[0][1] == "write" else "pat"
+
+
+def configure_billing(source, path, billing):
+    if workflow_billing(source, path) == billing:
+        return source
+    frontmatter, separator, prompt = source.partition("\n---\n")
+    if not re.search(r"(?m)^  copilot-requests: (none|write)$", frontmatter):
+        raise InstallError(f"This NFV release does not support selecting organization billing: {path}")
+    permission = "write" if billing == "organization" else "none"
+    frontmatter = re.sub(r"(?m)^([ \t]*)copilot-requests: (none|write)$",
+                         rf"\1copilot-requests: {permission}", frontmatter)
+    return frontmatter + separator + prompt
+
+
 def options(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository", required=True, metavar="OWNER/REPO")
     parser.add_argument("--model", help="Approved Copilot model ID (installation default: gpt-5.6-sol)")
+    parser.add_argument("--billing", choices=("pat", "organization"),
+                        help="Inference billing (installation default: pat; organization requires an enabled org policy)")
     parser.add_argument("--ref", default="HEAD", help="Trusted NFV ref (default: latest commit on NFV's default branch)")
     phase = parser.add_mutually_exclusive_group()
     phase.add_argument("--verify-bootstrap", action="store_true", help="Retry disabling NFV for the draft installation PR")
@@ -43,9 +74,11 @@ def options(argv=None):
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repository):
         parser.error("--repository must be OWNER/REPO")
     if args.verify_bootstrap or args.enable_after_merge:
-        if not args.pull_request or args.pull_request < 1 or args.model:
-            parser.error("Follow-up phases require --pull-request NUMBER, without --model")
+        if not args.pull_request or args.pull_request < 1 or args.model or args.billing is not None:
+            parser.error("Follow-up phases require --pull-request NUMBER, without --model or --billing")
     else:
+        if args.billing is None:
+            args.billing = "pat"
         if args.model is None:
             args.model = "gpt-5.6-sol"
         if not re.fullmatch(MODEL, args.model) or args.pull_request:
@@ -98,9 +131,13 @@ class Installer:
             raise InstallError("Could not verify the target repository and its default branch.")
         return branch
 
-    def check_secret_names(self):
+    def check_secret_names(self, billing):
+        if billing == "organization":
+            target = self.api(f"repos/{self.repository}")
+            if target["owner"]["type"] != "Organization":
+                raise InstallError("Organization billing requires an organization-owned target repository.")
         secrets = json.loads(self.run("gh", "secret", "list", "--repo", self.repository, "--json", "name"))
-        required = ["COPILOT_GITHUB_TOKEN"]
+        required = ["COPILOT_GITHUB_TOKEN"] if billing == "pat" else []
         if self.api(f"repos/{PACKAGE}")["private"]:
             required.append("NFV_RELEASE_TOKEN")
         names = {item["name"] for item in secrets}
@@ -150,6 +187,7 @@ class Installer:
         release = self.api(f"repos/{self.repository}/actions/variables/NFV_RELEASE_SHA")["value"]
         if not re.fullmatch(SHA, release) or pr["headRefName"] != f"nfv-install-{release[:12]}":
             raise InstallError("The runtime pin does not match this installation PR.")
+        billing_modes = set()
         for path in WORKFLOW_FILES:
             record = self.api(f"repos/{self.repository}/contents/{path}?ref={head}")
             if record["type"] != "file" or record["encoding"] != "base64":
@@ -157,14 +195,18 @@ class Installer:
             if path.endswith(".md"):
                 source = base64.b64decode("".join(record["content"].split()), validate=True).decode("utf-8")
                 self.check_package_source(source, release, path)
-        self.check_secret_names()
+                billing_modes.add(workflow_billing(source, path))
+        if len(billing_modes) != 1:
+            raise InstallError("Installed workflows disagree on Copilot billing. Leave NFV disabled.")
+        billing = billing_modes.pop()
+        self.check_secret_names(billing)
         model = self.run("gh", "variable", "get", "NFV_MODEL", "--repo", self.repository)
         if not re.fullmatch(MODEL, model):
             raise InstallError("NFV_MODEL is missing or invalid. Leave NFV disabled.")
         self.run("gh", "workflow", "enable", WORKFLOW, "--repo", self.repository)
         if self.api(f"repos/{self.repository}/actions/workflows/{WORKFLOW}")["state"] != "active":
             raise InstallError("NFV enablement was not confirmed.")
-        print("NFV is enabled. No audit was started. Use a separate, approved pilot PR.")
+        print(f"NFV is enabled with {billing} billing. No audit was started. Use a separate, approved pilot PR.")
 
     def install(self, default_branch):
         if self.run("git", "status", "--porcelain", "--untracked-files=all"):
@@ -173,7 +215,7 @@ class Installer:
             raise InstallError(f"Start from the target default branch: {default_branch}")
         if any(self.root.joinpath(path).exists() for path in WORKFLOW_FILES):
             raise InstallError("NFV files already exist. Use the documented upgrade procedure instead.")
-        self.check_secret_names()
+        self.check_secret_names(self.args.billing)
         release = self.api(f"repos/{PACKAGE}/commits/{quote(self.args.ref, safe='')}")["sha"]
         if not re.fullmatch(SHA, release):
             raise InstallError("Could not resolve an immutable NFV release.")
@@ -189,15 +231,26 @@ class Installer:
         attributes = self.root / ".gitattributes"
         before = attributes.read_bytes() if attributes.exists() else None
         self.run("git", "switch", "-c", branch, base)
-        print(f"Installing NFV {release} with model {self.args.model} on {branch}.")
+        print(f"Installing NFV {release} with model {self.args.model} and {self.args.billing} billing on {branch}.")
         print(self.run("gh", "aw", "add", f"{PACKAGE}/workflow@{release}"))
+        for path in BILLING_SCOPES:
+            file = self.root / path
+            if not file.is_file():
+                raise InstallError(f"Installation did not produce {path}")
+            source = file.read_text(encoding="utf-8")
+            configured = configure_billing(source, path, self.args.billing)
+            if configured != source:
+                file.write_text(configured, encoding="utf-8", newline="\n")
         print(self.run("gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"))
         for path in WORKFLOW_FILES:
             file = self.root / path
             if not file.is_file():
                 raise InstallError(f"Installation did not produce {path}")
             if path.endswith(".md"):
-                self.check_package_source(file.read_text(encoding="utf-8"), release, path)
+                source = file.read_text(encoding="utf-8")
+                self.check_package_source(source, release, path)
+                if workflow_billing(source, path) != self.args.billing:
+                    raise InstallError(f"Installed workflow billing differs from the selected mode: {path}")
         if before is not None and not attributes.exists():
             raise InstallError(".gitattributes was removed. Review manually; nothing was committed.")
         if attributes.exists():
@@ -226,7 +279,8 @@ class Installer:
                 raise InstallError(f"Variable read-back failed: {name}. Do not proceed with installation.")
         self.run("git", "push", "--set-upstream", "origin", branch)
         body = (
-            f"Install the NFV prototype at immutable release {release} with model {self.args.model}.\n\n"
+            f"Install the NFV prototype at immutable release {release} with model {self.args.model} "
+            f"and {self.args.billing} inference billing.\n\n"
             "Keep this PR draft until nfv-pr-review.lock.yml is confirmed disabled. Keep NFV "
             "disabled through marking ready and merging; leave unrelated CI enabled. "
             "Do not require an NFV check for its own installation PR.\n\n"
@@ -252,6 +306,9 @@ class Installer:
             "--enable-after-merge", "--pull-request", str(created["number"]),
         ]))
         print("Only secret names were checked; no PR code was executed and no NFV audit was started.")
+        if self.args.billing == "organization":
+            print("Confirm the organization permits CLI billing and the selected model. "
+                  "Policy, model access and billing attribution require the approved pilot; no PAT fallback is used.")
 
     def execute(self):
         default_branch = self.check_checkout_identity()

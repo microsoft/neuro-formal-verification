@@ -16,37 +16,43 @@
    `OWNER/repo` locally and start from its clean default branch. Audit PRs must
    be opened in this repository; a fork's installation does not audit upstream PRs.
 
-4. **Set the two Actions secrets:** Create `COPILOT_GITHUB_TOKEN`, a fine-grained
-   PAT from a licensed Copilot account with **Account permissions > Copilot
-   Requests: Read** and access to your chosen model. Create a separate
-   `NFV_RELEASE_TOKEN` with **Contents: Read-only** access to private NFV and
-   any required organization approval. Store them in `OWNER/repo` using the
-   secure prompts:
+4. **Choose billing and set the required secrets:** Select one mode explicitly.
+   **PAT billing remains the default**; organization ownership alone does not
+   opt a repository into organization billing.
+
+   | Mode | Eligible target | Inference credential |
+   |---|---|---|
+   | `pat` (default) | Personal or organization-owned repository | `COPILOT_GITHUB_TOKEN` from a licensed Copilot account |
+   | `organization` (opt-in) | Organization-owned repository with CLI billing enabled | Per-run Actions token; no inference PAT |
+
+   **For PAT billing only**, create `COPILOT_GITHUB_TOKEN`, a fine-grained PAT
+   with **Account permissions > Copilot Requests: Read** and access to your
+   chosen model:
 
    ```text
    gh secret set COPILOT_GITHUB_TOKEN --repo OWNER/repo
+   ```
+
+   **For organization billing**, have an organization administrator enable
+   **Copilot CLI > Allow use of Copilot CLI billed to the organization** and
+   permit the model. Select `organization` in step 5; do not create an inference
+   PAT for this mode. An existing `COPILOT_GITHUB_TOKEN` is not used for
+   inference, and there is no automatic PAT fallback. Direct Microsoft
+   organization billing requires a Microsoft-owned target; a personal fork
+   cannot select it merely by using a Microsoft-provided Copilot seat.
+
+   **Both modes**, while NFV is private, need a separate `NFV_RELEASE_TOKEN`
+   with **Contents: Read-only** access to private NFV and any required
+   organization approval:
+
+   ```text
    gh secret set NFV_RELEASE_TOKEN --repo OWNER/repo
    ```
 
    Alternatively, use **Settings > Secrets and variables > Actions > New
    repository secret**. Never paste token values into agent chat.
 
-   **Direct organization billing is a separate setup:** In Microsoft-owned
-   repositories, a Microsoft organization administrator must allow **Copilot
-   CLI > Allow use of Copilot CLI billed to the organization**. Supported
-   Actions workflows can then authenticate with the built-in `GITHUB_TOKEN`
-   and these permissions, billing inference directly to the organization:
-
-   ```yaml
-   permissions:
-     contents: read
-     copilot-requests: write
-   ```
-
    See [GitHub's organization-billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
-   **The current NFV workflow still requires `COPILOT_GITHUB_TOKEN`; this is
-   not a drop-in replacement.** Keep both secrets above while NFV is private;
-   this guide does not migrate NFV to organization-token authentication.
 
 5. **Ask the agent to install:** Start `copilot` inside the target checkout
    and paste the following, replacing `OWNER/repo`:
@@ -57,24 +63,35 @@
 
    Target repository: OWNER/repo
    Model: gpt-5.6-sol (default)
+   Billing: pat
    NFV release: Default
    ```
 
-   Use `gpt-5.6-sol` unless you approve another model; your Copilot account must
-   have access to it. The agent resolves the latest NFV default-branch commit
+   For organization billing, replace `Billing: pat` with
+   **`Billing: organization`**; keep `pat` for the default mode.
+   Use `gpt-5.6-sol` unless you approve another model; the selected billing
+   identity must have access. The agent uses `workflow/install.py` (Python 3.10+)
+   with `--billing organization` only when explicitly selected; otherwise it
+   retains PAT billing. It resolves the latest NFV default-branch commit
    once, pins the package and runtime to it, and installs both workflows using
    gh-aw v0.88.7. It creates and pushes a **draft installation PR**, sets and
-   reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, confirms both package pins and
-   required secret names, and disables the reviewer. If it cannot verify
-   `disabled_manually`, it must leave the PR draft and report the block.
+   reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, confirms both package pins,
+   billing permissions and required secret names, and disables the reviewer.
+   Organization mode must have `copilot-requests: write` in both workflow
+   sources' top-level permissions and in the reviewer's
+   `jobs.repository_context.permissions`; PAT mode must have `none` in all
+   three places. The installer configures these before compiling both locks.
+   If it cannot verify `disabled_manually`, it must leave the PR draft and
+   report the block.
    Secret-name presence does not prove token validity or model access.
 
 6. **Enable the reviewer:** Review and approve merging the installation PR
    **with NFV still disabled**; never run NFV on its own installation PR or
    require its check. Leave unrelated CI enabled. After merge, ask the agent to
    confirm both merged package pins match `NFV_RELEASE_SHA`, `NFV_MODEL` matches
-   your approved model and both required secret names exist. Leave NFV disabled
-   if any check fails. Then enable and verify:
+   your approved model, both workflows agree on billing and the required secret
+   names for that mode exist. Leave NFV disabled if any check fails. Then
+   enable and verify:
 
    ```text
    gh workflow enable nfv-pr-review.lock.yml --repo OWNER/repo
@@ -90,8 +107,15 @@
    no global errors and recorded property outcomes, not merely a green Actions
    job. Findings are **conditional MODEL refutations, never confirmed source
    bugs**; failure to refute is not evidence of correctness.
+   For organization billing, also confirm usage attribution in the organization's
+   billing dashboard; configuration checks do not prove policy or model access.
 
 NFV is a prototype implementation. Never check out or execute inspected PR code,
 edit generated reports or expose secrets through `pull_request_target`.
 For optional manual installation and upgrades, see the
 [workflow reference](README.md#configure-github-agentic-workflows).
+Existing installations do not switch billing automatically. Do not rerun the
+first-installation script against them: follow the
+[upgrade procedure](README.md#upgrade-an-existing-installation), preserve the
+approved mode unless a change is authorized, and reapply its permissions after
+package replacement and before compilation.

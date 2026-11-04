@@ -4,13 +4,14 @@ on:
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
-        required: true
+        required: false
       NFV_RELEASE_TOKEN:
         required: false
 permissions:
   contents: read
   pull-requests: read
   issues: read
+  copilot-requests: none
 engine:
   id: copilot
   model: ${{ vars.NFV_MODEL }}

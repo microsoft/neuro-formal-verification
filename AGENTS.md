@@ -182,7 +182,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `completed: false` until analysis finishes and cannot be published. Retain
   completed or interrupted evidence in the separate `nfv-evidence` artifact.
 - Configuration: repository variables `NFV_RELEASE_SHA` (40-hex commit of this
-  repo) and `NFV_MODEL`; secret `COPILOT_GITHUB_TOKEN`; optional
+  repo) and `NFV_MODEL`; default PAT billing requires `COPILOT_GITHUB_TOKEN`.
+  Installer `--billing organization` is explicit opt-in for organization-owned
+  targets with the CLI-billing policy enabled; it sets all three
+  `copilot-requests` permissions to `write` instead of `none`, without PAT
+  fallback. Preserve the selected mode through upgrades. Both modes need
   `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
 - Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
   `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string

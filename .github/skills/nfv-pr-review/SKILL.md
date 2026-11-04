@@ -26,13 +26,19 @@ installation procedure here.
 Confirm the target repository. Use `gpt-5.6-sol` unless the user approves another
 model; confirm the account has access. Default to the latest commit on NFV's
 default branch, resolved once for both the package and runtime.
+Keep PAT billing as the default. Use installer `--billing organization` only
+when explicitly approved for an organization-owned target with the CLI billing
+policy and selected model allowed. That mode uses the Actions token for inference,
+not `COPILOT_GITHUB_TOKEN`, and never falls back to a PAT. Both modes still need
+`NFV_RELEASE_TOKEN` while NFV is private.
 Guide the user through secure token entry; never receive or display token values.
 Create the installation branch, commit and push it, and open a **draft PR**.
 Use gh-aw v0.88.7 and compile both workflows.
 
 Read back `NFV_RELEASE_SHA`, `NFV_MODEL`, both installed package pins, required
-secret names and workflow state. Report observed values, not just commands run;
-secret-name presence does not prove validity or model access.
+secret names, all three billing permissions and workflow state. Report observed
+values, not just commands run; secret-name presence does not prove validity or
+model access.
 Never run NFV on its installation PR. Verify the reviewer is disabled before
 marking ready or merging, keep it disabled through the approved merge, then
 recheck the merged default-branch snapshot before enabling and verifying `active`.
@@ -43,10 +49,9 @@ generated comment and completed native evidence rather than a green job alone.
 ## Upgrade
 
 Follow the [workflow reference's upgrade section](../../../workflow/README.md#upgrade-an-existing-installation).
-Pause new audits, wait for
-active/queued runs to finish and keep the model, secrets and budgets. Update the
-package and runtime together, verify merged configuration, then re-enable and
-check a separately approved pilot.
+Pause new audits, wait for active/queued runs to finish and keep the model,
+billing mode, secrets and budgets. Update the package and runtime together,
+verify merged configuration, then re-enable and check a separately approved pilot.
 
 ## Troubleshoot a run
 
@@ -59,7 +64,8 @@ look for `missing_tool` safe outputs.
 | Symptom | Cause and fix |
 |---|---|
 | All jobs skipped | The PR is a draft. Mark it ready. |
-| Activation fails on secrets | `COPILOT_GITHUB_TOKEN` is missing in the repo running the workflow. |
+| Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; either mode requires `NFV_RELEASE_TOKEN` while NFV is private. |
+| Organization inference is denied | Confirm an organization-owned target, the organization CLI-billing policy, allowed model and all three `copilot-requests: write` entries. Do not silently fall back to a PAT. |
 | Pin check fails | `NFV_RELEASE_SHA` is unset or not a 40-hex commit. |
 | `Permission denied … could not request permission` for shell commands | The bash allowlist is too narrow. The workflow needs `bash: ["*"]`. Recompile. |
 | `Failed to download checksums … copilot-cli` | The firewall blocks the SDK download. `COPILOT_CLI_PATH` must point to `$RUNNER_TEMP/gh-aw/bin/copilot` (set by the collect step). |

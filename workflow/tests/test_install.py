@@ -29,6 +29,18 @@ class FakeCLI:
         self.installed = False
         self.extension_installed = not case.get("missing_extension")
 
+    def source(self, path, pin):
+        source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
+        if self.case.get("organization_billing"):
+            source = INSTALL.configure_billing(source, path, "organization")
+        if self.case.get("mismatched_billing") and path.endswith("nfv-pr-review.md"):
+            source = INSTALL.configure_billing(source, path, "organization")
+        if self.case.get("invalid_billing") and path.endswith("nfv-pr-review.md"):
+            source = source.replace("      copilot-requests: none", "      copilot-requests: write")
+        if self.case.get("legacy_billing"):
+            source = "\n".join(line for line in source.split("\n") if "copilot-requests:" not in line)
+        return source.replace("---\n", f"---\nsource: {INSTALL.PACKAGE}/workflow@{pin}\n", 1)
+
     def __call__(self, args, **kwargs):
         args = list(args)
         self.calls.append(args)
@@ -68,7 +80,7 @@ class FakeCLI:
             return 0, json.dumps({"nameWithOwner": "owner/project", "defaultBranchRef": {"name": "main"}})
         if command == "secret":
             names = [] if self.case.get("missing_secret") else ["COPILOT_GITHUB_TOKEN"]
-            if names and not self.case.get("public_nfv") and not self.case.get("missing_release"):
+            if not self.case.get("public_nfv") and not self.case.get("missing_release"):
                 names.append("NFV_RELEASE_TOKEN")
             return 0, json.dumps([{"name": name} for name in names])
         if command == "extension":
@@ -87,7 +99,8 @@ class FakeCLI:
                     file = self.root / path
                     file.parent.mkdir(parents=True, exist_ok=True)
                     pin = "d" * 40 if self.case.get("wrong_package") else RELEASE
-                    file.write_text(f"source: {INSTALL.PACKAGE}/workflow@{pin}\n", encoding="utf-8")
+                    text = self.source(path, pin) if path.endswith(".md") else "Compiled fixture\n"
+                    file.write_text(text, encoding="utf-8")
                 rule = "* -text" if self.case.get("bad_attributes") else ".github/workflows/*.lock.yml linguist-generated=true"
                 attributes = self.root / ".gitattributes"
                 before = attributes.read_bytes() if attributes.exists() else b""
@@ -96,6 +109,11 @@ class FakeCLI:
                 attributes.write_bytes(before + (rule + "\n").encode())
                 return 0, "Installed (fixture)"
             if rest[0] == "compile":
+                if self.case.get("expected_billing"):
+                    for path in INSTALL.BILLING_SCOPES:
+                        source = (self.root / path).read_text(encoding="utf-8")
+                        if INSTALL.workflow_billing(source, path) != self.case["expected_billing"]:
+                            raise AssertionError("Compilation used the wrong billing mode")
                 return (1, "Compilation rejected") if self.case.get("compile_failure") else (0, "Compiled (fixture)")
         if command == "variable":
             action, name = rest[:2]
@@ -128,6 +146,8 @@ class FakeCLI:
             endpoint = rest[-1]
             if endpoint == f"repos/{INSTALL.PACKAGE}":
                 return 0, json.dumps({"private": not self.case.get("public_nfv")})
+            if endpoint == "repos/owner/project":
+                return 0, json.dumps({"owner": {"type": "User" if self.case.get("personal_repo") else "Organization"}})
             if "/actions/variables/NFV_RELEASE_SHA" in endpoint:
                 return 0, json.dumps({"value": "d" * 40 if self.case.get("wrong_pin") else RELEASE})
             if "/actions/workflows/" in endpoint:
@@ -140,9 +160,11 @@ class FakeCLI:
                 if self.case.get("missing_lock") and ".lock.yml" in endpoint:
                     return 1, "HTTP 404: Not Found"
                 pin = "d" * 40 if self.case.get("wrong_package") else RELEASE
+                path = endpoint.split("/contents/", 1)[1].split("?", 1)[0]
+                text = self.source(path, pin) if path.endswith(".md") else "Compiled fixture\n"
                 return 0, json.dumps({
                     "type": "file", "encoding": "base64",
-                    "content": base64.b64encode(f"source: {INSTALL.PACKAGE}/workflow@{pin}\n".encode()).decode(),
+                    "content": base64.b64encode(text.encode()).decode(),
                 })
         raise AssertionError(f"Unexpected command: {args}")
 
@@ -151,6 +173,7 @@ class InstallerTests(unittest.TestCase):
     def run_case(self, phase="install", **case):
         trusted_ref = case.pop("trusted_ref", None)
         model = case.pop("model", "approved-model")
+        billing = case.pop("billing", None)
         root = Path(__file__).parent / ".general-scratch" / uuid.uuid4().hex
         root.mkdir(parents=True)
         self.addCleanup(shutil.rmtree, root)
@@ -169,6 +192,8 @@ class InstallerTests(unittest.TestCase):
                      "--pull-request", "7"]
         if trusted_ref is not None:
             argv += ["--ref", trusted_ref]
+        if billing is not None:
+            argv += ["--billing", billing]
         installer = INSTALL.Installer(INSTALL.options(argv))
         installer.root = root
         fake = FakeCLI(root, phase, **case)
@@ -206,6 +231,35 @@ class InstallerTests(unittest.TestCase):
         self.assertIn(["gh", "variable", "set", "NFV_MODEL", "--repo", "owner/project",
                        "--body", "gpt-5.6-sol"], calls)
         self.assertIn(["gh", "variable", "get", "NFV_MODEL", "--repo", "owner/project"], calls)
+
+    def test_explicit_organization_billing_needs_no_copilot_pat(self):
+        error, calls, output = self.run_case(
+            billing="organization", missing_secret=True, expected_billing="organization")
+        self.assertIsNone(error)
+        self.assertIn("organization billing", output)
+        self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"], calls)
+
+    def test_organization_billing_still_requires_private_release_access_and_org_owner(self):
+        for case, reason in (({"missing_release": True}, "Missing NFV_RELEASE_TOKEN"),
+                             ({"personal_repo": True}, "organization-owned")):
+            with self.subTest(case=case):
+                error, calls, _ = self.run_case(billing="organization", missing_secret=True, **case)
+                self.assertIn(reason, error)
+                self.assertFalse(any(call[:2] == ["git", "switch"] for call in calls))
+
+    def test_public_organization_installation_needs_no_secrets(self):
+        error, _, _ = self.run_case(
+            billing="organization", missing_secret=True, public_nfv=True, expected_billing="organization")
+        self.assertIsNone(error)
+
+    def test_legacy_releases_keep_pat_billing_but_cannot_select_organization(self):
+        error, _, _ = self.run_case(legacy_billing=True)
+        self.assertIsNone(error)
+        error, _, _ = self.run_case(phase="enable", legacy_billing=True)
+        self.assertIsNone(error)
+        error, calls, _ = self.run_case(billing="organization", legacy_billing=True)
+        self.assertIn("does not support selecting organization billing", error)
+        self.assertFalse(any(call[:2] == ["git", "commit"] for call in calls))
 
     def test_invalid_checkout_or_missing_secret_does_not_mutate_repository(self):
         reasons = {
@@ -288,6 +342,22 @@ class InstallerTests(unittest.TestCase):
                              or call[:3] in (["gh", "workflow", "run"], ["gh", "variable", "set"])
                              for call in calls))
 
+    def test_activation_reads_organization_billing_from_merged_workflows_without_pat(self):
+        error, calls, output = self.run_case(phase="enable", organization_billing=True, missing_secret=True)
+        self.assertIsNone(error)
+        self.assertIn("organization billing", output)
+        self.assertIn(["gh", "workflow", "enable", INSTALL.WORKFLOW, "--repo", "owner/project"], calls)
+
+    def test_activation_rejects_mixed_billing_without_falling_back_to_pat(self):
+        for case, reason in (({"mismatched_billing": True}, "disagree on Copilot billing"),
+                             ({"invalid_billing": True}, "inconsistent Copilot billing"),
+                             ({"organization_billing": True, "missing_release": True}, "Missing NFV_RELEASE_TOKEN"),
+                             ({"organization_billing": True, "personal_repo": True}, "organization-owned")):
+            with self.subTest(case=case):
+                error, calls, _ = self.run_case(phase="enable", **case)
+                self.assertIn(reason, error)
+                self.assertFalse(any(call[:3] == ["gh", "workflow", "enable"] for call in calls))
+
     def test_enable_reports_failed_state_readback(self):
         error, _, _ = self.run_case(phase="enable", enable_ineffective=True)
         self.assertIn("NFV enablement was not confirmed", error)
@@ -319,6 +389,9 @@ class InstallerTests(unittest.TestCase):
             ["--repository", "owner/project", "--model", ""],
             ["--repository", "owner/project", "--enable-after-merge", "--pull-request", "7",
              "--model", "gpt-5.6-sol"],
+            ["--repository", "owner/project", "--enable-after-merge", "--pull-request", "7",
+             "--billing", "organization"],
+            ["--repository", "owner/project", "--billing", "automatic"],
         ):
             with self.subTest(argv=argv), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 INSTALL.options(argv)

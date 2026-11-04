@@ -370,8 +370,8 @@ bootstrap-verification and post-merge activation options.
      optional for testing.
    * `NFV_MODEL`: model ID for extraction and translation/repair. Onboarding and
      the installer default to `gpt-5.6-sol`; use `--model` to select another
-     approved model. The Copilot account must have access. Activation and upgrades
-     retain the configured model rather than resetting it to the default.
+     approved model. The selected billing identity must have access. Activation
+     and upgrades retain the configured model rather than resetting it to the default.
    * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
      `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
      call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
@@ -382,10 +382,12 @@ bootstrap-verification and post-merge activation options.
      other than `true`/`false` fail explicitly. Local `audit`, `run` and general
      `evaluate` also accept `--no-simplify-refutations` and `--no-check-fixes`
      (or their positive forms) to override the environment independently.
-2. Configure the **`COPILOT_GITHUB_TOKEN`** secret used by the gh-aw Copilot
-   engine: a fine-grained token owned by a Copilot-licensed user with
-   *Copilot Requests: Read*. gh-aw rejects OAuth (`gho_`) tokens. The NFV
-   extraction, translation and presentation sessions use the AWF inference proxy.
+2. Select inference billing: **PAT is the default** and requires a
+   **`COPILOT_GITHUB_TOKEN`** secret, a fine-grained token owned by a
+   Copilot-licensed user with *Copilot Requests: Read*. gh-aw rejects OAuth
+   (`gho_`) tokens. Organization billing is an explicit opt-in described below
+   and does not require this secret. The NFV extraction, translation and
+   presentation sessions use the AWF inference proxy.
    The proxy retains the credential outside the sandbox; no real GitHub or
    Copilot credential is exported through `GITHUB_ENV` or given to the driver.
 3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
@@ -412,19 +414,54 @@ descriptions and retain exact originals in local evidence. Clickable provenance
 can use GitHub's documented `redirect.github.com` no-backlink URLs; these do not
 make replays private or erase historical references. Never edit generated reports.
 
+### Inference billing
+
+The standalone installer defaults to `--billing pat`. To opt into direct
+organization billing for an organization-owned repository:
+
+```text
+python install.py --repository OWNER/repo --billing organization
+```
+
+An organization administrator must enable **Copilot CLI > Allow use of Copilot
+CLI billed to the organization** and allow the selected model. Microsoft billing
+requires a Microsoft-owned target; a personal fork does not bill Microsoft.
+See [GitHub's setup instructions](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
+
+The installer sets `copilot-requests: write` in both workflow sources'
+top-level `permissions:` and the reviewer's `jobs.repository_context.permissions`,
+then compiles both locks. gh-aw authenticates inference using the per-run Actions
+token and ignores personal inference-token secrets. PAT mode sets those three
+permissions to `none` and retains the existing PAT path. There is no automatic
+switch or fallback. Both modes retain the private-release read token requirement
+and keep platform credentials outside the sandbox.
+
+For manual installation or a reviewed billing change, set **all three**
+`copilot-requests` entries to `write` (organization) or `none` (PAT), then compile
+both workflows with gh-aw v0.88.7. Replacing the package resets these entries to
+PAT defaults, so reapply the approved mode before compilation. Do not select
+organization billing merely because a PAT secret is absent.
+
+Post-merge activation reads the mode from the immutable merged workflow sources,
+rejects disagreements and checks only the secrets required by that mode. It does
+not accept a billing override or prove organization policy/model access. A
+separately approved pilot must confirm inference, publication and organization
+billing attribution; never infer those from a green Actions job alone.
+
 ### Upgrade an existing installation
 
 Ask the agent to upgrade; do not rerun the first-installation script against an
 existing installation. Keep the approved model, secrets and budgets. Disable
 new audits and wait for all active/queued runs to finish before changing shared
-configuration.
+configuration. Preserve the selected billing mode unless a change is approved.
 
 Resolve the trusted NFV release once, replace the package with
 `gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
-both workflows and open an upgrade PR. Retain intentional local customizations.
+both workflows and open an upgrade PR. Reapply the approved billing permissions
+after package replacement, and retain intentional local customizations.
 After the approved merge, update `NFV_RELEASE_SHA` to that same SHA, verify both
-merged package pins, the model and required secret names, then enable NFV and
-read back `active`. Repeat a separately approved pilot; leave audits paused on
+merged package pins, the model, billing permissions and required secret names,
+then enable NFV and read back `active`. Repeat a separately approved pilot; leave audits paused on
 failure. `gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.
 
 ### Runtime and evidence
@@ -471,8 +508,8 @@ that the sandbox or verifier is invulnerable.
 ## Local commands and model configuration
 
 Authenticate Copilot CLI with an approved credential, then select a model ID
-available to that credential. For GitHub Actions, configure `NFV_MODEL` and the
-`COPILOT_GITHUB_TOKEN` secret as described above.
+available to that credential. For GitHub Actions, configure `NFV_MODEL` and
+the selected [inference billing mode](#inference-billing) as described above.
 
 To refresh the presentation of an existing accepted general report, without
 rerunning an audit or verifier:

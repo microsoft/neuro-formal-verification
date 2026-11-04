@@ -816,6 +816,17 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("roles: all", source)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
+    def test_billing_defaults_preserve_pat_auth_and_allow_an_org_billed_caller(self):
+        source, lock = self.source(), self.lock()
+        worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        self.assertIn("  copilot-requests: none\n", source)
+        self.assertIn("      copilot-requests: none\n", source)
+        self.assertIn("  copilot-requests: none\n", worker)
+        self.assertIn("      COPILOT_GITHUB_TOKEN:\n        required: false\n", worker)
+        for compiled in (lock, (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")):
+            self.assertNotRegex(compiled, r"(?m)^\s+copilot-requests: write$")
+            self.assertIn("secrets.COPILOT_GITHUB_TOKEN", compiled)
+
     def test_evaluation_is_owned_by_a_deterministic_sandboxed_sdk_driver(self):
         source, lock = self.source(), self.lock()
         self.assertNotIn("  nfv_submit:", lock)
