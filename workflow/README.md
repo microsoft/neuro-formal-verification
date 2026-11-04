@@ -357,56 +357,35 @@ path does not require the model client.
 
 ## Configure GitHub Agentic Workflows
 
-For a first installation in another repository, follow the
-[seven-step onboarding guide](ONBOARDING.md). The helper skill is optional.
-For manual setup, the [standalone installer](install.py) requires Python 3.10+,
-Git and authenticated `gh`; run `python install.py --help` for its installation,
-bootstrap-verification and post-merge activation options.
+For installation, authentication, required secrets and the draft/disable/merge
+sequence, use the [onboarding guide](ONBOARDING.md). This section is the
+configuration and upgrade reference, not a second installation procedure.
+The [standalone installer](install.py) requires Python 3.10+, Git and authenticated
+`gh`; `python install.py --help` lists installation, bootstrap-verification and
+post-merge activation options. Workflow locks use **gh-aw v0.88.7**. Commit both
+workflow sources and their `.lock.yml` files, plus generated package records and
+action locks under `.github/aw/`.
 
-1. Configure protected repository variables:
-   * `NFV_RELEASE_SHA`: full commit of `microsoft/neuro-formal-verification`,
-     resolved once from the latest commit on NFV's default branch.
-     Use that same SHA for the installed package; other trusted revisions are
-     optional for testing.
-   * `NFV_MODEL`: model ID for extraction and translation/repair. Onboarding and
-     the installer default to `gpt-5.6-sol`; use `--model` to select another
-     approved model. The selected billing identity must have access. Activation
-     and upgrades retain the configured model rather than resetting it to the default.
-   * Optional budget (unset keeps the default): `NFV_SYNTAX_ROUNDS` (6, max 20),
-     `NFV_PROOF_ROUNDS` (10, max 30), `NFV_VERIFIER_TIMEOUT` (60 s per Dafny
-     call) and `NFV_PROPERTY_SECONDS` (1800 s per property). Properties run one
-     after another within the 360-minute job timeout.
-   * Independent Boolean feature flags `NFV_SIMPLIFY_REFUTATIONS` and
-     `NFV_CHECK_FIXES` both default to `true`. Set either repository variable to
-     `false` to disable that follow-up; unset or empty keeps it enabled. Values
-     other than `true`/`false` fail explicitly. Local `audit`, `run` and general
-     `evaluate` also accept `--no-simplify-refutations` and `--no-check-fixes`
-     (or their positive forms) to override the environment independently.
-2. Select inference billing: **PAT is the default** and requires a
-   **`COPILOT_GITHUB_TOKEN`** secret, a fine-grained token owned by a
-   Copilot-licensed user with *Copilot Requests: Read*. gh-aw rejects OAuth
-   (`gho_`) tokens. Organization billing is an explicit opt-in described below
-   and does not require this secret. The NFV extraction, translation and
-   presentation sessions use the AWF inference proxy.
-   The proxy retains the credential outside the sandbox; no real GitHub or
-   Copilot credential is exported through `GITHUB_ENV` or given to the driver.
-3. Until this repository is public, set a **`NFV_RELEASE_TOKEN`** secret: a
-   fine-grained token with read-only *Contents* access to
-   `microsoft/neuro-formal-verification`.
-4. Install the `aw.yml` package from this folder, which copies both
-   `.github\workflows\nfv-source-context.md` and `nfv-pr-review.md` into yours:
-   `gh aw add microsoft/neuro-formal-verification/workflow@<NFV_RELEASE_SHA>`
-   Then review the sources and run
-   `gh aw compile nfv-source-context nfv-pr-review --approve`. Commit both
-   Markdown files and their locks, plus the generated package records and action
-   locks under `.github\aw\`. The checked-in locks are compiled with
-   **gh aw v0.88.7**.
+### Repository variables
 
-The initial installation PR must not run NFV itself. Keep it draft until the
-reviewer workflow is disabled and its state verified, then keep NFV disabled
-through marking ready and merging. Enable it only after installation reaches
-the base branch, and use a separate approved pilot PR. Leave unrelated CI enabled;
-do not require an NFV check for the bootstrap PR.
+Configure these as protected Actions repository variables:
+
+| Variable | Default / purpose |
+|---|---|
+| `NFV_RELEASE_SHA` | Full trusted NFV commit; both installed package pins and runtime must use this same SHA |
+| `NFV_MODEL` | `gpt-5.6-sol`; select another approved model with installer `--model`. The billing identity must have access |
+| `NFV_SYNTAX_ROUNDS` | 6 repairs, maximum 20 |
+| `NFV_PROOF_ROUNDS` | 10 repairs, maximum 30 |
+| `NFV_VERIFIER_TIMEOUT` | 60 seconds per Dafny call |
+| `NFV_PROPERTY_SECONDS` | 1800 seconds per property |
+| `NFV_SIMPLIFY_REFUTATIONS` | `true`; enable the shorter checked-property follow-up |
+| `NFV_CHECK_FIXES` | `true`; enable the model-checked candidate-fix follow-up |
+
+Unset budget variables retain their defaults. Properties run sequentially within
+the 360-minute job timeout. The two independent Boolean flags accept only `true`
+or `false`; unset or empty means enabled. Local `audit`, `run` and general
+`evaluate` also accept `--no-simplify-refutations` and `--no-check-fixes` (or
+their positive forms). Activation and upgrades retain the approved model.
 
 **Historical replay PRs:** Use plain change numbers, not upstream issue/PR
 references, direct GitHub links or user/team mentions. Normalize copied
@@ -416,37 +395,27 @@ make replays private or erase historical references. Never edit generated report
 
 ### Inference billing
 
-The standalone installer defaults to `--billing pat`. To opt into direct
-organization billing for an organization-owned repository:
+Select `--billing pat` (default) or explicitly opt into `--billing organization`;
+eligibility, policies and secrets are covered in [onboarding](ONBOARDING.md).
+The installer configures `copilot-requests` in **all three** permission scopes
+before compiling both workflows:
 
-```text
-python install.py --repository OWNER/repo --billing organization
-```
+* `.github/workflows/nfv-source-context.md`: top-level `permissions`.
+* `.github/workflows/nfv-pr-review.md`: top-level `permissions` and
+  `jobs.repository_context.permissions`.
 
-An organization administrator must enable **Copilot CLI > Allow use of Copilot
-CLI billed to the organization** and allow the selected model. Microsoft billing
-requires a Microsoft-owned target; a personal fork does not bill Microsoft.
-See [GitHub's setup instructions](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
+Organization mode requires `write` in all three scopes; gh-aw uses the per-run
+Actions token and ignores inference PATs. PAT mode requires `none` and uses
+`COPILOT_GITHUB_TOKEN`; OAuth (`gho_`) tokens are rejected. There is no automatic
+switch or fallback, including when a PAT is absent. The AWF proxy keeps real
+credentials outside the sandbox; none are exported through `GITHUB_ENV` or
+given to the driver.
 
-The installer sets `copilot-requests: write` in both workflow sources'
-top-level `permissions:` and the reviewer's `jobs.repository_context.permissions`,
-then compiles both locks. gh-aw authenticates inference using the per-run Actions
-token and ignores personal inference-token secrets. PAT mode sets those three
-permissions to `none` and retains the existing PAT path. There is no automatic
-switch or fallback. Both modes retain the private-release read token requirement
-and keep platform credentials outside the sandbox.
-
-For manual installation or a reviewed billing change, set **all three**
-`copilot-requests` entries to `write` (organization) or `none` (PAT), then compile
-both workflows with gh-aw v0.88.7. Replacing the package resets these entries to
-PAT defaults, so reapply the approved mode before compilation. Do not select
-organization billing merely because a PAT secret is absent.
-
-Post-merge activation reads the mode from the immutable merged workflow sources,
-rejects disagreements and checks only the secrets required by that mode. It does
-not accept a billing override or prove organization policy/model access. A
-separately approved pilot must confirm inference, publication and organization
-billing attribution; never infer those from a green Actions job alone.
+Activation reads the mode from immutable installed sources, rejects disagreement
+and checks the corresponding secret names; it does not accept a billing override.
+For a reviewed mode change, update all three scopes and recompile both locks.
+Package replacement resets permissions to PAT defaults, so reapply the approved
+mode **before compilation**.
 
 ### Upgrade an existing installation
 
