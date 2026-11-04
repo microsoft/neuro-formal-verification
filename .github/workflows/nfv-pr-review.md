@@ -2,9 +2,8 @@
 description: Prototype NFV PR reviewer — sandboxed foreground Dafny analysis, posted as a PR comment
 on:
   pull_request:
-    types: [ready_for_review]
-  roles: [admin, maintainer, write]
-if: github.event.action == 'ready_for_review' && github.event.pull_request.draft == false
+    types: [opened, synchronize, reopened, ready_for_review]
+if: github.event.pull_request.draft == false
 permissions:
   contents: read
   pull-requests: read
@@ -27,7 +26,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   repository_context:
-    if: github.event.action == 'ready_for_review' && github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     permissions:
       # gh-aw uses this only to mark an incomplete workflow run failed.
       actions: write
