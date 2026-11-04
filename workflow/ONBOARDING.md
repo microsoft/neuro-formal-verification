@@ -47,6 +47,9 @@
    It reads back the pins, model, billing permissions and required secret names,
    disables the reviewer and verifies `disabled_manually`; if blocked, leave
    the PR draft and report the failure.
+   Check [repository permission policies](README.md#repository-permission-policies)
+   against the generated jobs. Update approved job-specific allowlists and their
+   tests/documentation; do not disable checks or grant workflow-wide write access.
 
 6. **Merge, then enable:** Approve the installation merge **with NFV disabled**;
    never run or require NFV on its own installation PR. Leave unrelated CI enabled.
