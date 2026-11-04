@@ -161,6 +161,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
   disabled, leave the PR draft and report the block. Leave unrelated CI enabled.
   Enable NFV only after installation reaches the base branch, then use a
   separate user-approved pilot PR.
+- Audits run only on a Draft-to-Ready transition by an actor with repository
+  write, maintain or admin access. Opening, reopening and pushing commits do
+  not authorize audits; repeat the transition for a re-audit. Keep both inference
+  sessions behind gh-aw's role/activation checks and retain default fork blocking.
 - Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:

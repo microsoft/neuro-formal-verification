@@ -1,7 +1,8 @@
 # NFV PR reviewer
 
 This is a prototype implementation of a GitHub Agentic Workflow that reviews a
-pull request when it is opened or updated, selects up to **ten nontrivial properties** from the
+pull request when a trusted repository writer marks it ready for review,
+selects up to **ten nontrivial properties** from the
 PR description, PR conversation comments, and commit messages (not review
 comments or reviews), and from changed code/comments. A separate source-context
 AW session first inspects a shallow trusted-base checkout and changed-head
@@ -30,8 +31,14 @@ and return types while preserving the original source line numbers.
   the model is frozen. Drafts rejected by Dafny's Boogie resolution stage use the
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
-* The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
-  `ready_for_review`). Drafts are skipped.
+* The workflow runs **only on Draft > Ready for review** (`ready_for_review`),
+  authorized by the actor's repository write, maintain or admin access, not by
+  the PR author's association. gh-aw's activation gate precedes both the
+  source-context session and audit inference. Opening, reopening and pushing
+  commits do not start audits. To re-audit, convert the PR to draft and have a
+  trusted writer mark it ready again. Fork-origin PRs remain blocked by default.
+  Protect workflow changes and retain GitHub's outside-contributor workflow
+  approvals; this gate alone is not a guarantee against all credit abuse.
 
 ## What a finding means
 
@@ -91,9 +98,9 @@ provenance, not authentication or source/model semantic correspondence.
 
 The source identity is the event's **immutable PR head SHA**, with the base SHA
 recorded and changed files obtained from the immutable `base...head` comparison.
-A PR whose head or base
-moves during collection is rejected; the next `synchronize` run reviews the new
-head and cancels the older run.
+A PR whose head or base moves during collection is rejected. Have a trusted
+writer repeat Draft > Ready to audit the new snapshot. Pushes do not automatically
+cancel or replace an existing audit; reports identify their captured revision.
 
 The agent posts **one PR comment** (never a
 review approval or change request). It opens with a one-line description of NFV

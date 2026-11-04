@@ -84,8 +84,12 @@
    Expected state: **`active`**. Alternatively, use **GitHub > Actions >
    NFV PR reviewer > Enable workflow**, then verify the state above.
 
-7. **Approve a separate pilot:** Authorize a small code-change PR, parented on
-   the installed base branch, and its billable audit. Have the agent check the
+7. **Approve a separate pilot:** Create a small **draft** code-change PR,
+   parented on the installed base branch. A trusted repository writer
+   (write, maintain or admin access) authorizes its billable audit by marking
+   it **Ready for review**. Only this transition triggers NFV; opening,
+   reopening or pushing commits does not. To re-audit, convert it to draft and
+   have a trusted writer mark it ready again. Have the agent check the
    actual generated NFV comment and `nfv-evidence` report with `completed: true`,
    no global errors and recorded property outcomes, not merely a green Actions
    job. Findings are **conditional MODEL refutations, never confirmed source
@@ -93,5 +97,8 @@
 
 NFV is a prototype implementation. Never check out or execute inspected PR code,
 edit generated reports or expose secrets through `pull_request_target`.
+Fork-origin PRs remain blocked by default. Keep GitHub's outside-contributor
+workflow approvals and protect workflow-file changes; the ready gate is not a
+blanket guarantee against credit abuse.
 For optional manual installation and upgrades, see the
 [workflow reference](README.md#configure-github-agentic-workflows).

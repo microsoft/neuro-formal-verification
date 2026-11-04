@@ -5,8 +5,9 @@ description: Bootstrap, configure, test, upgrade or troubleshoot the NFV PR revi
 
 # NFV PR reviewer
 
-The NFV PR reviewer is a prototype GitHub Agentic Workflow (gh-aw). For each
-non-draft PR it extracts up to ten intended properties from the PR description,
+The NFV PR reviewer is a prototype GitHub Agentic Workflow (gh-aw). When a
+trusted repository writer marks a draft PR ready for review, it extracts up to
+ten intended properties from the PR description,
 conversation comments and commit messages. It translates the changed code to
 Dafny and tries to refute each property. It then posts one PR comment: either
 conditional model refutations, or the formalized intents and why none was
@@ -39,6 +40,11 @@ recheck the merged default-branch snapshot before enabling and verifying `active
 Leave the PR draft if disabling is blocked; leave unrelated CI enabled.
 Only start a separate pilot and billable audit with user approval, and check its
 generated comment and completed native evidence rather than a green job alone.
+Create that pilot as a draft. Only a Draft-to-Ready event by a repository writer,
+maintainer or administrator authorizes inference; opening, reopening or pushing
+commits does not. Re-audits require repeating the transition. Preserve the
+compiler's activation dependency before the source-context caller and audit.
+Fork-origin PRs remain blocked by default.
 
 ## Upgrade
 
@@ -58,7 +64,7 @@ look for `missing_tool` safe outputs.
 
 | Symptom | Cause and fix |
 |---|---|
-| All jobs skipped | The PR is a draft. Mark it ready. |
+| Audit did not start | After installation and explicit cost approval, a trusted writer must mark a draft PR ready; openings, pushes and reopenings do not trigger it. Do not mark the installation PR ready until NFV is verified disabled. |
 | Activation fails on secrets | `COPILOT_GITHUB_TOKEN` is missing in the repo running the workflow. |
 | Pin check fails | `NFV_RELEASE_SHA` is unset or not a 40-hex commit. |
 | `Permission denied … could not request permission` for shell commands | The bash allowlist is too narrow. The workflow needs `bash: ["*"]`. Recompile. |
