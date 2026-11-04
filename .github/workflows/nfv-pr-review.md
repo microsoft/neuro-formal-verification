@@ -3,6 +3,23 @@ description: Prototype NFV PR reviewer — sandboxed foreground Dafny analysis, 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "**.[cC]"
+      - "**.[hH]"
+      - "**.[cC][cC]"
+      - "**.[cC][pP][pP]"
+      - "**.[cC][xX][xX]"
+      - "**.[hH][pP][pP]"
+      - "**.[jJ][aA][vV][aA]"
+      - "**.[cC][sS]"
+      - "**.[gG][oO]"
+      - "**.[jJ][sS]"
+      - "**.[jJ][sS][xX]"
+      - "**.[mM][jJ][sS]"
+      - "**.[tT][sS]"
+      - "**.[tT][sS][xX]"
+      - "**.[pP][yY]"
+      - "**.[rR][sS]"
 if: github.event.pull_request.draft == false
 permissions:
   contents: read

@@ -65,7 +65,9 @@
    ```
 
 7. **Approve a separate, billable pilot:** Use a small code-change PR based on
-   the installed branch. Verify the generated comment and `nfv-evidence` report:
+   the installed branch. Documentation, configuration and submodule-only PRs
+   without a supported source-suffix change do not start NFV.
+   Verify the generated comment and `nfv-evidence` report:
    `completed: true`, no global errors and recorded property outcomes, not just
    a green job. For organization mode, confirm attribution in its billing dashboard;
    secret names and configuration alone do not prove token, policy or model access.

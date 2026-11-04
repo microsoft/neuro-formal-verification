@@ -41,11 +41,23 @@ def validate_manifest(manifest, bundle):
     return {"identity": bundle["identity"], "files": selected}
 
 
-def sanitize_manifest(bundle, input_path, output_path):
+def context_input(bundle):
+    return {**{key: bundle[key] for key in ("identity", "changed")},
+            "source_suffixes": sorted(SUFFIXES),
+            "source_inventory": [path for path in bundle["source_inventory"]
+                                 if Path(path).suffix.lower() in SUFFIXES]}
+
+
+def sanitize_manifest(bundle, input_path, output_path, *, hints_only=False):
     path = Path(input_path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 25000:
         raise Abstain("Context session must produce a bounded regular JSON manifest")
-    manifest = validate_manifest(json.loads(path.read_text(encoding="utf-8")), bundle)
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    if hints_only:
+        if not isinstance(manifest, dict) or set(manifest) != {"files"}:
+            raise Abstain("Context hints must contain only the files list; trusted code binds the identity")
+        manifest = {"identity": bundle["identity"], "files": manifest["files"]}
+    manifest = validate_manifest(manifest, bundle)
     target = Path(output_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
