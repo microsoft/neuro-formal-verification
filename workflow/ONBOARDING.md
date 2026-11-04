@@ -69,6 +69,9 @@
    `completed: true`, no global errors and recorded property outcomes, not just
    a green job. For organization mode, confirm attribution in its billing dashboard;
    secret names and configuration alone do not prove token, policy or model access.
+   The separate `review-status.json` records driver completion/submission or an
+   infrastructure failure; it is not a property verdict. Infrastructure failures
+   can still fail Actions checks. Keep NFV advisory, not required for merging.
 
 NFV is a prototype. Findings are **conditional MODEL refutations, never confirmed
 source bugs**; failure to refute is not evidence of correctness. Never check out

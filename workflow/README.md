@@ -188,6 +188,29 @@ the previous NFV comment. Verifier models, repair logs and hashes are in the run
 incomplete; it cannot be published as a finished review.
 Provider/SDK failures and verifier infrastructure failures stop the audit,
 retain incomplete evidence, and fail the job without submitting a review.
+Completed analyses submit the generated comment for all four property outcomes,
+including resource exhaustion and property type-check/audit failures, even when
+there are no refutations. These outcomes do not fail the job.
+
+The sandbox driver records its attempt separately in `review-status.json` in
+`nfv-evidence`, and emits the same status in its logs. A completed attempt has
+`status: completed`, `completed: true`, outcome counts, and
+`publication: submitted`: the comment intent was queued, not confirmation that
+the later safe-output job posted it. A driver-observed setup, input, extraction,
+audit or submission failure instead records `status: infrastructure_failure`,
+`completed: false`, the stage and diagnostic, and the captured identity when
+available. Submission errors leave publication `unconfirmed`; they are not retried.
+`analysis_completed` distinguishes an accepted completed analysis from a later
+submission failure without changing the saved proof report.
+Infrastructure failure is an attempt status, never a fifth property outcome or
+a synthetic successful review. When evidence cannot be written, the diagnostic
+remains in logs. Failures before the Python driver starts and later safe-output
+failures remain in their Actions job logs.
+
+The PR triggers, permissions and failure exit codes are unchanged. NFV remains
+advisory and must not be required for merging, but infrastructure failures can
+still produce a red Actions check; there is no no-red-cross guarantee.
+
 An individual model-request timeout remains a property resource-exhaustion
 outcome. The sandbox allows at most 500 inference requests and 500 consecutive
 cache misses: independent sessions are not required to hit a prompt cache.
