@@ -869,6 +869,21 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn(r'\"maxCacheMisses\":5,', reviewer)
         self.assertIn(r'\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}', reviewer)
 
+    def test_publication_uses_job_scoped_token_without_shared_override(self):
+        for name in ("nfv-pr-review", "nfv-source-context"):
+            with self.subTest(workflow=name):
+                source = (self.template / f"{name}.md").read_text(encoding="utf-8")
+                lock = (self.template / f"{name}.lock.yml").read_text(encoding="utf-8")
+                self.assertIn("  github-token: ${{ secrets.GITHUB_TOKEN }}\n", source)
+                outputs = lock.split("\n  safe_outputs:", 1)[1]
+                process = outputs.split("      - name: Process Safe Outputs\n", 1)[1].split("\n      - ", 1)[0]
+                self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", process)
+                self.assertNotIn("GH_AW_GITHUB_TOKEN", process)
+                self.assertNotIn("continue-on-error:", process)
+                if name == "nfv-pr-review":
+                    self.assertIn("      issues: write\n", outputs)
+                    self.assertIn("      pull-requests: write\n", outputs)
+
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
         source, lock = self.source(), self.lock()
         self.assertIn('bundle="$RUNNER_TEMP/gh-aw/nfv/bundle.json"', source)

@@ -53,6 +53,8 @@
 
 6. **Merge, then enable:** Approve the installation merge **with NFV disabled**;
    never run or require NFV on its own installation PR. Leave unrelated CI enabled.
+   Keep NFV advisory after installation too: exclude its jobs from required merge
+   checks and required CI aggregators; leave operational failures visible.
    After merge, have the agent verify both package pins against `NFV_RELEASE_SHA`,
    the approved model, consistent billing permissions and required secret names.
    If anything fails, leave NFV disabled. Otherwise enable and verify `active`:

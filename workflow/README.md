@@ -418,6 +418,26 @@ CI pass: doing so weakens isolation or can remove reporting. Review the actual
 locks for the pinned compiler; do not hand-edit generated files. If the required
 exceptions cannot be approved, leave installation blocked.
 
+### Advisory checks and publication credentials
+
+NFV is advisory: do not make its workflows or jobs required merge checks or
+include their results in a required CI aggregator. Keep unrelated required CI,
+reviews and merge-queue policies unchanged. Operational failures must remain
+visible; do not force success or use `continue-on-error` to disguise them.
+
+Both workflows explicitly select `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}`.
+Comment publication uses the short-lived Actions token for the current job,
+with the generated job-level issue/PR permissions above, not an inference PAT
+or the private-release read token. This also prevents a shared
+`GH_AW_GITHUB_TOKEN` secret from overriding publication credentials.
+
+For `safe_outputs` HTTP 401 **Bad credentials**, inspect the compiled
+`Process Safe Outputs` step's token expression, without exposing token values.
+Older locks prefer `GH_AW_GITHUB_TOKEN` when present; an invalid override can
+break publication even when inference succeeds. Recompile both installed
+sources with the explicit job-token setting. A green agent job alone does not
+establish publication or a completed audit.
+
 ### Inference billing
 
 Select `--billing pat` (default) or explicitly opt into `--billing organization`;
