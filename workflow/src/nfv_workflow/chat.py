@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Workflow authentication policy around the unchanged NFV model client."""
 
 import os

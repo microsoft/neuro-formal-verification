@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Replay four fixed retained formal artifacts, without translation or inference."""
 from __future__ import annotations
 

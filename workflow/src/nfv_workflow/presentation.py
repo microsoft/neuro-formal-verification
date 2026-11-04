@@ -1,13 +1,16 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Agent-authored, source-anchored report metadata; never verification evidence."""
 
 from __future__ import annotations
 
 import copy
 import hashlib
-import importlib.resources
 import json
 import re
 
+from . import read_prompt
 from .general_gates import anchor, signature_parameters
 from .github import Abstain, sha
 
@@ -162,7 +165,7 @@ async def refresh(report, bundle, chat, timeout=240):
     validate_report(report, bundle)
     if not 1 <= timeout <= 600:
         raise Abstain("Presentation timeout must be 1..600 seconds")
-    system = importlib.resources.files("nfv_workflow").joinpath("presentation_prompt.txt").read_text()
+    system = read_prompt("presentation_prompt.txt")
     results, calls = {}, []
     for finding in report["findings"]:
         translation = finding["translation"]

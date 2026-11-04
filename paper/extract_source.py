@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Extract the paper's dependency closure from a pinned source snapshot.
 
 This is a maintainer utility, not a benchmark prerequisite. It copies original

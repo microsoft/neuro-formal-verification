@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Materialize frozen benchmark programs without changing the released dataset."""
 import json
 from pathlib import Path

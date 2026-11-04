@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Remove host-specific paths from public diagnostic metadata, not model code."""
 import ntpath
 from pathlib import Path

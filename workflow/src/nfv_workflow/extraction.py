@@ -1,11 +1,14 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Bounded, tool-free property extraction from immutable source."""
 
 from __future__ import annotations
 
-import importlib.resources
 import json
 from pathlib import Path
 
+from . import read_prompt
 from .general import json_answer, save
 from .github import Abstain
 from .source_context import check_request, function_catalog, scoped_context
@@ -34,8 +37,7 @@ async def extract(bundle, chat, timeout=240, output=None):
         line = source["text"].splitlines()[item["declaration"] - source.get("line_start", 1)]
         previews.append({**item, "declaration_preview": line[:400],
                          "preview_truncated": len(line) > 400})
-    resources = importlib.resources.files("nfv_workflow")
-    system = resources.joinpath("function_prompt.txt").read_text()
+    system = read_prompt("function_prompt.txt")
     prompt = json.dumps({"signals": bundle["signals"], "function_catalog": previews},
                         ensure_ascii=False)
     check_request(system, prompt, "Function selection")
@@ -47,7 +49,7 @@ async def extract(bundle, chat, timeout=240, output=None):
     record["selected_functions"] = selected
     record["selection_omissions"] = [key for key in functions if key not in selected]
     persist()
-    system = resources.joinpath("intent_prompt.txt").read_text()
+    system = read_prompt("intent_prompt.txt")
     for index, key in enumerate(selected):
         function = functions[key]
         context = scoped_context(bundle, {**function, "lines": function["lines"]})

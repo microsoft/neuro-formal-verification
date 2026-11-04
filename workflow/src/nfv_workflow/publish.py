@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Only trusted deterministic code renders and publishes accepted findings."""
 
 from __future__ import annotations

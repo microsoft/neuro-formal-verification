@@ -1,12 +1,15 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from __future__ import annotations
 
 import argparse
 import asyncio
-import importlib.resources
 import json
 import os
 from pathlib import Path
 
+from . import read_prompt
 from .check import check
 from .github import Abstain, GitHub, collect, reanchor
 from .publish import LABEL, publication_allowed, publish
@@ -51,7 +54,7 @@ async def propose(bundle, model, intent_only=False, output=None):
         if intent_only:
             from .extraction import extract
             return await extract(bundle, chat, output=output)
-        prompt = importlib.resources.files("nfv_workflow").joinpath("proposal_prompt.txt").read_text()
+        prompt = read_prompt("proposal_prompt.txt")
         from .general import json_answer
         return json_answer((await chat.ask(prompt, json.dumps(bundle), timeout=240)).text)
 

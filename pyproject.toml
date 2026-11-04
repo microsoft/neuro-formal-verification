@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
@@ -9,7 +12,8 @@ description = "Dafny and CBMC artifacts for neuro-formal verification"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
-license-files = ["paper/licenses/*"]
+license = "MIT"
+license-files = ["LICENSE", "NOTICE.txt", "paper/licenses/*", "workflow/licenses/*"]
 
 [project.optional-dependencies]
 inference = ["github-copilot-sdk==1.0.4"]

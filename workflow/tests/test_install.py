@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 import base64
 from contextlib import redirect_stderr, redirect_stdout
 import importlib.util

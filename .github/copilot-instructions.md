@@ -1,3 +1,6 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 Follow `AGENTS.md` at the repository root for layout, build/test commands,
 invariants, gh-aw workflow lessons and conventions. Key points:
 

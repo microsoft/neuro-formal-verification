@@ -1,3 +1,6 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 # NFV PR reviewer
 
 This is a prototype implementation of a GitHub Agentic Workflow that reviews a
@@ -373,7 +376,7 @@ Configure these as protected Actions repository variables:
 | Variable | Default / purpose |
 |---|---|
 | `NFV_RELEASE_SHA` | Full trusted NFV commit; both installed package pins and runtime must use this same SHA |
-| `NFV_MODEL` | `gpt-5.6-sol`; select another approved model with installer `--model`. The billing identity must have access |
+| `NFV_MODEL` | Copilot model ID selected with installer `--model MODEL`. The billing identity and its policies must permit the selected model |
 | `NFV_SYNTAX_ROUNDS` | 6 repairs, maximum 20 |
 | `NFV_PROOF_ROUNDS` | 10 repairs, maximum 30 |
 | `NFV_VERIFIER_TIMEOUT` | 60 seconds per Dafny call |

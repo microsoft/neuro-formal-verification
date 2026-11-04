@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Checked, optional enrichments; never change whole-property acceptance."""
 
 from __future__ import annotations
@@ -5,7 +8,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import difflib
 import hashlib
-import importlib.resources
 import json
 import os
 from pathlib import Path
@@ -14,6 +16,7 @@ import time
 
 from nfv.agent import refute
 
+from . import read_prompt
 from .check import Dafny, accepted
 from .general import json_answer, reachable, require_tool, save, validate_finding
 from .general_gates import (
@@ -277,7 +280,7 @@ async def run(report, bundle, chat, output, limits, options=None, verifier=None)
                 "report_sha256": before[0], "bundle_sha256": before[1],
                 "options": asdict(options), "findings": {}, "calls": []}
     target = output / "followups.json"
-    system = importlib.resources.files("nfv_workflow").joinpath("followup_prompt.txt").read_text()
+    system = read_prompt("followup_prompt.txt")
     for finding in report["findings"]:
         validate_finding(finding, bundle)
         identity = finding["candidate"]["id"]

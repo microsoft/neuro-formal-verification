@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Private subprocess entrypoint: no GitHub or model credentials are needed."""
 
 import json

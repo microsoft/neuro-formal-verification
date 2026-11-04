@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """The four public outcomes of a workflow property analysis."""
 
 from .github import Abstain

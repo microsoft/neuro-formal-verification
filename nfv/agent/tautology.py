@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Vacuity gate: reject a translated postcondition that asserts nothing.
 
 Motivation, from the record rather than from theory. Every unsound proof this

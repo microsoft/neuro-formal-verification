@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Bounded lexical source context, not a source-language semantic frontend."""
 
 from __future__ import annotations

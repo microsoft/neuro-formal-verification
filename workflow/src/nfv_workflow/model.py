@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """A deliberately small, typed, non-executable translation boundary.
 
 The proposer cannot supply Dafny programs, commands, attributes, or contracts.

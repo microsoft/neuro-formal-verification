@@ -1,3 +1,6 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 # Dataset attribution and release provenance
 
 The benchmark is **derived data, not newly authored benchmark code**. Retain
@@ -20,7 +23,9 @@ ship that repository's notices unchanged in [`licenses`](licenses):
 
 The original problems are from [OpenAI HumanEval](https://github.com/openai/human-eval)
 and [EvalPlus](https://github.com/evalplus/evalplus); we credit them here for
-attribution. The acquisition metadata does not record the upstream commit,
+attribution. The HumanEval MIT notice is also retained in
+[`licenses/openai-human-eval-LICENSE`](licenses/openai-human-eval-LICENSE).
+The acquisition metadata does not record the upstream commit,
 EvalPlus package version or downloaded cache digest.
 
 The upstream research is **nl2postcond** (Endres et al., FSE 2024), as cited in
