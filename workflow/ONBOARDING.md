@@ -16,20 +16,30 @@
    `OWNER/repo` locally and start from its clean default branch. Audit PRs must
    be opened in this repository; a fork's installation does not audit upstream PRs.
 
-4. **Choose billing and set the required secrets:** **PAT billing is the
-   default**, including for personal repositories. Create `COPILOT_GITHUB_TOKEN`,
-   a fine-grained PAT from a licensed Copilot account with **Account permissions >
-   Copilot Requests: Read** and access to your chosen model:
+4. **Choose billing and set the required secrets:** Select one mode explicitly.
+   **PAT billing remains the default**; organization ownership alone does not
+   opt a repository into organization billing.
+
+   | Mode | Eligible target | Inference credential |
+   |---|---|---|
+   | `pat` (default) | Personal or organization-owned repository | `COPILOT_GITHUB_TOKEN` from a licensed Copilot account |
+   | `organization` (opt-in) | Organization-owned repository with CLI billing enabled | Per-run Actions token; no inference PAT |
+
+   **For PAT billing only**, create `COPILOT_GITHUB_TOKEN`, a fine-grained PAT
+   with **Account permissions > Copilot Requests: Read** and access to your
+   chosen model:
 
    ```text
    gh secret set COPILOT_GITHUB_TOKEN --repo OWNER/repo
    ```
 
-   To opt into **organization billing**, the target must be organization-owned
-   and an administrator must enable **Copilot CLI > Allow use of Copilot CLI
-   billed to the organization** and permit the model. Select `organization`
-   in step 5; no `COPILOT_GITHUB_TOKEN` is needed or used for inference, and
-   there is no automatic PAT fallback.
+   **For organization billing**, have an organization administrator enable
+   **Copilot CLI > Allow use of Copilot CLI billed to the organization** and
+   permit the model. Select `organization` in step 5; do not create an inference
+   PAT for this mode. An existing `COPILOT_GITHUB_TOKEN` is not used for
+   inference, and there is no automatic PAT fallback. Direct Microsoft
+   organization billing requires a Microsoft-owned target; a personal fork
+   cannot select it merely by using a Microsoft-provided Copilot seat.
 
    **Both modes**, while NFV is private, need a separate `NFV_RELEASE_TOKEN`
    with **Contents: Read-only** access to private NFV and any required
@@ -53,10 +63,12 @@
 
    Target repository: OWNER/repo
    Model: gpt-5.6-sol (default)
-   Billing: pat (default; use organization to opt in)
+   Billing: pat
    NFV release: Default
    ```
 
+   For organization billing, replace `Billing: pat` with
+   **`Billing: organization`**; keep `pat` for the default mode.
    Use `gpt-5.6-sol` unless you approve another model; the selected billing
    identity must have access. The agent uses `workflow/install.py` (Python 3.10+)
    with `--billing organization` only when explicitly selected; otherwise it
@@ -65,6 +77,10 @@
    gh-aw v0.88.7. It creates and pushes a **draft installation PR**, sets and
    reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, confirms both package pins,
    billing permissions and required secret names, and disables the reviewer.
+   Organization mode must have `copilot-requests: write` in both workflow
+   sources' top-level permissions and in the reviewer's
+   `jobs.repository_context.permissions`; PAT mode must have `none` in all
+   three places. The installer configures these before compiling both locks.
    If it cannot verify `disabled_manually`, it must leave the PR draft and
    report the block.
    Secret-name presence does not prove token validity or model access.
@@ -98,3 +114,8 @@ NFV is a prototype implementation. Never check out or execute inspected PR code,
 edit generated reports or expose secrets through `pull_request_target`.
 For optional manual installation and upgrades, see the
 [workflow reference](README.md#configure-github-agentic-workflows).
+Existing installations do not switch billing automatically. Do not rerun the
+first-installation script against them: follow the
+[upgrade procedure](README.md#upgrade-an-existing-installation), preserve the
+approved mode unless a change is authorized, and reapply its permissions after
+package replacement and before compilation.
