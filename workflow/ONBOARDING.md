@@ -1,121 +1,76 @@
 # NFV PR audit onboarding
 
-1. **Install and authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI.
-   Authenticate both CLIs with your GitHub account.
+1. **Authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI; authenticate
+   both CLIs. For Microsoft-provided Copilot access, sign in with the account
+   assigned that seat. CLI policy and model access must permit `gpt-5.6-sol`
+   (default), or another model you explicitly approve.
 
-   For Microsoft-provided Copilot access, use the account assigned that Copilot
-   seat. Start `copilot`, use `/login` to sign in and `/model` to select
-   `gpt-5.6-sol` if available. Organization policies must allow CLI access and
-   the model. A Microsoft-owned checkout alone does not select Microsoft billing.
+2. **Confirm access:** While NFV is private, you need read access to
+   `microsoft/neuro-formal-verification`.
 
-2. **Confirm NFV access:** While NFV is private, your account needs read access
-   to `microsoft/neuro-formal-verification`.
+3. **Clone the target:** Start from the clean default branch of `OWNER/repo`,
+   where you can manage Actions, secrets and variables. An approved fork is
+   fine, but its installation audits PRs in that fork, not upstream.
 
-3. **Choose and clone your target:** Use a repository where you can manage
-   Actions, secrets and variables, or create an approved fork/test copy. Clone
-   `OWNER/repo` locally and start from its clean default branch. Audit PRs must
-   be opened in this repository; a fork's installation does not audit upstream PRs.
+4. **Choose billing and enter secrets:**
 
-4. **Choose billing and set the required secrets:** Select one mode explicitly.
-   **PAT billing remains the default**; organization ownership alone does not
-   opt a repository into organization billing.
-
-   | Mode | Eligible target | Inference credential |
+   | Mode | Target and prerequisites | Inference secret |
    |---|---|---|
-   | `pat` (default) | Personal or organization-owned repository | `COPILOT_GITHUB_TOKEN` from a licensed Copilot account |
-   | `organization` (opt-in) | Organization-owned repository with CLI billing enabled | Per-run Actions token; no inference PAT |
+   | `pat` (default) | Personal or organization repository; licensed Copilot account with model access | `COPILOT_GITHUB_TOKEN`: fine-grained PAT with **Account permissions > Copilot Requests: Read** |
+   | `organization` (opt-in) | Organization-owned repository; administrator enables **Copilot CLI > Allow use of Copilot CLI billed to the organization** and permits the model | None; uses the per-run Actions token, ignores inference PATs and never falls back to one |
 
-   **For PAT billing only**, create `COPILOT_GITHUB_TOKEN`, a fine-grained PAT
-   with **Account permissions > Copilot Requests: Read** and access to your
-   chosen model:
+   Both modes also need `NFV_RELEASE_TOKEN` while NFV is private: a token with
+   **Contents: Read-only** access to NFV and any required organization approval.
+   Enter each required secret using `gh secret set SECRET --repo OWNER/repo`
+   or **Settings > Secrets and variables > Actions**; never paste tokens into chat.
 
-   ```text
-   gh secret set COPILOT_GITHUB_TOKEN --repo OWNER/repo
-   ```
+   Organization ownership does not opt in automatically. A personal fork cannot
+   bill Microsoft directly, even with a Microsoft-provided seat.
+   See [GitHub's billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
 
-   **For organization billing**, have an organization administrator enable
-   **Copilot CLI > Allow use of Copilot CLI billed to the organization** and
-   permit the model. Select `organization` in step 5; do not create an inference
-   PAT for this mode. An existing `COPILOT_GITHUB_TOKEN` is not used for
-   inference, and there is no automatic PAT fallback. Direct Microsoft
-   organization billing requires a Microsoft-owned target; a personal fork
-   cannot select it merely by using a Microsoft-provided Copilot seat.
-
-   **Both modes**, while NFV is private, need a separate `NFV_RELEASE_TOKEN`
-   with **Contents: Read-only** access to private NFV and any required
-   organization approval:
-
-   ```text
-   gh secret set NFV_RELEASE_TOKEN --repo OWNER/repo
-   ```
-
-   Alternatively, use **Settings > Secrets and variables > Actions > New
-   repository secret**. Never paste token values into agent chat.
-
-   See [GitHub's organization-billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
-
-5. **Ask the agent to install:** Start `copilot` inside the target checkout
-   and paste the following, replacing `OWNER/repo`:
+5. **Install:** Start `copilot` in the target checkout and paste this, replacing
+   `OWNER/repo` and using `Billing: organization` only to opt in:
 
    ```text
    Install NFV following:
    https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/ONBOARDING.md
 
    Target repository: OWNER/repo
-   Model: gpt-5.6-sol (default)
+   Model: gpt-5.6-sol
    Billing: pat
    NFV release: Default
    ```
 
-   For organization billing, replace `Billing: pat` with
-   **`Billing: organization`**; keep `pat` for the default mode.
-   Use `gpt-5.6-sol` unless you approve another model; the selected billing
-   identity must have access. The agent uses `workflow/install.py` (Python 3.10+)
-   with `--billing organization` only when explicitly selected; otherwise it
-   retains PAT billing. It resolves the latest NFV default-branch commit
-   once, pins the package and runtime to it, and installs both workflows using
-   gh-aw v0.88.7. It creates and pushes a **draft installation PR**, sets and
-   reads back `NFV_RELEASE_SHA` and `NFV_MODEL`, confirms both package pins,
-   billing permissions and required secret names, and disables the reviewer.
-   Organization mode must have `copilot-requests: write` in both workflow
-   sources' top-level permissions and in the reviewer's
-   `jobs.repository_context.permissions`; PAT mode must have `none` in all
-   three places. The installer configures these before compiling both locks.
-   If it cannot verify `disabled_manually`, it must leave the PR draft and
-   report the block.
-   Secret-name presence does not prove token validity or model access.
+   The agent uses `workflow/install.py` (Python 3.10+, gh-aw v0.88.7), pins both
+   workflows and runtime to one latest trusted NFV default-branch SHA, sets
+   `NFV_RELEASE_SHA` and `NFV_MODEL`, and opens a **draft installation PR**.
+   It reads back the pins, model, billing permissions and required secret names,
+   disables the reviewer and verifies `disabled_manually`; if blocked, leave
+   the PR draft and report the failure.
 
-6. **Enable the reviewer:** Review and approve merging the installation PR
-   **with NFV still disabled**; never run NFV on its own installation PR or
-   require its check. Leave unrelated CI enabled. After merge, ask the agent to
-   confirm both merged package pins match `NFV_RELEASE_SHA`, `NFV_MODEL` matches
-   your approved model, both workflows agree on billing and the required secret
-   names for that mode exist. Leave NFV disabled if any check fails. Then
-   enable and verify:
+6. **Merge, then enable:** Approve the installation merge **with NFV disabled**;
+   never run or require NFV on its own installation PR. Leave unrelated CI enabled.
+   After merge, have the agent verify both package pins against `NFV_RELEASE_SHA`,
+   the approved model, consistent billing permissions and required secret names.
+   If anything fails, leave NFV disabled. Otherwise enable and verify `active`:
 
    ```text
    gh workflow enable nfv-pr-review.lock.yml --repo OWNER/repo
    gh api repos/OWNER/repo/actions/workflows/nfv-pr-review.lock.yml --jq .state
    ```
 
-   Expected state: **`active`**. Alternatively, use **GitHub > Actions >
-   NFV PR reviewer > Enable workflow**, then verify the state above.
+7. **Approve a separate, billable pilot:** Use a small code-change PR based on
+   the installed branch. Verify the generated comment and `nfv-evidence` report:
+   `completed: true`, no global errors and recorded property outcomes, not just
+   a green job. For organization mode, confirm attribution in its billing dashboard;
+   secret names and configuration alone do not prove token, policy or model access.
 
-7. **Approve a separate pilot:** Authorize a small code-change PR, parented on
-   the installed base branch, and its billable audit. Have the agent check the
-   actual generated NFV comment and `nfv-evidence` report with `completed: true`,
-   no global errors and recorded property outcomes, not merely a green Actions
-   job. Findings are **conditional MODEL refutations, never confirmed source
-   bugs**; failure to refute is not evidence of correctness.
-   For organization billing, also confirm usage attribution in the organization's
-   billing dashboard; configuration checks do not prove policy or model access.
+NFV is a prototype. Findings are **conditional MODEL refutations, never confirmed
+source bugs**; failure to refute is not evidence of correctness. Never check out
+or execute inspected PR code, edit generated reports or expose secrets through
+`pull_request_target`.
 
-NFV is a prototype implementation. Never check out or execute inspected PR code,
-edit generated reports or expose secrets through `pull_request_target`.
-For optional manual installation and upgrades, see the
-[workflow reference](README.md#configure-github-agentic-workflows).
-Existing installations do not switch billing automatically. Do not rerun the
-first-installation script against them: follow the
-[upgrade procedure](README.md#upgrade-an-existing-installation), preserve the
-approved mode unless a change is authorized, and reapply its permissions after
-package replacement and before compilation.
+Already installed? Use the [upgrade procedure](README.md#upgrade-an-existing-installation),
+not the first-installation script. Existing installations do not switch billing
+automatically. See the [configuration reference](README.md#configure-github-agentic-workflows)
+for permissions, optional settings and installer options.
