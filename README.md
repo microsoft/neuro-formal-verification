@@ -19,7 +19,7 @@ To try the reviewer in another repository, follow the
 AW template, selecting inference billing and setting its required secrets, with
 an optional fork first. The helper skill is optional.
 
-See the draft [code and dataset transparency note](TRANSPARENCY.md) for intended
+See the [code and dataset transparency note](TRANSPARENCY.md) for intended
 uses, dataset provenance, evaluation, and limitations.
 
 ## Folder structure

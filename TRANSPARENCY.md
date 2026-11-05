@@ -3,7 +3,7 @@ Licensed under the MIT License. -->
 
 # Neuro-Formal Verification (NFV) and nl2post-safe: Code and Dataset Transparency Note
 
-**Draft for review - 4 November 2026.**
+**4 November 2026.**
 
 ## Overview
 
