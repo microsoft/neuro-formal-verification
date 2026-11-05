@@ -5,6 +5,23 @@ description: Prototype NFV PR reviewer — sandboxed foreground Dafny analysis, 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "**.[cC]"
+      - "**.[hH]"
+      - "**.[cC][cC]"
+      - "**.[cC][pP][pP]"
+      - "**.[cC][xX][xX]"
+      - "**.[hH][pP][pP]"
+      - "**.[jJ][aA][vV][aA]"
+      - "**.[cC][sS]"
+      - "**.[gG][oO]"
+      - "**.[jJ][sS]"
+      - "**.[jJ][sS][xX]"
+      - "**.[mM][jJ][sS]"
+      - "**.[tT][sS]"
+      - "**.[tT][sS][xX]"
+      - "**.[pP][yY]"
+      - "**.[rR][sS]"
 if: github.event.pull_request.draft == false
 permissions:
   contents: read
@@ -44,6 +61,8 @@ network:
   allowed: [defaults, arxiv.org]
 tools: {}
 safe-outputs:
+  # Publication must not inherit a shared GH_AW_GITHUB_TOKEN override.
+  github-token: ${{ secrets.GITHUB_TOKEN }}
   add-comment:
     max: 1
     hide-older-comments: true
@@ -159,6 +178,11 @@ through `safeoutputs add_comment`, once, whether or not findings were accepted.
 Never edit, summarize, add to or regenerate the report. Incomplete extraction,
 audit errors and failed safe-output calls fail the process; never fabricate a
 report or publish incremental evidence. Evidence is retained even on failure.
+Completed analyses submit all four property outcomes, including resource
+exhaustion and property type-check/audit failures. These are report data, not
+infrastructure failures. The driver records attempt completion or infrastructure
+failure separately in `review-status.json`; it never fabricates a completed
+review after a failed pipeline stage.
 
 Findings are conditional MODEL refutations, never source-confirmed bugs.
 Verification applies only to the translated model under its stated assumptions.

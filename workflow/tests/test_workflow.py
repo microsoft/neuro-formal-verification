@@ -3,6 +3,7 @@
 
 import base64
 import copy
+import fnmatch
 import hashlib
 import json
 import os
@@ -819,6 +820,40 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("roles: all", source)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
+    def test_path_filters_skip_the_documentation_and_submodule_failure_cases(self):
+        from nfv_workflow.repository_context import SUFFIXES
+        source, lock = self.source(), self.lock()
+        patterns = re.findall(r'^\s+- "(\*\*\.[^"]+)"$', source, re.MULTILINE)
+        expected = {"**." + "".join(f"[{char}{char.upper()}]" for char in suffix[1:])
+                    for suffix in SUFFIXES}
+        self.assertEqual(set(patterns), expected)
+        for pattern in patterns:
+            self.assertIn('      - "' + pattern + '"', lock)
+        for paths in (["doc/openvmm-upstream-roadmap.md", "openvmm"],
+                      [".github/skills/nvx-openvmm-rebase/SKILL.md",
+                       ".github/copilot-instructions.md", ".gitmodules"]):
+            self.assertFalse(any(fnmatch.fnmatchcase(path, pattern)
+                                 for path in paths for pattern in patterns))
+        for path in ("main.py", "src/lib.rs", "include/header.hpp", "web/view.tsx",
+                     "src/MAIN.C", "src/mixed.CpP", "pkg/HELPER.PY"):
+            self.assertTrue(any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns), path)
+
+    def test_source_context_binds_files_only_hints_and_guards_artifact_handoff(self):
+        source = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
+        self.assertIn("index = context_input(bundle)", source)
+        self.assertIn("--manifest nfv-context.json --hints-only", source)
+        self.assertIn('{"files": [{"path":', source)
+        self.assertNotIn('"copy":', source)
+        handoff = source.split("    handoff-context:", 1)[1].split("\nsteps:", 1)[0]
+        self.assertEqual(handoff.count("if: ${{ needs.agent.result == 'success' }}"), 2)
+        compiled_handoff = lock.split("\n  handoff_context:", 1)[1].split("\n  pre_activation:", 1)[0]
+        self.assertEqual(compiled_handoff.count("if: ${{ needs.agent.result == 'success' }}"), 2)
+        post = source.split("post-steps:", 1)[1].split("\n---\n", 1)[0]
+        self.assertIn("name: nfv-source-context-validated\n", post)
+        self.assertNotIn("download-artifact", post)
+        self.assertLess(post.index("nfv-workflow context-manifest"), post.index("upload-artifact"))
+
     def test_billing_defaults_preserve_pat_auth_and_allow_an_org_billed_caller(self):
         source, lock = self.source(), self.lock()
         worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
@@ -872,6 +907,21 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn(r'\"maxCacheMisses\":5,', reviewer)
         self.assertIn(r'\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}', reviewer)
 
+    def test_publication_uses_job_scoped_token_without_shared_override(self):
+        for name in ("nfv-pr-review", "nfv-source-context"):
+            with self.subTest(workflow=name):
+                source = (self.template / f"{name}.md").read_text(encoding="utf-8")
+                lock = (self.template / f"{name}.lock.yml").read_text(encoding="utf-8")
+                self.assertIn("  github-token: ${{ secrets.GITHUB_TOKEN }}\n", source)
+                outputs = lock.split("\n  safe_outputs:", 1)[1]
+                process = outputs.split("      - name: Process Safe Outputs\n", 1)[1].split("\n      - ", 1)[0]
+                self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", process)
+                self.assertNotIn("GH_AW_GITHUB_TOKEN", process)
+                self.assertNotIn("continue-on-error:", process)
+                if name == "nfv-pr-review":
+                    self.assertIn("      issues: write\n", outputs)
+                    self.assertIn("      pull-requests: write\n", outputs)
+
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
         source, lock = self.source(), self.lock()
         self.assertIn('bundle="$RUNNER_TEMP/gh-aw/nfv/bundle.json"', source)
@@ -903,6 +953,13 @@ class TemplateTests(unittest.TestCase):
         prompt = source.split("\n---\n", 1)[1]
         self.assertIn("never fabricate a", prompt)
         self.assertIn("report or publish incremental evidence", prompt)
+
+    def test_attempt_status_is_separate_from_completed_property_outcomes(self):
+        prompt = self.source().split("\n---\n", 1)[1]
+        self.assertIn("Completed analyses submit all four property outcomes", prompt)
+        self.assertIn("property type-check/audit failures", prompt)
+        self.assertIn("review-status.json", prompt)
+        self.assertIn("never fabricates a completed", prompt)
 
     def test_extraction_targets_implementation_not_invented_solver_responses(self):
         intent = (Path(__file__).parents[1] / "src/nfv_workflow/intent_prompt.txt").read_text(encoding="utf-8")

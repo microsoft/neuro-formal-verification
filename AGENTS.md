@@ -191,6 +191,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `copilot-requests` permissions to `write` instead of `none`, without PAT
   fallback. Preserve the selected mode through upgrades. Both modes need
   `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
+- NFV is advisory, never a required merge check or input to a required CI
+  aggregator. Keep operational failures visible. Both workflows explicitly use
+  `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}` for job-scoped publication,
+  never a shared `GH_AW_GITHUB_TOKEN` override or an inference/release token.
 - Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
   `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string
   `includes` entry starting with `.github/` resolves from the repository root.

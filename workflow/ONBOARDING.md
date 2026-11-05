@@ -56,6 +56,8 @@ Licensed under the MIT License. -->
 
 6. **Merge, then enable:** Approve the installation merge **with NFV disabled**;
    never run or require NFV on its own installation PR. Leave unrelated CI enabled.
+   Keep NFV advisory after installation too: exclude its jobs from required merge
+   checks and required CI aggregators; leave operational failures visible.
    After merge, have the agent verify both package pins against `NFV_RELEASE_SHA`,
    the approved model, consistent billing permissions and required secret names.
    If anything fails, leave NFV disabled. Otherwise enable and verify `active`:
@@ -66,10 +68,15 @@ Licensed under the MIT License. -->
    ```
 
 7. **Approve a separate, billable pilot:** Use a small code-change PR based on
-   the installed branch. Verify the generated comment and `nfv-evidence` report:
+   the installed branch. Documentation, configuration and submodule-only PRs
+   without a supported source-suffix change do not start NFV.
+   Verify the generated comment and `nfv-evidence` report:
    `completed: true`, no global errors and recorded property outcomes, not just
    a green job. For organization mode, confirm attribution in its billing dashboard;
    secret names and configuration alone do not prove token, policy or model access.
+   The separate `review-status.json` records driver completion/submission or an
+   infrastructure failure; it is not a property verdict. Infrastructure failures
+   can still fail Actions checks. Keep NFV advisory, not required for merging.
 
 NFV is a prototype. Findings are **conditional MODEL refutations, never confirmed
 source bugs**; failure to refute is not evidence of correctness. Never check out

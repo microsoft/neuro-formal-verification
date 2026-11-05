@@ -34,7 +34,18 @@ and return types while preserving the original source line numbers.
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
 * The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
-  `ready_for_review`). Drafts are skipped.
+  `ready_for_review`) whose changed paths include a supported source suffix.
+  Drafts and documentation/configuration/submodule-only PRs are skipped before
+  either inference session starts. Keep NFV advisory, not a required merge check.
+
+The source-context agent selects only paths from a captured, supported-source
+inventory and emits a files/symbols list, not snapshot metadata. Trusted code
+binds it to the captured PR identity, validates every path and identifier, then
+uploads the manifest. The handoff transfers it only after successful validation,
+without trying to download an absent artifact after a preparation failure.
+The analysis independently validates the identity and recaptures helper bodies
+by immutable blob SHA. Invalid hints remain explicit
+preparation failures; they never become an empty successful formal review.
 
 ## What a finding means
 
@@ -180,6 +191,29 @@ the previous NFV comment. Verifier models, repair logs and hashes are in the run
 incomplete; it cannot be published as a finished review.
 Provider/SDK failures and verifier infrastructure failures stop the audit,
 retain incomplete evidence, and fail the job without submitting a review.
+Completed analyses submit the generated comment for all four property outcomes,
+including resource exhaustion and property type-check/audit failures, even when
+there are no refutations. These outcomes do not fail the job.
+
+The sandbox driver records its attempt separately in `review-status.json` in
+`nfv-evidence`, and emits the same status in its logs. A completed attempt has
+`status: completed`, `completed: true`, outcome counts, and
+`publication: submitted`: the comment intent was queued, not confirmation that
+the later safe-output job posted it. A driver-observed setup, input, extraction,
+audit or submission failure instead records `status: infrastructure_failure`,
+`completed: false`, the stage and diagnostic, and the captured identity when
+available. Submission errors leave publication `unconfirmed`; they are not retried.
+`analysis_completed` distinguishes an accepted completed analysis from a later
+submission failure without changing the saved proof report.
+Infrastructure failure is an attempt status, never a fifth property outcome or
+a synthetic successful review. When evidence cannot be written, the diagnostic
+remains in logs. Failures before the Python driver starts and later safe-output
+failures remain in their Actions job logs.
+
+The PR triggers, permissions and failure exit codes are unchanged. NFV remains
+advisory and must not be required for merging, but infrastructure failures can
+still produce a red Actions check; there is no no-red-cross guarantee.
+
 An individual model-request timeout remains a property resource-exhaustion
 outcome. The sandbox allows at most 500 inference requests and 500 consecutive
 cache misses: independent sessions are not required to hit a prompt cache.
@@ -420,6 +454,26 @@ analysis jobs issue/PR write permissions or strip generated permissions to make
 CI pass: doing so weakens isolation or can remove reporting. Review the actual
 locks for the pinned compiler; do not hand-edit generated files. If the required
 exceptions cannot be approved, leave installation blocked.
+
+### Advisory checks and publication credentials
+
+NFV is advisory: do not make its workflows or jobs required merge checks or
+include their results in a required CI aggregator. Keep unrelated required CI,
+reviews and merge-queue policies unchanged. Operational failures must remain
+visible; do not force success or use `continue-on-error` to disguise them.
+
+Both workflows explicitly select `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}`.
+Comment publication uses the short-lived Actions token for the current job,
+with the generated job-level issue/PR permissions above, not an inference PAT
+or the private-release read token. This also prevents a shared
+`GH_AW_GITHUB_TOKEN` secret from overriding publication credentials.
+
+For `safe_outputs` HTTP 401 **Bad credentials**, inspect the compiled
+`Process Safe Outputs` step's token expression, without exposing token values.
+Older locks prefer `GH_AW_GITHUB_TOKEN` when present; an invalid override can
+break publication even when inference succeeds. Recompile both installed
+sources with the explicit job-token setting. A green agent job alone does not
+establish publication or a completed audit.
 
 ### Inference billing
 

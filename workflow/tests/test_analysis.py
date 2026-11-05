@@ -19,7 +19,7 @@ from nfv_workflow.github import Abstain
 from nfv_workflow.outcomes import EXHAUSTED, INVALID, OUTCOMES, REFUTED, VERIFIED
 from nfv_workflow.outcomes import InferenceFailure, ResourcesExhausted
 from nfv_workflow.publish import dafny_block, render, text
-from nfv_workflow.repository_context import enrich, sanitize_manifest, validate_manifest
+from nfv_workflow.repository_context import context_input, enrich, sanitize_manifest, validate_manifest
 from nfv_workflow.general_gates import BACKEND, SRC, clauses, validate_translation, with_postconditions
 from nfv_workflow.source_context import function_catalog, quoted_context, scoped_context
 from test_general import Chat, FailingVerifier, fixture
@@ -731,6 +731,46 @@ class RepositoryContextTests(unittest.TestCase):
         candidate.write_text(" " * 25001, encoding="utf-8")
         with self.assertRaises(Abstain):
             sanitize_manifest(self.bundle, candidate, output)
+
+    def test_agent_hints_are_bound_to_the_complete_trusted_identity(self):
+        from nfv_workflow.cli import main
+        bundle_path = self.directory / "bundle.json"
+        bundle_path.write_text(json.dumps(self.bundle), encoding="utf-8")
+        candidate, output = self.directory / "candidate.json", self.directory / "context.json"
+        candidate.write_text(json.dumps({"files": self.manifest["files"]}), encoding="utf-8")
+        self.assertEqual(main(["context-manifest", "--bundle", str(bundle_path),
+                               "--manifest", str(candidate), "--hints-only", "--out", str(output)]), 0)
+        result = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(result["identity"], self.bundle["identity"])
+        self.assertEqual(validate_manifest(result, self.bundle), result)
+        other = {**self.bundle, "identity": {**self.bundle["identity"], "head_sha": "f" * 40}}
+        with self.assertRaisesRegex(Abstain, "different PR snapshot"):
+            validate_manifest(result, other)
+
+    def test_agent_cannot_supply_identity_or_unsupported_source_hints(self):
+        candidate, output = self.directory / "candidate.json", self.directory / "context.json"
+        self.bundle["source_inventory"].extend(["SKILL.md", ".gitmodules"])
+        for value in (self.manifest,
+                      {"identity": {"copy": self.bundle["identity"]}, "files": []},
+                      {"files": [{"path": "SKILL.md", "symbols": ["Validate"]}]},
+                      {"files": [{"path": ".gitmodules", "symbols": ["openvmm"]}]},
+                      {"files": self.manifest["files"] * 2}):
+            with self.subTest(value=value):
+                candidate.write_text(json.dumps(value), encoding="utf-8")
+                with self.assertRaises(Abstain):
+                    sanitize_manifest(self.bundle, candidate, output, hints_only=True)
+                self.assertFalse(output.exists())
+
+    def test_context_input_exposes_only_supported_snapshot_source_paths(self):
+        self.bundle["source_inventory"].extend(["SKILL.md", ".gitmodules", "helper.CPP"])
+        result = context_input(self.bundle)
+        self.assertEqual(result["identity"], self.bundle["identity"])
+        self.assertEqual(result["changed"], self.bundle["changed"])
+        self.assertIn(self.path, result["source_inventory"])
+        self.assertIn("helper.CPP", result["source_inventory"])
+        self.assertNotIn("SKILL.md", result["source_inventory"])
+        self.assertNotIn(".gitmodules", result["source_inventory"])
+        self.assertNotIn("sources", result)
 
     def test_source_byte_budget_is_explicit(self):
         self.text = "x" * 2_000_001

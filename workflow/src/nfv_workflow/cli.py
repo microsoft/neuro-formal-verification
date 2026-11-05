@@ -235,6 +235,8 @@ def main(argv=None):
     p.add_argument("--bundle", required=True)
     p.add_argument("--manifest", required=True)
     p.add_argument("--out", required=True)
+    p.add_argument("--hints-only", action="store_true",
+                   help="Bind an agent-authored files list to the trusted bundle identity")
     p = commands.add_parser("enrich", help="Capture additional context by immutable blob SHA")
     p.add_argument("--bundle", required=True)
     p.add_argument("--manifest", required=True)
@@ -306,7 +308,7 @@ def main(argv=None):
                 write_sources(bundle, args.sources_dir)
         elif args.command == "context-manifest":
             from .repository_context import sanitize_manifest
-            sanitize_manifest(load(args.bundle), args.manifest, args.out)
+            sanitize_manifest(load(args.bundle), args.manifest, args.out, hints_only=args.hints_only)
         elif args.command == "enrich":
             from .repository_context import enrich
             bundle = enrich(load(args.bundle), load(args.manifest), GitHub())

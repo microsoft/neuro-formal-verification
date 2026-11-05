@@ -36,7 +36,7 @@ class Backend:
     spec_block: str
     pre_block: str
     lib_block: str
-    # When true, Stage 2 may add whitelisted proof-side annotations to `src:`
+    # When true, Stage 2 may add permitted proof-side annotations to `src:`
     # lines (the freeze protects computational content rather than bytes).
     # Default False so every existing arm keeps the strict byte freeze.
     relax_src_freeze: bool = False
