@@ -514,10 +514,19 @@ both workflows and open an upgrade PR. Reapply the approved billing permissions
 after package replacement, and retain intentional local customizations.
 Recheck [repository permission policies](#repository-permission-policies) against
 the regenerated jobs.
-After the approved merge, update `NFV_RELEASE_SHA` to that same SHA, verify both
-merged package pins, the model, billing permissions and required secret names,
-then enable NFV and read back `active`. Repeat a separately approved pilot; leave audits paused on
-failure. `gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.
+After the approved merge, update `NFV_RELEASE_SHA` and read it back. Replace
+`OWNER/repo` with the target repository and `<SHA>` with the same full trusted
+40-character SHA used by both merged workflow package pins:
+
+```text
+gh variable set NFV_RELEASE_SHA --repo OWNER/repo --body <SHA>
+gh variable get NFV_RELEASE_SHA --repo OWNER/repo
+```
+
+Verify the returned SHA matches both merged package pins, and verify the model,
+billing permissions and required secret names before enabling NFV and reading
+back `active`. Repeat a separately approved pilot; leave audits paused on failure.
+`gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.
 
 ### Runtime and evidence
 
