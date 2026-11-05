@@ -8,7 +8,7 @@ target. `isinstance(x, int)` against a Python value is a real test; `IsInt(x)`
 against a Dafny `x: int` is a tautology. The proof is then valid about a program
 that can no longer express the bug.
 
-Detection is mechanical and uses the verifier itself, not a syntactic blacklist:
+Detection is mechanical and uses the verifier itself, not a syntactic denylist:
 
     for each top-level conjunct C of the entry's `ensures`,
     ask whether C is provable with NO program at all --
