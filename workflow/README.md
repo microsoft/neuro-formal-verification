@@ -6,9 +6,10 @@ Licensed under the MIT License. -->
 A prototype GitHub Agentic Workflow based on
 [*Neuro-Formal Verification: Agentic Language-Agnostic Formal Program Reasoning*](https://arxiv.org/abs/2608.21516).
 
-For each eligible PR, NFV selects up to ten intended properties, translates
-relevant source into Dafny, and attempts verification and refutation. It posts
-one evidence-linked comment without executing PR code.
+For each eligible PR, NFV reads the change and its stated intent, selects
+behavioral properties, and translates relevant source into Dafny. It attempts
+verification and refutation, then posts one evidence-linked PR comment.
+PR code is inspected as data, never executed.
 
 Results concern translated models under stated assumptions. Findings are
 **conditional MODEL refutations, not confirmed source bugs**; failure to refute
