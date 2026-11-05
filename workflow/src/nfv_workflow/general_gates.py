@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Language-independent provenance and frozen-model gates for Dafny refutation."""
 
 from __future__ import annotations

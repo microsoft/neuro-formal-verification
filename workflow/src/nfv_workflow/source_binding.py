@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Fail-closed correspondence for a small scalar C/C++ source subset.
 
 This is a parser/interpreter, never a compiler or execution of repository code.

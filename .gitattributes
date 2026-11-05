@@ -1,4 +1,13 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 * text=auto
+*.toml text eol=lf
+*.txt text eol=lf
+*.cjs text eol=lf
+*.license text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
 *.py text eol=lf
 *.sh text eol=lf
 *.yml text eol=lf

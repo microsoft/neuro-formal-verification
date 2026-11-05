@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """LLM-as-judge: the baseline that skips the formalism entirely.
 
 The pipeline's claim is that a verdict is worth something because a mature

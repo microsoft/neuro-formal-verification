@@ -1,9 +1,12 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 # NFV PR audit onboarding
 
 1. **Authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI; authenticate
    both CLIs. For Microsoft-provided Copilot access, sign in with the account
-   assigned that seat. CLI policy and model access must permit `gpt-5.6-sol`
-   (default), or another model you explicitly approve.
+   assigned that seat. Select an approved model ID permitted by that account's
+   CLI policy and model access.
 
 2. **Confirm access:** While NFV is private, you need read access to
    `microsoft/neuro-formal-verification`.
@@ -29,14 +32,14 @@
    See [GitHub's billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
 
 5. **Install:** Start `copilot` in the target checkout and paste this, replacing
-   `OWNER/repo` and using `Billing: organization` only to opt in:
+   `OWNER/repo` and `MODEL`, and using `Billing: organization` only to opt in:
 
    ```text
    Install NFV following:
    https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/ONBOARDING.md
 
    Target repository: OWNER/repo
-   Model: gpt-5.6-sol
+   Model: MODEL
    Billing: pat
    NFV release: Default
    ```

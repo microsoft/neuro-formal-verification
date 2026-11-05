@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from contextlib import redirect_stderr, redirect_stdout
 import hashlib
 import io

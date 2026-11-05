@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Agent-free initial NFV installation using Python's standard library and gh."""
 
 import argparse

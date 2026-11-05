@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Pin a KNOWN killing input into a C harness, so CBMC is handed the bug.
 
 This is the bounded-model-checking counterpart of `oracle_witness.py`, and it

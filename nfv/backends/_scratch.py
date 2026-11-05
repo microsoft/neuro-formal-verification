@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Scratch directories for verifier invocations, cleaned up after use.
 
 Every backend writes the program to a temp directory before shelling out to the

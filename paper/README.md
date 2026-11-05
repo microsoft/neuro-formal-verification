@@ -1,3 +1,6 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 # Run the paper experiments
 
 These are the experiments of [*Neuro-Formal Verification: Agentic Language-Agnostic
@@ -34,8 +37,8 @@ for negative inputs: Python's `-3 % 10` is `7`, not `3`.
 
 ## 1. Setup
 
-Use Python 3.10+, `github-copilot-sdk==1.0.4`, an authenticated Copilot account
-with access to `gpt-5.6-sol`, **Dafny 4.11.0 / Z3 4.12.1**, and CBMC with a C
+Use Python 3.11+, `github-copilot-sdk==1.0.4`, an authenticated Copilot account
+with access to your selected model, **Dafny 4.11.0 / Z3 4.12.1**, and CBMC with a C
 preprocessor. CBMC 6.9.0 is validated; its exact historical version is unknown.
 **Ubuntu 22.04 is supported for new runs.** See [SETUP.md](SETUP.md) for tool
 installation, paths, sign-in and Ubuntu details.
@@ -53,26 +56,27 @@ make model calls.
 ## 2. Run the main experiments
 
 The top-level runner is **`python -m nfv.run`**. These commands run all 206
-entries with the logged main model and budgets: **A5/R10, concurrency 24**.
+entries with the paper budgets: **A5/R10, concurrency 24**.
 Run each separately:
 
-The paper configuration explicitly selects **`--model gpt-5.6-sol`**. To use
-another available Copilot model, replace it with `--model MODEL` and record
-that model in a separate run; changing models affects comparability.
+Replace **`MODEL`** with an approved model ID available through your Copilot
+access. The historical model IDs are recorded in [manifest.json](manifest.json).
+Keep new runs separate; changing models affects comparability, and historical
+model-service snapshots are not guaranteed to remain available.
 
 **Dafny verification**
 ```powershell
-python -m nfv.run --data paper/data/nl2post_safe.json --backend dafny-theory-lemma4 --model gpt-5.6-sol --phase unbounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --out paper/new-results/lemma4_verify.jsonl --no-log
+python -m nfv.run --data paper/data/nl2post_safe.json --backend dafny-theory-lemma4 --model MODEL --phase unbounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --out paper/new-results/lemma4_verify.jsonl --no-log
 ```
 
 **Dafny refutation**
 ```powershell
-python -m nfv.run --data paper/data/nl2post_safe.json --backend dafny-theory-lemma4 --model gpt-5.6-sol --phase refute --attempts 5 --max-proof-rounds 10 --concurrency 24 --out paper/new-results/lemma4_refute.jsonl --no-log
+python -m nfv.run --data paper/data/nl2post_safe.json --backend dafny-theory-lemma4 --model MODEL --phase refute --attempts 5 --max-proof-rounds 10 --concurrency 24 --out paper/new-results/lemma4_refute.jsonl --no-log
 ```
 
 **CBMC bounded refutation**
 ```powershell
-python -m nfv.run --data paper/data/nl2post_safe.json --backend cbmc-theory --model gpt-5.6-sol --phase bounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --llm-timeout 300 --entry-deadline 1800 --out paper/new-results/cbmc_theory.jsonl --no-log
+python -m nfv.run --data paper/data/nl2post_safe.json --backend cbmc-theory --model MODEL --phase bounded --attempts 5 --max-proof-rounds 10 --concurrency 24 --llm-timeout 300 --entry-deadline 1800 --out paper/new-results/cbmc_theory.jsonl --no-log
 ```
 
 Preserved defaults: three syntax-repair rounds, five refutation witness

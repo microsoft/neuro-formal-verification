@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Reference documentation for the Python builtins a program actually calls.
 
 Motivation. F5/F7/F12 traced soundness violations to INVENTED library specs, and

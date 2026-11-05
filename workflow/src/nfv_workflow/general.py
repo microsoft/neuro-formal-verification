@@ -1,15 +1,18 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Verification-first conditional model analysis using the retained NFV backend."""
 
 from __future__ import annotations
 
 import hashlib
-import importlib.resources
 import json
 import re
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from . import read_prompt
 from .check import Dafny, accepted
 from .general_gates import (BACKEND, annotate, clauses, clean_code, final_gate,
                             remove_requirement, validate_translation, with_postconditions, witness_bridge)
@@ -183,7 +186,7 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     started = time.monotonic()
     transcript = []
     counters = {"translation_calls": 0, "syntax_repairs": 0, "proof_repairs": 0}
-    system = importlib.resources.files("nfv_workflow").joinpath("general_prompt.txt").read_text()
+    system = read_prompt("general_prompt.txt")
 
     def budget():
         remaining = limits.entry_seconds - (time.monotonic() - started)

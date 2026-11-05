@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """
 CBMC (C Bounded Model Checker) backend: a BOUNDED, program-level checker.
 

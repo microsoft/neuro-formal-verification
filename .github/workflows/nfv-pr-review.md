@@ -1,4 +1,6 @@
 ---
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 description: Prototype NFV PR reviewer — sandboxed foreground Dafny analysis, posted as a PR comment
 on:
   pull_request:

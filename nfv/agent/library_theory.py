@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Phase 0: synthesise a documented library theory before anything is translated.
 
 The problem this exists to solve. F5/F7/F12 traced soundness violations to

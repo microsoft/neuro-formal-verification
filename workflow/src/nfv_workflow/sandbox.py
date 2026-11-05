@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Deterministic NFV foreground driver for gh-aw's sandboxed SDK engine."""
 
 from __future__ import annotations

@@ -1,3 +1,6 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 # Experiment setup
 
 Return to [the dataset and main-run commands](README.md).
@@ -23,9 +26,9 @@ For noninteractive use, supply a supported fine-grained token with the
 injected from your CI secret store. Do not put token values in scripts or logs.
 See [GitHub's authentication instructions](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/authenticate-copilot-cli).
 
-The paper's main model is selected explicitly with `--model gpt-5.6-sol`.
-Replace this with **`--model MODEL`** to select another model available through
-your Copilot access. Keep its results separate and record the model ID:
+Select an approved model available through your Copilot access with
+**`--model MODEL`**. Historical model IDs are recorded in
+[manifest.json](manifest.json). Keep new results separate and record the model ID:
 substitution is a new experiment, not a reproduction of the original model run.
 
 ## Verifiers and Ubuntu 22.04
@@ -37,7 +40,7 @@ Use **Dafny 4.11.0 with Z3 4.12.1**. For Ubuntu 22.04, use the official
 a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179
 ```
 
-Do not substitute z3-bench's older Dafny 4.9.1 Ubuntu 20.04 package.
+Do not substitute older Dafny releases or packages built for a different host.
 The historical experiments used Windows/MSVC; Ubuntu runs are
 **new observations**, not a relabeling of the historical host. Timing and
 proof-search behavior can differ by host.
@@ -86,7 +89,7 @@ set -o pipefail
 python -m paper.prepare
 mkdir -p paper/new-results
 python -m nfv.run --data paper/data/nl2post_safe.json \
-  --backend dafny-theory-lemma4 --model gpt-5.6-sol \
+  --backend dafny-theory-lemma4 --model MODEL \
   --phase refute --only HumanEval/157 --label incorrect --limit 1 \
   --attempts 1 --max-refutation-attempts 1 --max-syntax-rounds 1 \
   --max-proof-rounds 1 --concurrency 1 --llm-timeout 120 \

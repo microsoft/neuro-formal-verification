@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """
 Repair loop for a bounded model checker: fix the TRANSLATION, never the goal.
 

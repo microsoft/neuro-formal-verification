@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Render a KNOWN killing input as a target-language precondition.
 
 This exists to separate two abilities that the ordinary refutation arm measures

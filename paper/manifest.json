@@ -2,7 +2,7 @@
   "paper": {
     "url": "https://arxiv.org/abs/2608.21516",
     "verified_html": "https://arxiv.org/html/2608.21516",
-    "note": "Manuscript sources and table generators remain in the private research repository; reported claims below are can be recounted from paper/results with python -m nfv.metrics."
+    "note": "Manuscript sources and table generators are not included. Reported claims can be recounted from paper/results with python -m nfv.metrics."
   },
   "source": {
     "snapshot_id": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1"

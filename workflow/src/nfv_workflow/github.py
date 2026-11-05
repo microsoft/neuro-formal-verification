@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """GitHub data is read as text, never checked out or executed."""
 
 from __future__ import annotations

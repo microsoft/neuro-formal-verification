@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Dafny and CBMC registry, extracted from the pinned paper source."""
 from __future__ import annotations
 

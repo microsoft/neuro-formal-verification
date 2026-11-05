@@ -1,3 +1,6 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 # Agent guide
 
 Guidance for coding agents and contributors working in this repository. Read

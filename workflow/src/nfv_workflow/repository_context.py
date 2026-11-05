@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Validate repository-context hints and capture their immutable source blobs."""
 
 import hashlib

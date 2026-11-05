@@ -1,4 +1,6 @@
 ---
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 description: Read-only repository context session before NFV property analysis
 on:
   workflow_call:

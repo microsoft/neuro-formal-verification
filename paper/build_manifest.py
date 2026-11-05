@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Record extraction provenance; requires the original pinned checkout."""
 from __future__ import annotations
 
@@ -76,7 +79,7 @@ def build(source: Path) -> dict:
     return {
         "paper": {"url": "https://arxiv.org/abs/2608.21516",
                   "verified_html": "https://arxiv.org/html/2608.21516",
-                  "note": "Manuscript sources and table generators remain in the private research repository; reported claims below can be recounted from paper/results with python -m nfv.metrics."},
+                  "note": "Manuscript sources and table generators are not included. Reported claims can be recounted from paper/results with python -m nfv.metrics."},
         "source": {"snapshot_id": COMMIT},
         "result_integrity": recovery,
         "metadata_redactions": json.loads(
