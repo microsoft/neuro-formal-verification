@@ -3,6 +3,9 @@ Licensed under the MIT License. -->
 
 # NFV PR audit onboarding
 
+Already installed? Use the [upgrade procedure](#upgrade-an-existing-installation),
+not the first-installation script.
+
 1. **Authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI; authenticate
    both CLIs. For Microsoft-provided Copilot access, sign in with the account
    assigned that seat. Select an approved model ID permitted by that account's
@@ -83,7 +86,32 @@ source bugs**; failure to refute is not evidence of correctness. Never check out
 or execute inspected PR code, edit generated reports or expose secrets through
 `pull_request_target`.
 
-Already installed? Use the [upgrade procedure](REFERENCE.md#upgrade-an-existing-installation),
-not the first-installation script. Existing installations do not switch billing
-automatically. See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
+See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
 for permissions, optional settings and installer options.
+
+## Upgrade an existing installation
+
+Ask the agent to upgrade; do not rerun the first-installation script against an
+existing installation. Keep the approved model, secrets and budgets. Disable
+new audits and wait for all active/queued runs to finish before changing shared
+configuration. Preserve the selected billing mode unless a change is approved.
+
+Resolve the trusted NFV release once, replace the package with
+`gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
+both workflows and open an upgrade PR. Reapply the approved billing permissions
+after package replacement, and retain intentional local customizations.
+Recheck [repository permission policies](REFERENCE.md#repository-permission-policies)
+against the regenerated jobs.
+After the approved merge, update `NFV_RELEASE_SHA` and read it back. Replace
+`OWNER/repo` with the target repository and `<SHA>` with the same full trusted
+40-character SHA used by both merged workflow package pins:
+
+```text
+gh variable set NFV_RELEASE_SHA --repo OWNER/repo --body <SHA>
+gh variable get NFV_RELEASE_SHA --repo OWNER/repo
+```
+
+Verify the returned SHA matches both merged package pins, and verify the model,
+billing permissions and required secret names before enabling NFV and reading
+back `active`. Repeat a separately approved pilot; leave audits paused on failure.
+`gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.

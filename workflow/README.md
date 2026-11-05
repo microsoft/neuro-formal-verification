@@ -114,5 +114,5 @@ for the retained models.
 <a id="upgrade-an-existing-installation"></a>
 
 **More:** [Configuration](REFERENCE.md#configure-github-agentic-workflows),
-[upgrades](REFERENCE.md#upgrade-an-existing-installation), and
+[upgrades](ONBOARDING.md#upgrade-an-existing-installation), and
 [technical reference](REFERENCE.md).
