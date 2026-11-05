@@ -3,7 +3,6 @@
 
 import base64
 import copy
-import fnmatch
 import hashlib
 import json
 import os
@@ -571,6 +570,18 @@ class PublicationTests(ScratchTest):
             render(report, data, self.url)
 
 class CollectionTests(unittest.TestCase):
+    def test_changed_merge_commit_rejects_an_otherwise_unchanged_closed_pr(self):
+        api = self.api()
+        original = api.request
+        def request(path):
+            result = original(path)
+            if "/pulls/" in path:
+                result = {**result, "merge_commit_sha": "d" * 40}
+            return result
+        api.request = request
+        with self.assertRaises(Abstain):
+            collect(event(), api)
+
     def test_collects_python_module_context_without_importing_it(self):
         api = self.api()
         original = api.request
@@ -792,14 +803,14 @@ class TemplateTests(unittest.TestCase):
     package = Path(__file__).parents[1]
 
     def source(self):
-        return (self.template / "nfv-pr-review.md").read_text(encoding="utf-8")
+        return (self.template / "nfv-post-merge-review.md").read_text(encoding="utf-8")
 
     def lock(self):
-        return (self.template / "nfv-pr-review.lock.yml").read_text(encoding="utf-8")
+        return (self.template / "nfv-post-merge-review.lock.yml").read_text(encoding="utf-8")
 
     def test_prototype_maturity_preserves_nfv_identifiers(self):
         self.assertIn("a prototype implementation", self.source())
-        self.assertIn('name: "NFV PR reviewer"\n', self.lock())
+        self.assertIn('name: "NFV post-merge reviewer"\n', self.lock())
         source = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
         self.assertIn("prototype", source)
         self.assertNotIn("Prototyp:", source)
@@ -824,36 +835,40 @@ class TemplateTests(unittest.TestCase):
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
-        self.assertIn("  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertIn("  - .github/workflows/nfv-post-merge-review.md\n", manifest)
+        self.assertNotIn("  - .github/workflows/nfv-pr-review.md\n", manifest)
         self.assertIn("  - .github/workflows/nfv-source-context.md\n", manifest)
         self.assertTrue((self.package / "README.md").exists())
+        self.assertFalse((self.package / "pr" / "aw.yml").exists())
+        self.assertFalse((self.template / "nfv-pr-review.md").exists())
+        self.assertFalse((self.template / "nfv-pr-review.lock.yml").exists())
 
-    def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
+    def test_unmerged_pr_events_only_register_the_workflow_without_analysis(self):
         source, lock = self.source(), self.lock()
-        self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", source)
-        self.assertIn("if: github.event.pull_request.draft == false", source)
+        self.assertIn("types: [opened, reopened]", source)
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", source)
+        self.assertNotIn("synchronize", source)
         self.assertNotIn("slash_command", source)
         self.assertNotIn("pull_request_target", lock)
         self.assertNotIn("roles: all", source)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
     def test_path_filters_skip_the_documentation_and_submodule_failure_cases(self):
-        from nfv_workflow.repository_context import SUFFIXES
-        source, lock = self.source(), self.lock()
-        patterns = re.findall(r'^\s+- "(\*\*\.[^"]+)"$', source, re.MULTILINE)
-        expected = {"**." + "".join(f"[{char}{char.upper()}]" for char in suffix[1:])
-                    for suffix in SUFFIXES}
-        self.assertEqual(set(patterns), expected)
-        for pattern in patterns:
-            self.assertIn('      - "' + pattern + '"', lock)
+        from nfv_workflow.post_merge import has_source_changes
+        class API:
+            def pages(self, _):
+                return [{"filename": path} for path in paths]
         for paths in (["doc/openvmm-upstream-roadmap.md", "openvmm"],
                       [".github/skills/nvx-openvmm-rebase/SKILL.md",
                        ".github/copilot-instructions.md", ".gitmodules"]):
-            self.assertFalse(any(fnmatch.fnmatchcase(path, pattern)
-                                 for path in paths for pattern in patterns))
+            captured = event()
+            captured["pull_request"]["changed_files"] = len(paths)
+            self.assertFalse(has_source_changes(API(), captured))
         for path in ("main.py", "src/lib.rs", "include/header.hpp", "web/view.tsx",
                      "src/MAIN.C", "src/mixed.CpP", "pkg/HELPER.PY"):
-            self.assertTrue(any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns), path)
+            paths = [path]
+            captured["pull_request"]["changed_files"] = 1
+            self.assertTrue(has_source_changes(API(), captured), path)
 
     def test_source_context_binds_files_only_hints_and_guards_artifact_handoff(self):
         source = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
@@ -896,7 +911,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("sandbox_driver.cjs", lock)
         self.assertNotIn("nfv-workflow extract", setup)
         self.assertNotIn("nfv-workflow audit", setup)
-        self.assertIn("supervised foreground process", prompt)
+        self.assertIn("complete foreground Dafny audit", prompt)
         self.assertIn("There is no outer model session", prompt)
         self.assertIn('"./nfv-plugin[inference]"', source)
         self.assertNotIn("COPILOT_GITHUB_TOKEN:", frontmatter)
@@ -907,9 +922,10 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("COPILOT_CLI_PATH=", source)
         self.assertIn('echo "NFV_PYTHON=$(command -v python)"', source)
 
-    def test_report_is_posted_as_a_single_pr_comment(self):
+    def test_report_is_published_only_as_a_single_refutation_issue(self):
         source = self.source()
-        self.assertIn("add-comment:\n    max: 1\n    hide-older-comments: true\n", source)
+        self.assertIn("create-issue:\n    max: 1\n", source)
+        self.assertNotIn("add-comment:", source)
         self.assertNotIn("pull-request-review", source)
         self.assertNotIn("APPROVE", source)
         self.assertIn("allowed: [defaults, arxiv.org]", source)
@@ -925,7 +941,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn(r'\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}', reviewer)
 
     def test_publication_uses_job_scoped_token_without_shared_override(self):
-        for name in ("nfv-pr-review", "nfv-source-context"):
+        for name in ("nfv-source-context", "nfv-post-merge-review"):
             with self.subTest(workflow=name):
                 source = (self.template / f"{name}.md").read_text(encoding="utf-8")
                 lock = (self.template / f"{name}.lock.yml").read_text(encoding="utf-8")
@@ -935,9 +951,9 @@ class TemplateTests(unittest.TestCase):
                 self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", process)
                 self.assertNotIn("GH_AW_GITHUB_TOKEN", process)
                 self.assertNotIn("continue-on-error:", process)
-                if name == "nfv-pr-review":
+                if name == "nfv-post-merge-review":
                     self.assertIn("      issues: write\n", outputs)
-                    self.assertIn("      pull-requests: write\n", outputs)
+                    self.assertNotIn("      pull-requests: write\n", outputs)
 
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
         source, lock = self.source(), self.lock()
@@ -955,9 +971,9 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("nfv-comment.md", source)
         self.assertIn('echo "NFV_OUT=/tmp/gh-aw/sandbox/agent/logs/nfv"', source)
         prompt = source.split("\n---\n", 1)[1]
-        self.assertIn("Only the deterministic driver submits", prompt)
-        self.assertIn("Never edit, summarize, add to", prompt)
-        self.assertIn("Incomplete extraction", prompt)
+        self.assertIn("Only the deterministic driver publishes", prompt)
+        self.assertIn("Never manually edit generated reports", prompt)
+        self.assertIn("complete, error-free audit", prompt)
 
     def test_post_steps_only_retain_evidence_and_never_run_analysis(self):
         source = self.source()
@@ -968,15 +984,15 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("name: nfv-evidence", source)
         self.assertIn("path: /tmp/gh-aw/sandbox/agent/logs/nfv", block)
         prompt = source.split("\n---\n", 1)[1]
-        self.assertIn("never fabricate a", prompt)
-        self.assertIn("report or publish incremental evidence", prompt)
+        self.assertIn("All four property outcomes and interrupted evidence", prompt)
+        self.assertIn("infrastructure failures never become findings", prompt)
 
     def test_attempt_status_is_separate_from_completed_property_outcomes(self):
         prompt = self.source().split("\n---\n", 1)[1]
-        self.assertIn("Completed analyses submit all four property outcomes", prompt)
-        self.assertIn("property type-check/audit failures", prompt)
+        self.assertIn("All four property outcomes", prompt)
+        self.assertIn("No refutations means a `safeoutputs noop`", prompt)
         self.assertIn("review-status.json", prompt)
-        self.assertIn("never fabricates a completed", prompt)
+        self.assertIn("Submission is not confirmation", prompt)
 
     def test_extraction_targets_implementation_not_invented_solver_responses(self):
         intent = (Path(__file__).parents[1] / "src/nfv_workflow/intent_prompt.txt").read_text(encoding="utf-8")
@@ -1009,7 +1025,10 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("--sources-dir nfv-src", source)
         self.assertIn("workflow_call:", worker)
         self.assertIn("fetch-depth: 1", worker)
-        self.assertIn("ref: ${{ github.event.pull_request.base.sha }}", worker)
+        self.assertIn("ref: ${{ env.NFV_BASE_SHA }}", worker)
+        self.assertIn("repository: ${{ env.NFV_BASE_REPOSITORY }}", worker)
+        self.assertLess(worker.index("Normalize and validate reviewer event"),
+                        worker.index("ref: ${{ env.NFV_BASE_SHA }}"))
         self.assertNotIn("head.sha }}", worker)
         self.assertNotIn("  bash:", worker)
         self.assertIn("report-failure-as-issue: false", worker)
@@ -1021,6 +1040,32 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("lfs: false", worker)
         self.assertTrue((self.template / "nfv-source-context.lock.yml").exists())
 
+    def test_post_merge_has_dispatch_only_analysis_and_one_conditional_issue_output(self):
+        source = (self.template / "nfv-post-merge-review.md").read_text(encoding="utf-8")
+        lock = (self.template / "nfv-post-merge-review.lock.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", source)
+        self.assertIn("github.event_name == 'workflow_dispatch'", source)
+        self.assertIn("github.event.repository.default_branch", source)
+        self.assertIn("deduplicate-by-title: true", source)
+        self.assertNotIn("add-comment:", source)
+        self.assertNotIn("pull_request_target", lock)
+        self.assertIn("cancel-in-progress: false", source)
+        self.assertIn("job-discriminator: ${{ inputs.pull-request-number }}", source)
+        activation = lock.split("\n  activation:", 1)[1].split("\n  agent:", 1)[0]
+        self.assertIn("github.event_name == 'workflow_dispatch'", activation)
+        context = re.split(r"\n  [A-Za-z_]+:", lock.split("\n  repository_context:", 1)[1], maxsplit=1)[0]
+        self.assertIn("review_guard", context)
+        self.assertIn("needs.review_guard.outputs.review == 'true'", context)
+        worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        self.assertIn("job-discriminator: ${{ github.run_id }}", worker)
+        for compiled in (lock, (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")):
+            self.assertIn('GH_AW_ALLOWED_BOTS: "github-actions[bot]"', compiled)
+        dispatcher = (self.package / "post-merge-dispatch.yml").read_text(encoding="utf-8")
+        self.assertIn("  push:\n", dispatcher)
+        self.assertIn("actions: write", dispatcher)
+        self.assertNotIn("issues: write", dispatcher)
+        self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", dispatcher)
+        self.assertNotIn("pull_request.head", dispatcher)
     def test_source_context_initializes_workspace_before_generated_git_setup(self):
         source = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
         lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
@@ -1203,13 +1248,13 @@ class AuditTests(ScratchTest):
                 audit_limits(bad)
 
     def test_workflow_exports_budget_variables(self):
-        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-review.md").read_text(encoding="utf-8")
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-post-merge-review.md").read_text(encoding="utf-8")
         for name in ("NFV_SYNTAX_ROUNDS", "NFV_PROOF_ROUNDS", "NFV_VERIFIER_TIMEOUT", "NFV_PROPERTY_SECONDS"):
             self.assertIn(f"{name}: ${{{{ vars.{name} }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)
 
     def test_workflow_exports_independent_default_on_followup_flags(self):
-        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-review.md").read_text(encoding="utf-8")
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-post-merge-review.md").read_text(encoding="utf-8")
         for name in ("NFV_SIMPLIFY_REFUTATIONS", "NFV_CHECK_FIXES"):
             self.assertIn(f"{name}: ${{{{ vars.{name} || 'true' }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)

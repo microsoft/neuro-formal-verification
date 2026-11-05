@@ -1,12 +1,13 @@
 <!-- Copyright (c) Microsoft Corporation.
 Licensed under the MIT License. -->
 
-# NFV PR reviewer reference
+# NFV code-review reference
 
 See the [overview](README.md) or [installation guide](ONBOARDING.md) to get started.
 
 This is a prototype implementation of a GitHub Agentic Workflow that reviews a
-pull request when it is opened or updated, selects up to **ten nontrivial properties** from the
+pull request after it merges into the default branch.
+It selects up to **ten nontrivial properties** from the
 PR description, PR conversation comments, and commit messages (not review
 comments or reviews), and from changed code/comments. A separate source-context
 AW session first inspects a shallow trusted-base checkout and changed-head
@@ -35,10 +36,46 @@ and return types while preserving the original source line numbers.
   the model is frozen. Drafts rejected by Dafny's Boogie resolution stage use the
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
-* The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
-  `ready_for_review`) whose changed paths include a supported source suffix.
-  Drafts and documentation/configuration/submodule-only PRs are skipped before
-  either inference session starts. Keep NFV advisory, not a required merge check.
+* Reviews start only for merged PRs with a supported source-suffix change.
+  Documentation/configuration/submodule-only changes are skipped before either
+  inference session starts. NFV does not review PR updates before merge.
+  Keep NFV advisory, not a required merge check.
+
+## Post-merge review
+
+Installation provides `nfv-post-merge-review`, its trusted push trigger and the
+reusable `nfv-source-context` helper. It opens one linked issue only when
+accepted conditional MODEL refutations exist; all four property outcomes remain
+in the report/evidence. There is no pre-merge PR-review variant or mode selector.
+Post-merge avoids repeated
+pre-merge audits, not the duration of an individual audit.
+
+The ordinary Actions push trigger executes only on the current default branch.
+It reads a complete pushed-commit range, identifies merged PRs through GitHub
+metadata, skips unsupported-source-only changes, and dispatches the reviewer
+on that trusted branch with the PR number and expected merge SHA. No PR code
+is checked out or executed. The reviewer and reusable helper explicitly
+authorize `github-actions[bot]` for this trusted dispatch; human dispatches retain
+gh-aw's repository-write role gate. The dispatched review verifies the merge remains
+in default-branch history and analyzes the captured **PR head**, not the
+merge-result tree or later default-branch changes.
+
+The trigger and the review's independent eligibility gate skip existing
+`NFV-formal-review` bot issues by the stable report marker, including closed
+issues. Runs for the same PR are serialized without cancelling active audits;
+different PRs have independent source-context and conclusion slots. Safe outputs
+also deduplicate by deterministic issue title. Keep the generated report and
+its label intact; maintainer feedback belongs in the separate checklist/comments.
+The checklist records source investigation, useful regression properties,
+modeling gaps or closure rationale; it does not change the model verdict.
+
+Direct pushes without a merged PR are no-ops. Incomplete inventories, forced
+pushes and pushed ranges exceeding 250 commits fail explicitly rather than
+silently missing changes. GitHub suppresses push-triggered workflows for pushes
+made with `GITHUB_TOKEN`; such automation needs an explicitly approved
+`workflow_dispatch` using `pull-request-number` and `merge-sha`. Enabling NFV
+does not backfill historical PRs. Installation PR events register the post-merge
+reviewer so it can be disabled, but its dispatch-only analysis gate skips them.
 
 The source-context agent selects only paths from a captured, supported-source
 inventory and emits a files/symbols list, not snapshot metadata. Trusted code
@@ -107,12 +144,11 @@ provenance, not authentication or source/model semantic correspondence.
 
 The source identity is the event's **immutable PR head SHA**, with the base SHA
 recorded and changed files obtained from the immutable `base...head` comparison.
-A PR whose head or base
-moves during collection is rejected; the next `synchronize` run reviews the new
-head and cancels the older run.
+A captured identity that changes during collection is rejected. An approved
+rerun must still match the expected immutable default-branch merge.
 
-The agent posts **one PR comment** (never a
-review approval or change request). It opens with a one-line description of NFV
+The driver opens **one linked issue** only when refutations exist, never a PR
+review approval or change request. The embedded report opens with a one-line description of NFV
 linking the [paper](https://arxiv.org/abs/2608.21516), before the issue count,
 the analyzed head and base, and the run link. Property sections use short
 headers (`P1`, `P2`, ...) with the full intended or inferred property statement
@@ -180,27 +216,30 @@ Sequences summarizing separate source predicate queries use anchored
 **abstract per-element results**, not a claim that one source call returns that
 sequence.
 
-The comment summarizes the four outcomes and lists every selected property.
+The generated report summarizes the four outcomes and lists every selected property.
 Verified properties put the checked Dafny `ensures`, assumptions and evidence in
 collapsed **Verification details**, with full verified models in the artifact
 rather than inline. Under size pressure, verification details link to the full
 artifact while retaining the assumptions and evidence hash.
 Failures show their category and a collapsed diagnostic excerpt of at most
 300 characters; full diagnostics remain in the artifact. Source-inferred
-properties are labeled separately from quoted intentions. Each new push hides
-the previous NFV comment. Verifier models, repair logs and hashes are in the run's
+properties are labeled separately from quoted intentions. Verifier models,
+repair logs and hashes are in the run's
 `nfv-evidence` artifact. Interrupted audits retain incremental evidence marked
 incomplete; it cannot be published as a finished review.
 Provider/SDK failures and verifier infrastructure failures stop the audit,
 retain incomplete evidence, and fail the job without submitting a review.
-Completed analyses submit the generated comment for all four property outcomes,
-including resource exhaustion and property type-check/audit failures, even when
-there are no refutations. These outcomes do not fail the job.
+Completed analyses retain all four property outcomes, including resource
+exhaustion and property type-check/audit failures. These outcomes do not fail the job.
+They submit an issue only when the report
+contains accepted refutations. Without refutations, publication is `not_needed`;
+an explicit safe-output `noop` completes the handoff without creating an issue.
+Completion and all property outcomes remain available in the evidence.
 
 The sandbox driver records its attempt separately in `review-status.json` in
 `nfv-evidence`, and emits the same status in its logs. A completed attempt has
 `status: completed`, `completed: true`, outcome counts, and
-`publication: submitted`: the comment intent was queued, not confirmation that
+`publication: submitted`: the issue intent was queued, not confirmation that
 the later safe-output job posted it. A driver-observed setup, input, extraction,
 audit or submission failure instead records `status: infrastructure_failure`,
 `completed: false`, the stage and diagnostic, and the captured identity when
@@ -212,7 +251,7 @@ a synthetic successful review. When evidence cannot be written, the diagnostic
 remains in logs. Failures before the Python driver starts and later safe-output
 failures remain in their Actions job logs.
 
-The PR triggers, permissions and failure exit codes are unchanged. NFV remains
+NFV remains
 advisory and must not be required for merging, but infrastructure failures can
 still produce a red Actions check; there is no no-red-cross guarantee.
 
@@ -401,7 +440,12 @@ sequence, use the [onboarding guide](ONBOARDING.md). This section is the
 configuration and upgrade reference, not a second installation procedure.
 The [standalone installer](install.py) requires Python 3.10+, Git and authenticated
 `gh`; `python install.py --help` lists installation, bootstrap-verification and
-post-merge activation options. Workflow locks use **gh-aw v0.88.7**. Commit both
+post-merge activation options, plus `--upgrade`.
+Only post-merge issue review is installed through the `workflow` package.
+A bare `gh aw add .../workflow`
+does not install the ordinary Actions push trigger: use the installer, which
+captures that file from the same reviewed immutable NFV release.
+Workflow locks use **gh-aw v0.88.7**. Commit both
 workflow sources and their `.lock.yml` files, plus generated package records and
 action locks under `.github/aw/`.
 
@@ -442,8 +486,8 @@ when its workflows compile correctly.
 With gh-aw v0.88.7, both of these generated reviewer jobs request `issues: write`
 and `pull-requests: write`:
 
-* `nfv-pr-review.lock.yml:safe_outputs`
-* `nfv-pr-review.lock.yml:conclusion`
+* `nfv-post-merge-review.lock.yml:safe_outputs`
+* `nfv-post-merge-review.lock.yml:conclusion`
 
 These jobs publish the PR comment and report failures, missing tools and
 incomplete runs. If the repository restricts writers, obtain approval for these
@@ -485,7 +529,7 @@ The installer configures `copilot-requests` in **all three** permission scopes
 before compiling both workflows:
 
 * `.github/workflows/nfv-source-context.md`: top-level `permissions`.
-* `.github/workflows/nfv-pr-review.md`: top-level `permissions` and
+* `.github/workflows/nfv-post-merge-review.md`: top-level `permissions` and
   `jobs.repository_context.permissions`.
 
 Organization mode requires `write` in all three scopes; gh-aw uses the per-run
@@ -503,20 +547,28 @@ mode **before compilation**.
 
 ### Upgrade an existing installation
 
-Ask the agent to upgrade; do not rerun the first-installation script against an
-existing installation. Keep the approved model, secrets and budgets. Disable
-new audits and wait for all active/queued runs to finish before changing shared
-configuration. Preserve the selected billing mode unless a change is approved.
+Ask the agent to use `install.py --upgrade` from the clean default branch.
+Review local workflow customizations before replacement; reapply intentional
+ones to the generated candidate and recompile. The installer preserves the
+current model and billing when their flags are omitted; repository budget
+variables and secrets are untouched.
 
-Resolve the trusted NFV release once, replace the package with
-`gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
-both workflows and open an upgrade PR. Reapply the approved billing permissions
-after package replacement, and retain intentional local customizations.
+The installer disables the current reviewer and trigger, checks all active or
+queued review/helper runs, and blocks until drained. It resolves the trusted
+NFV release once, installs the post-merge package, removes legacy PR-review
+files, reapplies billing permissions before compilation and opens a draft
+upgrade PR. If the new workflows are not registered
+or cannot be disabled, keep it draft and retry `--verify-bootstrap`.
+Keep all reviewers and triggers disabled through the approved merge.
 Recheck [repository permission policies](#repository-permission-policies) against
 the regenerated jobs.
-After the approved merge, update `NFV_RELEASE_SHA` to that same SHA, verify both
-merged package pins, the model, billing permissions and required secret names,
-then enable NFV and read back `active`. Repeat a separately approved pilot; leave audits paused on
+The upgrade does **not** change the runtime pin while under review.
+Package files and `NFV_RELEASE_SHA` are separate pins: updating only the files
+would still run the old Python implementation. After the approved merge,
+update `NFV_RELEASE_SHA` to the same SHA and use `--enable-after-merge` with the
+upgrade PR number. Activation verifies all selected files/pins, the model,
+billing permissions and secret names, and rejects any active unselected mode
+before enabling. Repeat a separately approved pilot; leave audits paused on
 failure. `gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.
 
 ### Runtime and evidence
@@ -551,11 +603,12 @@ injects the actual credential. There is no supervising or publishing LLM.
 Evidence is written under `/tmp/gh-aw/sandbox/agent/logs/nfv` and uploaded as
 `nfv-evidence`, including interrupted work. Only after extraction and the complete
 audit succeed does the driver pipe the unchanged `comment.md` as JSON to
-`safeoutputs add_comment`. A failed or interrupted execution is never restarted
+`safeoutputs create_issue` when refutations exist. A failed or interrupted execution is never restarted
 in the same evidence directory, preventing duplicate write intents. Post-agent
 steps only retain evidence; they never perform analysis. gh-aw threat detection
-screens that output before the `safe_outputs` job, the only job with write access,
-posts the comment. Never check out the PR head or execute PR scripts. Extraction,
+screens that output before the `safe_outputs` job, the only issue/comment writer,
+publishes it. The post-merge trigger has narrowly scoped Actions dispatch write
+access, not issue/comment write access. Never check out the PR head or execute PR scripts. Extraction,
 translation and verifier processes run within the additional AWF isolation and
 network restrictions on an ephemeral GitHub-hosted runner; this is not a claim
 that the sandbox or verifier is invulnerable.

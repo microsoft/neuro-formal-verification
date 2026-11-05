@@ -1,7 +1,7 @@
 <!-- Copyright (c) Microsoft Corporation.
 Licensed under the MIT License. -->
 
-# NFV PR audit onboarding
+# NFV code-review onboarding
 
 1. **Authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI; authenticate
    both CLIs. For Microsoft-provided Copilot access, sign in with the account
@@ -31,8 +31,13 @@ Licensed under the MIT License. -->
    bill Microsoft directly, even with a Microsoft-provided seat.
    See [GitHub's billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
 
-5. **Install:** Start `copilot` in the target checkout and paste this, replacing
-   `OWNER/repo` and `MODEL`, and using `Billing: organization` only to opt in:
+5. **Install post-merge review:** NFV reviews eligible PRs after they merge into
+   the default branch and opens a linked issue only when model refutations exist.
+   It does not audit PR updates before merge.
+
+   Start `copilot` in the target checkout and paste this, replacing `OWNER/repo`
+   and `MODEL`. Use
+   `Billing: organization` only to opt in:
 
    ```text
    Install NFV following:
@@ -45,10 +50,12 @@ Licensed under the MIT License. -->
    ```
 
    The agent uses `workflow/install.py` (Python 3.10+, gh-aw v0.88.7), pins both
-   workflows and runtime to one latest trusted NFV default-branch SHA, sets
+   selected reviewer, shared source-context helper and runtime to one latest
+   trusted NFV default-branch SHA, sets
    `NFV_RELEASE_SHA` and `NFV_MODEL`, and opens a **draft installation PR**.
    It reads back the pins, model, billing permissions and required secret names,
-   disables the reviewer and verifies `disabled_manually`; if blocked, leave
+   disables the selected reviewer and, for post-merge, its push trigger, and
+   verifies `disabled_manually`; if blocked, leave
    the PR draft and report the failure.
    Check [repository permission policies](REFERENCE.md#repository-permission-policies)
    against the generated jobs. Update approved job-specific allowlists and their
@@ -58,21 +65,27 @@ Licensed under the MIT License. -->
    never run or require NFV on its own installation PR. Leave unrelated CI enabled.
    Keep NFV advisory after installation too: exclude its jobs from required merge
    checks and required CI aggregators; leave operational failures visible.
-   After merge, have the agent verify both package pins against `NFV_RELEASE_SHA`,
+   After merge, have the agent verify all selected package pins against `NFV_RELEASE_SHA`,
    the approved model, consistent billing permissions and required secret names.
    If anything fails, leave NFV disabled. Otherwise enable and verify `active`:
 
-   ```text
-   gh workflow enable nfv-pr-review.lock.yml --repo OWNER/repo
-   gh api repos/OWNER/repo/actions/workflows/nfv-pr-review.lock.yml --jq .state
-   ```
+   Use the installer's `--enable-after-merge --pull-request NUMBER` phase.
+   It rejects mixed-mode files or an active unselected reviewer, creates the
+   post-merge issue label when needed, and enables only the selected reviewer
+   and its trigger. The installation PR itself is never audited.
 
 7. **Approve a separate, billable pilot:** Use a small code-change PR based on
    the installed branch. Documentation, configuration and submodule-only PRs
    without a supported source-suffix change do not start NFV.
-   Verify the generated comment and `nfv-evidence` report:
+   In post-merge mode, approve merging the pilot before its billable audit.
+   A trusted default-branch push trigger dispatches the merged PR's immutable
+   head snapshot; fork-origin PR code is never checked out or executed.
+   Verify the selected run and `nfv-evidence` report:
    `completed: true`, no global errors and recorded property outcomes, not just
-   a green job. For organization mode, confirm attribution in its billing dashboard;
+   a green job. Post-merge runs with accepted refutations must publish one linked
+   issue; completed runs without refutations retain evidence and publish nothing.
+   For organization billing,
+   confirm attribution in its billing dashboard;
    secret names and configuration alone do not prove token, policy or model access.
    The separate `review-status.json` records driver completion/submission or an
    infrastructure failure; it is not a property verdict. Infrastructure failures
@@ -83,7 +96,8 @@ source bugs**; failure to refute is not evidence of correctness. Never check out
 or execute inspected PR code, edit generated reports or expose secrets through
 `pull_request_target`.
 
-Already installed? Use the [upgrade procedure](REFERENCE.md#upgrade-an-existing-installation),
-not the first-installation script. Existing installations do not switch billing
-automatically. See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
+Already installed? Use the [upgrade procedure](REFERENCE.md#upgrade-an-existing-installation)
+and installer `--upgrade`. It disables and removes legacy PR-review workflows.
+The existing model, billing and budgets are preserved unless explicitly changed.
+See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
 for permissions, optional settings and installer options.

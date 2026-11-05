@@ -3,6 +3,7 @@
 # Licensed under the MIT License.
 description: Read-only repository context session before NFV property analysis
 on:
+  bots: ["github-actions[bot]"]
   workflow_call:
     secrets:
       COPILOT_GITHUB_TOKEN:
@@ -19,6 +20,10 @@ engine:
   model: ${{ vars.NFV_MODEL }}
 timeout-minutes: 20
 checkout: false
+concurrency:
+  group: nfv-source-context-${{ github.repository }}-${{ github.run_id }}
+  cancel-in-progress: false
+  job-discriminator: ${{ github.run_id }}
 network:
   allowed: [defaults]
 tools:
@@ -72,10 +77,16 @@ steps:
       python-version: "3.12"
   - name: Install trusted collector
     run: python -m pip install ./nfv-plugin ./nfv-plugin/workflow
+  - name: Normalize and validate reviewer event
+    env:
+      GH_TOKEN: ${{ github.token }}
+    run: |
+      python -m nfv_workflow.post_merge event --event "$GITHUB_EVENT_PATH" \
+        --out "$RUNNER_TEMP/gh-aw/nfv-context/event.json"
   - uses: actions/checkout@v7.0.1
     with:
-      repository: ${{ github.event.pull_request.base.repo.full_name }}
-      ref: ${{ github.event.pull_request.base.sha }}
+      repository: ${{ env.NFV_BASE_REPOSITORY }}
+      ref: ${{ env.NFV_BASE_SHA }}
       path: nfv-base
       fetch-depth: 1
       persist-credentials: false
@@ -91,7 +102,7 @@ steps:
     run: |
       set -euo pipefail
       bundle="$RUNNER_TEMP/gh-aw/nfv-context/bundle.json"
-      nfv-workflow collect --event "$GITHUB_EVENT_PATH" --out "$bundle" --sources-dir nfv-src
+      nfv-workflow collect --event "$NFV_EVENT" --out "$bundle" --sources-dir nfv-src
       python - "$bundle" <<'PY'
       import json
       import sys

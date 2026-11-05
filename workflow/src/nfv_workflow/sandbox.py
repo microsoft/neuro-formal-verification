@@ -43,6 +43,8 @@ def review(status=None):
     status["stage"] = "inputs"
     bundle = load(env["NFV_BUNDLE"])
     status["identity"] = bundle["identity"]
+    if bundle["identity"].get("merged") is not True:
+        raise Abstain("Post-merge review requires a captured merged PR")
     save(output / "bundle.json", bundle)
     status["stage"] = "extraction"
     proposals = asyncio.run(propose(bundle, env["NFV_MODEL"], intent_only=True, output=output))
@@ -60,18 +62,24 @@ def review(status=None):
     if not body.strip():
         raise Abstain("NFV audit produced an empty report")
     status["stage"] = "publication"
+    if summary["findings"]:
+        from .post_merge import issue_payload
+        command, payload = "create_issue", issue_payload(bundle, body)
+    else:
+        command = "noop"
+        payload = {"message": "NFV completed without accepted MODEL refutations; the report and evidence are retained."}
     status["publication"] = "unconfirmed"
     result = subprocess.run(
-        ["safeoutputs", "add_comment", "."],
-        input=json.dumps({"body": body}, ensure_ascii=False),
+        ["safeoutputs", command, "."],
+        input=json.dumps(payload, ensure_ascii=False),
         capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
-    save(output / "publication.json", {"returncode": result.returncode,
+    save(output / "publication.json", {"tool": command, "returncode": result.returncode,
                                      "stdout": result.stdout, "stderr": result.stderr})
     if result.returncode:
         raise Abstain("Safe-output submission failed: " + result.stderr[-2000:])
-    status["publication"] = "submitted"
-    return {**summary, "publication": "submitted"}
+    status["publication"] = "submitted" if summary["findings"] else "not_needed"
+    return {**summary, "publication": status["publication"]}
 
 
 def record_status(status):

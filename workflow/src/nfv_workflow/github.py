@@ -54,6 +54,8 @@ class GitHub:
             headers["Authorization"] = "Bearer " + self.token
         req = urllib.request.Request(url, data=body, headers=headers)
         with urllib.request.urlopen(req, timeout=60) as response:
+            if response.status == 204:
+                return None
             return json.load(response)
 
     def pages(self, path, max_pages=100):
@@ -114,7 +116,8 @@ def identity(event):
 def unchanged(latest, ident):
     state = ("closed", True) if ident["merged"] else ("open", False)
     return (latest["head"]["sha"], latest["base"]["sha"], latest["state"],
-            bool(latest.get("merged"))) == (ident["head_sha"], ident["base_sha"], *state)
+            bool(latest.get("merged"))) == (ident["head_sha"], ident["base_sha"], *state) and (
+                not ident["merged"] or latest.get("merge_commit_sha") == ident["merge_sha"])
 
 
 def added_lines(patch):

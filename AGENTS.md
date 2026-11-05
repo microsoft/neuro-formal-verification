@@ -15,8 +15,8 @@ Guidance for coding agents and contributors working in this repository. Read
 | `paper/data/nl2post_safe.json` | Main dataset; `paper/results/*.jsonl` are the retained paper runs, indexed by `paper/manifest.json` and `paper/provenance/` |
 | `tests/` | Core and artifact tests |
 | `workflow/` | `nfv-workflow` package: PR collection, Dafny refutation pipeline, publication |
-| `workflow/aw.yml` | gh-aw package manifest that installs the PR reviewer |
-| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow (source) and its `.lock.yml` |
+| `workflow/aw.yml` | gh-aw package manifest that installs post-merge issue review |
+| `.github/workflows/nfv-post-merge-review.md` | The NFV post-merge reviewer and its `.lock.yml`; `workflow/post-merge-dispatch.yml` is its trusted push trigger |
 | `.github/skills/nfv-pr-review/SKILL.md` | Agent skill to bootstrap, test and troubleshoot the PR reviewer in a repository |
 | `.github/workflows/ci.yml` | Offline checks with the real verifiers |
 
@@ -151,23 +151,26 @@ under `workflow/tests/.general-scratch/`; never commit them.
 - The `nfv-merged-pr:` prefix of the report dedup marker is kept deliberately
   for continuity; do not rename it.
 
-## The PR reviewer agentic workflow (gh-aw)
+## The post-merge reviewer agentic workflow (gh-aw)
 
-- `workflow/install.py` provides Linux-first, agent-free initial installation.
+- `workflow/install.py` provides Linux-first, agent-free installation/upgrades.
+  Only post-merge issue review is installable. Upgrades disable/drain and remove
+  legacy PR reviewers, preserve model/billing/budgets, and leave the runtime pin
+  unchanged until merge.
   Keep its offline tests in `workflow/tests/test_install.py`
   aligned with the draft/disable/post-merge bootstrap rules. Never run the
   installer against a live client repository just to test changes.
 - Client bootstrap: never run NFV against its own initial installation PR or
-  require an NFV check for it. Keep that PR draft until `nfv-pr-review.lock.yml`
-  is disabled and its disabled state is verified; keep it disabled through
+  require an NFV check for it. Keep that PR draft until the post-merge reviewer
+  and push trigger are disabled and their states are verified; keep them disabled through
   marking ready and merging. If the workflow is not registered or cannot be
   disabled, leave the PR draft and report the block. Leave unrelated CI enabled.
   Enable NFV only after installation reaches the base branch, then use a
   separate user-approved pilot PR.
-- Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
+- Edit `.github/workflows/nfv-post-merge-review.md` or `nfv-source-context.md`,
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
-  `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
+  `gh aw compile nfv-post-merge-review nfv-source-context --approve` (locks are built with gh aw v0.88.7).
 - Flow: the reusable source-context AW session completes first. Trusted
   pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
   the immutable PR bundle. A deterministic custom SDK driver then runs
@@ -176,10 +179,13 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Extraction shortlists up to ten changed functions, then inspects full scoped
   source and cross-file context; never submit the entire bundle as a model
   request. NFV bot reports are not developer intent. The driver submits
-  `comment.md` verbatim with one `safeoutputs add_comment`
-  (also when nothing is refuted, listing the
-  formalized properties and their four outcomes). `hide-older-comments`
-  collapses earlier reports.
+  `comment.md` verbatim within one linked
+  `create_issue` only for accepted refutations, with a separate maintainer
+  assessment outside the unchanged report. No refutations means evidence only.
+  The trusted default-branch push trigger and eligibility gate check complete
+  immutable merge metadata, supported source and existing bot issues across
+  states; no `pull_request_target`, PR checkout or inspected-code execution.
+  Keep per-PR review serialization and per-run source-context job slots.
   Input/access/tool failures fail the driver, never an empty proposal
   array masquerading as a successful review. Incremental reports have
   `completed: false` until analysis finishes and cannot be published. Retain
@@ -195,7 +201,9 @@ under `workflow/tests/.general-scratch/`; never commit them.
   aggregator. Keep operational failures visible. Both workflows explicitly use
   `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}` for job-scoped publication,
   never a shared `GH_AW_GITHUB_TOKEN` override or an inference/release token.
-- Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
+- Package: `workflow` installs post-merge issue review.
+  Use the installer to include the pinned ordinary Actions push trigger for
+  post-merge mode; a bare package add does not install that trigger.
   `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string
   `includes` entry starting with `.github/` resolves from the repository root.
   Local package paths are not supported, so test installs from a pushed ref in

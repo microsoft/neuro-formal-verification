@@ -17,8 +17,9 @@ from unittest.mock import patch
 
 from nfv_workflow import sandbox
 from nfv_workflow.cli import save
-from nfv_workflow.github import Abstain
+from nfv_workflow.github import Abstain, identity
 from nfv_workflow.outcomes import InferenceFailure, OUTCOMES
+from test_workflow import event
 
 
 class SandboxTests(unittest.TestCase):
@@ -27,7 +28,7 @@ class SandboxTests(unittest.TestCase):
         self.directory.mkdir(parents=True)
         self.output = self.directory / "evidence"
         self.bundle_path = self.directory / "bundle.json"
-        self.bundle = {"identity": {"head_sha": "a" * 40}}
+        self.bundle = {"identity": identity(event())}
         save(self.bundle_path, self.bundle)
         self.environment = {
             "HOME": str(Path.home()), "USERPROFILE": str(Path.home()),
@@ -57,13 +58,19 @@ class SandboxTests(unittest.TestCase):
         self.assertEqual(json.loads(Path(proposals).read_text()), [])
         save(self.output / "report.json", {"completed": True})
         (self.output / "comment.md").write_text(self.body, encoding="utf-8", newline="\n")
-        return {"errors": [], "findings": 0, "comment": str(self.output / "comment.md"),
+        return {"errors": [], "findings": 1, "comment": str(self.output / "comment.md"),
                 "outcomes": {outcome: 0 for outcome in OUTCOMES}}
 
     def submit(self, command, **kwargs):
+        if command == ["safeoutputs", "noop", "."]:
+            self.calls.append("noop")
+            self.assertIn("without accepted MODEL refutations", json.loads(kwargs["input"])["message"])
+            return SimpleNamespace(returncode=0, stdout="queued", stderr="")
         self.calls.append("submit")
-        self.assertEqual(command, ["safeoutputs", "add_comment", "."])
-        self.assertEqual(json.loads(kwargs["input"]), {"body": self.body})
+        self.assertEqual(command, ["safeoutputs", "create_issue", "."])
+        payload = json.loads(kwargs["input"])
+        self.assertIn(self.body, payload["body"])
+        self.assertIn("merged PR #7", payload["title"])
         self.assertNotIn("shell", kwargs)
         self.assertEqual(kwargs["timeout"], 60)
         return SimpleNamespace(returncode=0, stdout="queued", stderr="")
@@ -79,7 +86,7 @@ class SandboxTests(unittest.TestCase):
                     return sandbox.main()
             return sandbox.review()
 
-    def test_all_completed_property_outcomes_submit_the_unchanged_comment(self):
+    def test_all_completed_property_outcomes_retain_report_but_only_refutations_publish(self):
         for outcome in OUTCOMES:
             def completed(proposals, limits):
                 summary = self.audit(proposals, limits)
@@ -94,10 +101,10 @@ class SandboxTests(unittest.TestCase):
                 self.assertTrue(status["completed"])
                 self.assertTrue(status["analysis_completed"])
                 self.assertEqual(status["identity"], self.bundle["identity"])
-                self.assertEqual(status["publication"], "submitted")
+                self.assertEqual(status["publication"], "submitted" if outcome == "refuted" else "not_needed")
                 self.assertEqual(status["outcomes"][outcome], 1)
                 self.assertEqual(set(status["outcomes"]), set(OUTCOMES))
-                self.assertEqual(self.calls, ["extract", "audit", "submit"])
+                self.assertEqual(self.calls, ["extract", "audit", "submit" if outcome == "refuted" else "noop"])
                 self.assertEqual((self.output / "comment.md").read_text(encoding="utf-8"), self.body)
                 self.assertNotIn("diagnostic", status)
                 shutil.rmtree(self.output)
@@ -170,6 +177,56 @@ class SandboxTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             self.execute()
         self.assertEqual(self.calls, ["extract", "audit", "submit"])
+
+    def test_completed_post_merge_without_refutations_retains_every_outcome_without_publication(self):
+        def no_refutations(proposals, limits):
+            return {**self.audit(proposals, limits), "findings": 0}
+        self.assertEqual(self.execute(audit=no_refutations, main=True), 0)
+        status = json.loads((self.output / "review-status.json").read_text())
+        self.assertEqual(status["publication"], "not_needed")
+        self.assertTrue(status["completed"])
+        self.assertEqual(set(status["outcomes"]), set(OUTCOMES))
+        self.assertEqual(self.calls, ["extract", "audit", "noop"])
+        self.assertEqual((self.output / "comment.md").read_text(encoding="utf-8"), self.body)
+
+    def test_failed_noop_handoff_does_not_pretend_the_workflow_completed(self):
+        def no_refutations(proposals, limits):
+            return {**self.audit(proposals, limits), "findings": 0}
+        def failed(command, **kwargs):
+            self.assertEqual(command, ["safeoutputs", "noop", "."])
+            return SimpleNamespace(returncode=1, stdout="", stderr="handoff failed")
+        self.assertEqual(self.execute(audit=no_refutations, submit=failed, main=True), 1)
+        status = json.loads((self.output / "review-status.json").read_text())
+        self.assertEqual(status["status"], "infrastructure_failure")
+        self.assertTrue(status["analysis_completed"])
+        self.assertFalse(status["completed"])
+
+    def test_post_merge_refutations_submit_one_linked_issue_with_verbatim_report_and_separate_feedback(self):
+        def refuted(proposals, limits):
+            summary = self.audit(proposals, limits)
+            return {**summary, "findings": 2}
+        def issue(command, **kwargs):
+            self.calls.append("submit")
+            self.assertEqual(command, ["safeoutputs", "create_issue", "."])
+            payload = json.loads(kwargs["input"])
+            self.assertIn("merged PR #7", payload["title"])
+            self.assertIn("https://github.com/owner/project/pull/7", payload["body"])
+            self.assertIn(self.body, payload["body"])
+            self.assertIn("## Maintainer assessment", payload["body"])
+            self.assertIn("Modeling or helper-assumption gap", payload["body"])
+            self.assertNotIn("shell", kwargs)
+            return SimpleNamespace(returncode=0, stdout="queued", stderr="")
+        self.assertEqual(self.execute(audit=refuted, submit=issue, main=True), 0)
+        self.assertEqual(self.calls, ["extract", "audit", "submit"])
+        self.assertEqual((self.output / "comment.md").read_text(encoding="utf-8"), self.body)
+
+    def test_unmerged_input_never_starts_analysis(self):
+        self.bundle["identity"]["merged"] = False
+        save(self.bundle_path, self.bundle)
+        self.assertEqual(self.execute(main=True), 1)
+        self.assertFalse(self.calls)
+        status = json.loads((self.output / "review-status.json").read_text())
+        self.assertEqual(status["status"], "infrastructure_failure")
 
     def test_refuses_unsandboxed_unresolved_or_credential_bearing_execution(self):
         for key, value in (("GITHUB_AW", "false"), ("AWF_REFLECT_ENABLED", ""),

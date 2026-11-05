@@ -12,9 +12,9 @@ This repository contains two components:
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
 - **GitHub Agentic Workflow integration (prototype implementation):** a PR
-  reviewer that selects nontrivial properties, tries verification first, then
-  refutation with Dafny, and
-  comments the result. See [workflow/README.md](workflow/README.md) for setup,
+  post-merge reviewer that selects nontrivial properties, tries verification
+  first, then refutation with Dafny, and opens a linked issue only for accepted
+  conditional model refutations. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
 To try the reviewer in another repository, follow the
@@ -37,7 +37,7 @@ uses, dataset provenance, evaluation, and limitations.
 | `paper/` | Paper artifact: dataset, retained results, documentation and utilities |
 | `tests/` | Core and artifact tests |
 | `workflow/` | Prototype GitHub Agentic Workflow integration (`nfv-workflow` package and `aw.yml`) |
-| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow |
+| `.github/workflows/nfv-post-merge-review.md` | The NFV post-merge issue reviewer agentic workflow |
 
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof

@@ -1,14 +1,16 @@
 <!-- Copyright (c) Microsoft Corporation.
 Licensed under the MIT License. -->
 
-# NFV PR reviewer
+# NFV code review
 
 A prototype GitHub Agentic Workflow based on
 [*Neuro-Formal Verification: Agentic Language-Agnostic Formal Program Reasoning*](https://arxiv.org/abs/2608.21516).
 
 For each eligible PR, NFV reads the change and its stated intent, selects
 behavioral properties, and translates relevant source into Dafny. It attempts
-verification and refutation, then posts one evidence-linked PR comment.
+verification and refutation after the PR merges into the default branch.
+Accepted conditional model refutations open one linked issue for maintainer
+triage; otherwise NFV retains the report without creating an issue.
 PR code is inspected as data, never executed.
 
 Results concern translated models under stated assumptions. Findings are
@@ -24,9 +26,10 @@ flowchart LR
     Checks --> Verified["verified<br/>Property proved in the model"]
     Checks --> Refuted["refuted<br/>Model counterexample accepted"]
     Checks --> Unresolved["resources exhausted<br/>or type-check/audit failure"]
-    Verified --> Report["One PR comment<br/>+ retained evidence"]
+    Verified --> Report["Complete report<br/>+ retained evidence"]
     Refuted --> Report
     Unresolved --> Report
+    Report -->|"accepted refutations only"| Issue["Linked issue<br/>+ maintainer triage"]
     classDef proved fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
     classDef refuted fill:#fff3e0,stroke:#e65100,color:#843600
     classDef unresolved fill:#f5f5f5,stroke:#616161,color:#333333
@@ -41,6 +44,10 @@ property and its assumptions. Both link to source and formal evidence;
 neither establishes source-code correctness.
 
 ## Example report
+
+These screenshots show an existing report originally published as a PR comment.
+Post-merge issues embed the same generated report format and add a separate
+maintainer-assessment checklist.
 
 This [published report on shuvendu-lahiri/nvx#40](https://github.com/shuvendu-lahiri/nvx/pull/40#issuecomment-6511347416)
 contains **1 refuted and 5 verified properties**, with no resource-exhaustion or
