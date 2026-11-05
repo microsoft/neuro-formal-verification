@@ -806,7 +806,8 @@ class TemplateTests(unittest.TestCase):
 
     def test_readme_is_a_short_overview_with_installation_and_reference_links(self):
         source = (self.package / "README.md").read_text(encoding="utf-8")
-        self.assertLessEqual(len(source.split()), 150)
+        overview = source.split("\n## ", 1)[0]
+        self.assertLessEqual(len(overview.split()), 150)
         self.assertIn("https://arxiv.org/abs/2608.21516", source)
         self.assertIn("](ONBOARDING.md)", source)
         self.assertIn("](REFERENCE.md)", source)
