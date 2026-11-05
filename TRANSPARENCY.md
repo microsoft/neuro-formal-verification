@@ -1,7 +1,7 @@
 <!-- Copyright (c) Microsoft Corporation.
 Licensed under the MIT License. -->
 
-# Neuro-Formal Verification (NFV) and nl2post-safe: Code and Dataset Transparency Note
+# Neuro-Formal Verification (NFV) and nfv-micro-bench: Code and Dataset Transparency Note
 
 **4 November 2026.**
 
@@ -15,7 +15,7 @@ on authorized open-source repositories. Repository:
 https://github.com/microsoft/neuro-formal-verification. This is a research release, not a customer
 production tool.
 
-nl2post-safe is the derived evaluation dataset released with NFV. It contains 206 small Python
+nfv-micro-bench is the derived evaluation dataset released with NFV. It contains 206 small Python
 programs arranged as 103 reference/mutant pairs, with shared postconditions and English task
 descriptions. It supports research on model-level verification and refutation, not claims of
 independently established source-code correctness.
@@ -33,7 +33,7 @@ https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/README.
 
 A detailed discussion of the research can be found in the paper: https://arxiv.org/abs/2608.21516.
 
-### What can NFV and nl2post-safe do?
+### What can NFV and nfv-micro-bench do?
 
 NFV was developed to investigate how language models and formal tools can reason about program
 behavior. The paper artifact supports inspecting retained evidence, replaying saved formal checks,
@@ -44,7 +44,7 @@ The AW path uses Dafny only. A finding is a conditional MODEL refutation, not a 
 bug; a proof likewise concerns the translated model under its assumptions, not automatically the
 source.
 
-nl2post-safe lets researchers compare how methods reason about the same behavioral property for a
+nfv-micro-bench lets researchers compare how methods reason about the same behavioral property for a
 reference program and a selected mutant. The paired structure supports checking whether a method
 distinguishes the mutation, while retaining uncertain benchmark labels and abstentions for analysis.
 It can be inspected independently of NFV or used with other appropriately configured research tools.
@@ -56,7 +56,7 @@ open-source developers and maintainers trying the AW reviewer in repositories or
 authorized to use. It can help participants examine selected behavioral expectations, explicit
 assumptions and machine-checked model evidence.
 
-nl2post-safe is intended for reproducible evaluation and methodological research with NFV or
+nfv-micro-bench is intended for reproducible evaluation and methodological research with NFV or
 comparable program-reasoning methods. It is an evaluation benchmark, not a curated training corpus
 or representative sample of production software.
 
@@ -78,7 +78,7 @@ correctness certificate. It should not be used to approve or merge changes auton
 individual contributors, or claim that an absence of findings means a repository is safe. Private or
 regulated source is outside the intended open-source experimentation scope.
 
-nl2post-safe should not be used as a correctness oracle, as a comprehensive security benchmark, to
+nfv-micro-bench should not be used as a correctness oracle, as a comprehensive security benchmark, to
 rank individual developers, or to certify real-world deployment. The inherited labels and generated
 specifications can be disputed or incomplete.
 
@@ -108,7 +108,7 @@ for these domains.
 
 ### Dataset contents
 
-nl2post-safe is distributed as paper/data/nl2post_safe.json: a UTF-8 JSON object with an entries
+nfv-micro-bench is distributed as paper/data/nl2post_safe.json: a UTF-8 JSON object with an entries
 array containing 206 programs from 103 distinct HumanEval tasks. Each task contributes one reference
 entry and one mutant entry, giving 103 entries labeled correct and 103 labeled incorrect.
 
@@ -137,7 +137,7 @@ all bundled.
 
 ### Data creation and processing
 
-nl2post-safe is adapted from microsoft/intent-formalization's nl2postcondition-fse2024 research
+nfv-micro-bench is adapted from microsoft/intent-formalization's nl2postcondition-fse2024 research
 artifact: https://github.com/microsoft/intent-formalization/tree/main/nl2postcondition-fse2024. The
 upstream research is nl2postcond (Endres et al., FSE 2024). The acquisition recipe selects generated
 postconditions from gpt4_simple_no_ref.zip (the GPT-4 SimplePromptNoRef output) and code mutants and
@@ -210,8 +210,8 @@ establish a systematic audit of upstream examples for sexual content, violence, 
 other potentially distressing material.
 
 Apart from the documented diagnostic-path anonymization, no category-specific sensitive-content
-removal process is established by the retained materials. Do not interpret the name nl2post-safe as
-a privacy or content-safety certification.
+removal process is established by the retained materials. Benchmark sanitization is not a privacy or
+content-safety certification.
 
 The main dataset is not intended to contain sensitive personal information; a comprehensive absence
 claim has not been established. The same caution applies to newly generated model responses,
@@ -390,7 +390,7 @@ use can be substantial; request/time limits are not guaranteed monetary ceilings
 
 ### Data
 
-nl2post-safe was developed for research and experimental evaluation. Its small, selected paired
+nfv-micro-bench was developed for research and experimental evaluation. Its small, selected paired
 population is not representative of arbitrary software or real-world PR changes; the AW reviewer has
 not been comprehensively evaluated by this Python benchmark.
 
@@ -417,8 +417,7 @@ resources.
 
 The dataset has not been systematically evaluated for sociocultural, economic, demographic or
 linguistic bias. Benchmark selection and foundation-model training overlap can also bias
-comparisons. The term safe describes the documented benchmark sanitization, not comprehensive
-Responsible AI validation.
+comparisons. The documented benchmark sanitization is not comprehensive Responsible AI validation.
 
 Do not use the dataset or benchmark scores as sole assurance for highly regulated or high-risk
 decisions affecting safety or a person's legal, financial or life opportunities.
