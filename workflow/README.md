@@ -46,6 +46,8 @@ This [published report on shuvendu-lahiri/nvx#40](https://github.com/shuvendu-la
 contains **1 refuted and 5 verified properties**, with no resource-exhaustion or
 type-check/audit failures. The excerpts below preserve the report's property
 IDs and text. They are examples from one review, not an estimate of coverage.
+The screenshots capture the published GitHub comment, cropped to the report
+sections, with verification details expanded.
 
 | Report element | What the developer sees |
 |---|---|
@@ -55,6 +57,8 @@ IDs and text. They are examples from one review, not an estimate of coverage.
 | Evidence links | Captured source and the run's full formal models and diagnostics |
 
 ### P4: Refuted
+
+[![Actual NFV report showing the outcome summary, P4 refutation, counterexample input and failure sketch](images/nfv-report-refutation.png)](https://github.com/shuvendu-lahiri/nvx/pull/40#issuecomment-6511347416)
 
 > **Inferred property:** A non-list \`layers\` value produces the malformed-configuration failure.
 >
@@ -70,6 +74,8 @@ IDs and text. They are examples from one review, not an estimate of coverage.
 </details>
 
 ### P1: Verified
+
+[![Actual NFV report showing P1 verification with expanded assumptions, environment models, checked property and evidence hash](images/nfv-report-verification.png)](https://github.com/shuvendu-lahiri/nvx/pull/40#issuecomment-6511347416)
 
 > **Intended property:** For every launch that is serialized successfully, the resulting configuration uses format 7 regardless of whether the launch has shares, and contains an \`export\` field that is null when the launch has no export plan and is the converted export plan when one is present.
 >
