@@ -450,7 +450,7 @@ class ProofResult:
     # shrinks the domain (F10), a bad assumption asserts something false about
     # the world (F7). Both enlarge the trusted base and both are reported.
     rescue_assumptions: list[str] = field(default_factory=list)
-    # Whitelisted proof-side annotations attached to frozen `src:` lines, when
+    # Permitted proof-side annotations attached to frozen `src:` lines, when
     # the backend permits them. Recorded verbatim (before/after) so a run can be
     # audited for how often, and where, the relaxation was exercised.
     src_annotations: list[dict] = field(default_factory=list)

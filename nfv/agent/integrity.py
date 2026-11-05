@@ -238,7 +238,7 @@ class FreezeReport:
     violations: list[str] = field(default_factory=list)
     before_hash: str = ""
     after_hash: str = ""
-    # src lines that differ ONLY by whitelisted proof-side annotations, kept so a
+    # src lines that differ ONLY by permitted proof-side annotations, kept so a
     # run can be audited for how often the relaxation was actually exercised.
     annotated_lines: list[tuple[int, str, str]] = field(default_factory=list)
 
@@ -268,7 +268,7 @@ def erase_proof_annotations(line: str) -> str:
     to be met, just somewhere else. Contrast a cast or a modified index
     expression, which do change computed values; those stay banned.
 
-    Anything not on this whitelist is left untouched and so still trips the
+    Anything not on this allowlist is left untouched and so still trips the
     freeze. Widen this function only with an argument of the same form.
     """
     prev = None
