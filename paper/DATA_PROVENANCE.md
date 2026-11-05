@@ -1,6 +1,6 @@
 # Dataset attribution and release provenance
 
-The benchmark is **derived data, not newly authored benchmark code**. Retain
+The **nfv-micro-bench** benchmark is **derived data, not newly authored benchmark code**. Retain
 this attribution and the original notices when redistributing it. This note
 records observed upstream licensing; it does not invent a separate license for
 the derived dataset or replace repository-owner/legal review.

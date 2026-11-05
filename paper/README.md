@@ -3,12 +3,15 @@
 These are the experiments of [*Neuro-Formal Verification: Agentic Language-Agnostic
 Formal Program Reasoning*](https://arxiv.org/abs/2608.21516) (arXiv:2608.21516).
 
-**Dataset: [`paper/data/nl2post_safe.json`](data/nl2post_safe.json)** — one
+**Dataset: nfv-micro-bench ([`paper/data/nl2post_safe.json`](data/nl2post_safe.json))** — one
 JSON object containing `entries`: **206 programs = 103 `correct` references +
 103 `incorrect` mutants** (103 pairs). Each entry has `entry_id`, `task_id`,
 `entry_point`, `label`, `code`, `postcondition`, `docstring`, and provenance
 fields. Top-level counts are `total`, `num_correct`, and `num_incorrect`.
 Labels are the original benchmark labels, not independently proved ground truth.
+
+The dataset filename and frozen metadata retain their historical identifiers for
+checksum compatibility; the public benchmark name is **nfv-micro-bench**.
 
 Example: the mutant of the pair for `HumanEval/97` (provenance fields omitted):
 
