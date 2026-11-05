@@ -1,7 +1,7 @@
 <!-- Copyright (c) Microsoft Corporation.
 Licensed under the MIT License. -->
 
-# NFV code-review onboarding
+# NFV PR Auditor onboarding
 
 1. **Authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI; authenticate
    both CLIs. For Microsoft-provided Copilot access, sign in with the account
@@ -31,7 +31,7 @@ Licensed under the MIT License. -->
    bill Microsoft directly, even with a Microsoft-provided seat.
    See [GitHub's billing setup](https://docs.github.com/copilot/how-tos/copilot-cli/use-copilot-cli-in-actions).
 
-5. **Install post-merge review:** NFV reviews eligible PRs after they merge into
+5. **Install NFV PR Auditor:** The auditor reviews eligible PRs after they merge into
    the default branch and opens a linked issue only when model refutations exist.
    It does not audit PR updates before merge.
 
@@ -40,7 +40,7 @@ Licensed under the MIT License. -->
    `Billing: organization` only to opt in:
 
    ```text
-   Install NFV following:
+   Install NFV PR Auditor following:
    https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/ONBOARDING.md
 
    Target repository: OWNER/repo
@@ -49,12 +49,12 @@ Licensed under the MIT License. -->
    NFV release: Default
    ```
 
-   The agent uses `workflow/install.py` (Python 3.10+, gh-aw v0.88.7), pins both
-   selected reviewer, shared source-context helper and runtime to one latest
+   The agent uses `workflow/install.py` (Python 3.10+, gh-aw v0.88.7), pins the
+   auditor, its push trigger, shared source-context helper and runtime to one latest
    trusted NFV default-branch SHA, sets
    `NFV_RELEASE_SHA` and `NFV_MODEL`, and opens a **draft installation PR**.
    It reads back the pins, model, billing permissions and required secret names,
-   disables the selected reviewer and, for post-merge, its push trigger, and
+   disables the auditor and its push trigger, and
    verifies `disabled_manually`; if blocked, leave
    the PR draft and report the failure.
    Check [repository permission policies](REFERENCE.md#repository-permission-policies)
@@ -97,7 +97,8 @@ or execute inspected PR code, edit generated reports or expose secrets through
 `pull_request_target`.
 
 Already installed? Use the [upgrade procedure](REFERENCE.md#upgrade-an-existing-installation)
-and installer `--upgrade`. It disables and removes legacy PR-review workflows.
+and installer `--upgrade`. It disables and removes legacy reviewer workflows,
+including installations named `nfv-post-merge-review`.
 The existing model, billing and budgets are preserved unless explicitly changed.
 See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
 for permissions, optional settings and installer options.

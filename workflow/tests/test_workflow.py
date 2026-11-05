@@ -803,14 +803,14 @@ class TemplateTests(unittest.TestCase):
     package = Path(__file__).parents[1]
 
     def source(self):
-        return (self.template / "nfv-post-merge-review.md").read_text(encoding="utf-8")
+        return (self.template / "nfv-pr-auditor.md").read_text(encoding="utf-8")
 
     def lock(self):
-        return (self.template / "nfv-post-merge-review.lock.yml").read_text(encoding="utf-8")
+        return (self.template / "nfv-pr-auditor.lock.yml").read_text(encoding="utf-8")
 
     def test_prototype_maturity_preserves_nfv_identifiers(self):
         self.assertIn("a prototype implementation", self.source())
-        self.assertIn('name: "NFV post-merge reviewer"\n', self.lock())
+        self.assertIn('name: "NFV PR Auditor"\n', self.lock())
         source = (Path(__file__).parents[1] / "README.md").read_text(encoding="utf-8")
         self.assertIn("prototype", source)
         self.assertNotIn("Prototyp:", source)
@@ -835,7 +835,7 @@ class TemplateTests(unittest.TestCase):
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
-        self.assertIn("  - .github/workflows/nfv-post-merge-review.md\n", manifest)
+        self.assertIn("  - .github/workflows/nfv-pr-auditor.md\n", manifest)
         self.assertNotIn("  - .github/workflows/nfv-pr-review.md\n", manifest)
         self.assertIn("  - .github/workflows/nfv-source-context.md\n", manifest)
         self.assertTrue((self.package / "README.md").exists())
@@ -941,7 +941,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn(r'\"maxAiCredits\":${GH_AW_MAX_AI_CREDITS}', reviewer)
 
     def test_publication_uses_job_scoped_token_without_shared_override(self):
-        for name in ("nfv-source-context", "nfv-post-merge-review"):
+        for name in ("nfv-source-context", "nfv-pr-auditor"):
             with self.subTest(workflow=name):
                 source = (self.template / f"{name}.md").read_text(encoding="utf-8")
                 lock = (self.template / f"{name}.lock.yml").read_text(encoding="utf-8")
@@ -951,7 +951,7 @@ class TemplateTests(unittest.TestCase):
                 self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", process)
                 self.assertNotIn("GH_AW_GITHUB_TOKEN", process)
                 self.assertNotIn("continue-on-error:", process)
-                if name == "nfv-post-merge-review":
+                if name == "nfv-pr-auditor":
                     self.assertIn("      issues: write\n", outputs)
                     self.assertNotIn("      pull-requests: write\n", outputs)
 
@@ -1041,8 +1041,8 @@ class TemplateTests(unittest.TestCase):
         self.assertTrue((self.template / "nfv-source-context.lock.yml").exists())
 
     def test_post_merge_has_dispatch_only_analysis_and_one_conditional_issue_output(self):
-        source = (self.template / "nfv-post-merge-review.md").read_text(encoding="utf-8")
-        lock = (self.template / "nfv-post-merge-review.lock.yml").read_text(encoding="utf-8")
+        source = (self.template / "nfv-pr-auditor.md").read_text(encoding="utf-8")
+        lock = (self.template / "nfv-pr-auditor.lock.yml").read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch:", source)
         self.assertIn("github.event_name == 'workflow_dispatch'", source)
         self.assertIn("github.event.repository.default_branch", source)
@@ -1060,7 +1060,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("job-discriminator: ${{ github.run_id }}", worker)
         for compiled in (lock, (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")):
             self.assertIn('GH_AW_ALLOWED_BOTS: "github-actions[bot]"', compiled)
-        dispatcher = (self.package / "post-merge-dispatch.yml").read_text(encoding="utf-8")
+        dispatcher = (self.package / "pr-auditor-dispatch.yml").read_text(encoding="utf-8")
         self.assertIn("  push:\n", dispatcher)
         self.assertIn("actions: write", dispatcher)
         self.assertNotIn("issues: write", dispatcher)
@@ -1248,13 +1248,13 @@ class AuditTests(ScratchTest):
                 audit_limits(bad)
 
     def test_workflow_exports_budget_variables(self):
-        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-post-merge-review.md").read_text(encoding="utf-8")
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-auditor.md").read_text(encoding="utf-8")
         for name in ("NFV_SYNTAX_ROUNDS", "NFV_PROOF_ROUNDS", "NFV_VERIFIER_TIMEOUT", "NFV_PROPERTY_SECONDS"):
             self.assertIn(f"{name}: ${{{{ vars.{name} }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)
 
     def test_workflow_exports_independent_default_on_followup_flags(self):
-        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-post-merge-review.md").read_text(encoding="utf-8")
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-auditor.md").read_text(encoding="utf-8")
         for name in ("NFV_SIMPLIFY_REFUTATIONS", "NFV_CHECK_FIXES"):
             self.assertIn(f"{name}: ${{{{ vars.{name} || 'true' }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)

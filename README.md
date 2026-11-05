@@ -11,13 +11,13 @@ This repository contains two components:
 - **Paper artifact:** nfv-micro-bench dataset, retained results, experiment scripts, and Dafny/CBMC backends.
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
-- **GitHub Agentic Workflow integration (prototype implementation):** a PR
-  post-merge reviewer that selects nontrivial properties, tries verification
+- **NFV PR Auditor (prototype GitHub Agentic Workflow):** a post-merge PR
+  auditor that selects nontrivial properties, tries verification
   first, then refutation with Dafny, and opens a linked issue only for accepted
   conditional model refutations. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
-To try the reviewer in another repository, follow the
+To try NFV PR Auditor in another repository, follow the
 [onboarding guide](workflow/ONBOARDING.md) for installing the
 AW template, selecting inference billing and setting its required secrets, with
 an optional fork first. The helper skill is optional.
@@ -37,7 +37,7 @@ uses, dataset provenance, evaluation, and limitations.
 | `paper/` | Paper artifact: dataset, retained results, documentation and utilities |
 | `tests/` | Core and artifact tests |
 | `workflow/` | Prototype GitHub Agentic Workflow integration (`nfv-workflow` package and `aw.yml`) |
-| `.github/workflows/nfv-post-merge-review.md` | The NFV post-merge issue reviewer agentic workflow |
+| `.github/workflows/nfv-pr-auditor.md` | NFV PR Auditor: merged-PR audits with evidence-linked issues |
 
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof

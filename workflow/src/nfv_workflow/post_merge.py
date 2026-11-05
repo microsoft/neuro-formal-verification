@@ -18,7 +18,7 @@ from .publish import LABEL, marker
 from .repository_context import SUFFIXES
 
 
-WORKFLOW = "nfv-post-merge-review.lock.yml"
+WORKFLOW = "nfv-pr-auditor.lock.yml"
 
 
 def tracked_issues(api, repo):
@@ -132,7 +132,7 @@ def issue_payload(bundle, body):
         "Record rationale and any follow-up change in a comment; close when triage is complete.\n"
     )
     return {
-        "title": f"NFV: MODEL refutations for merged PR #{number} ({merge[:12]})",
+        "title": f"NFV PR Auditor: MODEL refutations for merged PR #{number} ({merge[:12]})",
         "body": (f"Review of merged [{repo}#{number}](https://github.com/{repo}/pull/{number}). "
                  "The analysis uses the captured PR-head snapshot, not the current default-branch tip.\n\n"
                  "**Conditional MODEL refutations, not confirmed source bugs.**\n\n"
@@ -171,7 +171,7 @@ def main(argv=None):
                 with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8", newline="\n") as stream:
                     stream.write("".join(f"{key}={value}\n" for key, value in values.items()))
     except (OSError, ValueError, KeyError, TypeError) as error:
-        print(f"NFV post-merge input/dispatch failed: {error}", file=sys.stderr, flush=True)
+        print(f"NFV PR Auditor input/dispatch failed: {error}", file=sys.stderr, flush=True)
         return 1
     return 0
 

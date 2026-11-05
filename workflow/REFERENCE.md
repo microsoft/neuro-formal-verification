@@ -1,7 +1,7 @@
 <!-- Copyright (c) Microsoft Corporation.
 Licensed under the MIT License. -->
 
-# NFV code-review reference
+# NFV PR Auditor reference
 
 See the [overview](README.md) or [installation guide](ONBOARDING.md) to get started.
 
@@ -43,7 +43,7 @@ and return types while preserving the original source line numbers.
 
 ## Post-merge review
 
-Installation provides `nfv-post-merge-review`, its trusted push trigger and the
+Installation provides `nfv-pr-auditor` (NFV PR Auditor), its trusted push trigger and the
 reusable `nfv-source-context` helper. It opens one linked issue only when
 accepted conditional MODEL refutations exist; all four property outcomes remain
 in the report/evidence. There is no pre-merge PR-review variant or mode selector.
@@ -486,8 +486,8 @@ when its workflows compile correctly.
 With gh-aw v0.88.7, both of these generated reviewer jobs request `issues: write`
 and `pull-requests: write`:
 
-* `nfv-post-merge-review.lock.yml:safe_outputs`
-* `nfv-post-merge-review.lock.yml:conclusion`
+* `nfv-pr-auditor.lock.yml:safe_outputs`
+* `nfv-pr-auditor.lock.yml:conclusion`
 
 These jobs publish the PR comment and report failures, missing tools and
 incomplete runs. If the repository restricts writers, obtain approval for these
@@ -529,7 +529,7 @@ The installer configures `copilot-requests` in **all three** permission scopes
 before compiling both workflows:
 
 * `.github/workflows/nfv-source-context.md`: top-level `permissions`.
-* `.github/workflows/nfv-post-merge-review.md`: top-level `permissions` and
+* `.github/workflows/nfv-pr-auditor.md`: top-level `permissions` and
   `jobs.repository_context.permissions`.
 
 Organization mode requires `write` in all three scopes; gh-aw uses the per-run
@@ -555,7 +555,7 @@ variables and secrets are untouched.
 
 The installer disables the current reviewer and trigger, checks all active or
 queued review/helper runs, and blocks until drained. It resolves the trusted
-NFV release once, installs the post-merge package, removes legacy PR-review
+NFV release once, installs the PR Auditor package, removes legacy reviewer
 files, reapplies billing permissions before compilation and opens a draft
 upgrade PR. If the new workflows are not registered
 or cannot be disabled, keep it draft and retry `--verify-bootstrap`.

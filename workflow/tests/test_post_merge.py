@@ -105,7 +105,7 @@ class PostMergeTests(unittest.TestCase):
         result = post_merge.dispatch(self.push, self.api)
         self.assertEqual(result, {"dispatched": [7], "skipped": []})
         self.assertEqual(self.api.submissions, [(
-            "repos/owner/project/actions/workflows/nfv-post-merge-review.lock.yml/dispatches",
+            "repos/owner/project/actions/workflows/nfv-pr-auditor.lock.yml/dispatches",
             {"ref": "main", "inputs": self.request["inputs"]})])
 
     def test_direct_pushes_and_unsupported_changes_do_not_start_inference(self):

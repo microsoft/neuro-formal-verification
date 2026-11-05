@@ -6,7 +6,7 @@ on:
   bots: ["github-actions[bot]"]
   pull_request:
     types: [opened, reopened]
-    paths: [.github/workflows/nfv-post-merge-review.md, .github/workflows/nfv-post-merge-review.lock.yml]
+    paths: [.github/workflows/nfv-pr-auditor.md, .github/workflows/nfv-pr-auditor.lock.yml]
   workflow_dispatch:
     inputs:
       pull-request-number:
@@ -35,7 +35,7 @@ max-turn-cache-misses: 500
 timeout-minutes: 360
 checkout: false
 concurrency:
-  group: nfv-post-merge-${{ github.repository }}-${{ inputs.pull-request-number }}
+  group: nfv-pr-auditor-${{ github.repository }}-${{ inputs.pull-request-number }}
   cancel-in-progress: false
   job-discriminator: ${{ inputs.pull-request-number }}
 jobs:
@@ -198,7 +198,7 @@ post-steps:
       if-no-files-found: warn
 ---
 
-# NFV post-merge reviewer
+# NFV PR Auditor
 
 This is a prototype implementation. The trusted SDK driver owns tool-free
 extraction and the complete foreground Dafny audit. There is no outer model session.

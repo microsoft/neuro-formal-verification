@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Install or upgrade NFV post-merge issue review using standard-library Python and gh."""
+"""Install or upgrade NFV PR Auditor using standard-library Python and gh."""
 
 import argparse
 import base64
@@ -22,25 +22,29 @@ COMMON_FILES = (
     ".github/workflows/nfv-source-context.md",
     ".github/workflows/nfv-source-context.lock.yml",
 )
-REVIEWERS = {"pr": "nfv-pr-review", "post-merge": "nfv-post-merge-review"}
-DISPATCHER = ".github/workflows/nfv-post-merge-dispatch.yml"
+REVIEWERS = {"pr": "nfv-pr-review", "post-merge": "nfv-pr-auditor",
+             "legacy-post-merge": "nfv-post-merge-review"}
+DISPATCHERS = {"post-merge": ".github/workflows/nfv-pr-auditor-dispatch.yml",
+               "legacy-post-merge": ".github/workflows/nfv-post-merge-dispatch.yml"}
+DISPATCHER = DISPATCHERS["post-merge"]
 
 
 def workflow_files(mode):
     name = REVIEWERS[mode]
     return (*COMMON_FILES, f".github/workflows/{name}.md",
-            f".github/workflows/{name}.lock.yml", *((DISPATCHER,) if mode == "post-merge" else ()))
+            f".github/workflows/{name}.lock.yml", *((DISPATCHERS[mode],) if mode in DISPATCHERS else ()))
 
 
 WORKFLOW = REVIEWERS["post-merge"] + ".lock.yml"
 WORKFLOW_FILES = workflow_files("post-merge")
-ALL_FILES = set(workflow_files("pr")) | set(WORKFLOW_FILES)
+ALL_FILES = set().union(*(workflow_files(mode) for mode in REVIEWERS))
 SHA = r"[0-9a-f]{40}"
 MODEL = r"[A-Za-z0-9][A-Za-z0-9_.:/-]*"
 BILLING_SCOPES = {
     ".github/workflows/nfv-source-context.md": ("  ",),
     ".github/workflows/nfv-pr-review.md": ("  ", "      "),
     ".github/workflows/nfv-post-merge-review.md": ("  ", "      "),
+    ".github/workflows/nfv-pr-auditor.md": ("  ", "      "),
 }
 
 
@@ -174,8 +178,8 @@ class Installer:
 
     def selected_workflows(self, mode):
         names = [REVIEWERS[mode] + ".lock.yml"]
-        if mode == "post-merge":
-            names.append(Path(DISPATCHER).name)
+        if mode in DISPATCHERS:
+            names.append(Path(DISPATCHERS[mode]).name)
         return names
 
     def disable_reviewer(self, mode):
@@ -208,7 +212,8 @@ class Installer:
         raise InstallError("Incomplete registered-workflow inventory; leave NFV disabled.")
 
     def check_exclusive_activation(self, mode):
-        other = set(self.selected_workflows("pr" if mode == "post-merge" else "post-merge"))
+        other = {name for candidate in REVIEWERS if candidate != mode
+                 for name in self.selected_workflows(candidate)}
         for record in self.workflows():
             if Path(record["path"]).name in other and record["state"] == "active":
                 raise InstallError("The unselected NFV mode is still active. Leave NFV disabled.")
@@ -221,17 +226,17 @@ class Installer:
 
     def check_dispatcher_pin(self, source, release):
         if not source.startswith(f"# NFV package: {PACKAGE}/workflow@{release}\n"):
-            raise InstallError("The post-merge dispatcher package pin differs from NFV_RELEASE_SHA.")
+            raise InstallError("The PR Auditor dispatcher package pin differs from NFV_RELEASE_SHA.")
 
     def follow_up(self, default_branch):
         pr = json.loads(self.run(
             "gh", "pr", "view", str(self.args.pull_request), "--repo", self.repository,
             "--json", "state,isDraft,baseRefName,headRefName,mergeCommit,url",
         ))
-        branch = re.fullmatch(r"nfv-(install|upgrade)-(?:(pr|post-merge)-)?([0-9a-f]{12})", pr["headRefName"])
+        branch = re.fullmatch(r"nfv-(install|upgrade)-(?:(pr|post-merge|pr-auditor)-)?([0-9a-f]{12})", pr["headRefName"])
         if pr["baseRefName"] != default_branch or not branch:
             raise InstallError("Expected an NFV installation PR targeting the default branch.")
-        mode = branch[2] or "pr"
+        mode = {"pr-auditor": "post-merge", "post-merge": "legacy-post-merge"}.get(branch[2], "pr")
         if self.args.verify_bootstrap:
             if pr["state"] != "OPEN" or not pr["isDraft"]:
                 raise InstallError("Bootstrap verification requires an open draft installation PR.")
@@ -239,7 +244,7 @@ class Installer:
             print(f"NFV is disabled. Review {pr['url']}; keep it disabled through marking ready and merging.")
             return
         if mode != "post-merge":
-            raise InstallError("Legacy PR review is no longer installable. Upgrade to post-merge review before activation.")
+            raise InstallError("This legacy reviewer must upgrade to NFV PR Auditor before activation.")
         if pr["state"] != "MERGED" or not (pr.get("mergeCommit") or {}).get("oid"):
             raise InstallError("NFV can be enabled only after the installation PR is merged.")
         head = self.api(f"repos/{self.repository}/commits/{quote(default_branch, safe='')}")["sha"]
@@ -281,7 +286,7 @@ class Installer:
         except InstallError:
             self.disable_reviewer(mode)
             raise
-        print(f"NFV {mode} is enabled with {billing} billing. No audit was started. Use a separate, approved pilot PR.")
+        print(f"NFV PR Auditor is enabled with {billing} billing. No audit was started. Use a separate, approved pilot PR.")
 
     def install(self, default_branch):
         if self.run("git", "status", "--porcelain", "--untracked-files=all"):
@@ -322,11 +327,11 @@ class Installer:
                     runs = self.api(f"repos/{self.repository}/actions/workflows/{name}/runs?status={state}&per_page=1")
                     if runs["total_count"]:
                         raise InstallError("Active/queued NFV runs remain. Leave NFV disabled, drain them, then retry --upgrade.")
-        branch = f"nfv-{'upgrade' if previous_mode else 'install'}-{mode}-{release[:12]}"
+        branch = f"nfv-{'upgrade' if previous_mode else 'install'}-pr-auditor-{release[:12]}"
         attributes = self.root / ".gitattributes"
         before = attributes.read_bytes() if attributes.exists() else None
         self.run("git", "switch", "-c", branch, base)
-        print(f"Installing NFV {mode} {release} with model {self.args.model} and {self.args.billing} billing on {branch}.")
+        print(f"Installing NFV PR Auditor {release} with model {self.args.model} and {self.args.billing} billing on {branch}.")
         add = ["gh", "aw", "add", f"{PACKAGE}/workflow@{release}"]
         if previous_mode:
             add.append("--force")
@@ -334,7 +339,7 @@ class Installer:
                 (self.root / path).unlink()
         print(self.run(*add))
         if mode == "post-merge":
-            dispatcher = self.captured_file(PACKAGE, "workflow/post-merge-dispatch.yml", release)
+            dispatcher = self.captured_file(PACKAGE, "workflow/pr-auditor-dispatch.yml", release)
             (self.root / DISPATCHER).write_text(
                 f"# NFV package: {PACKAGE}/workflow@{release}\n" + dispatcher,
                 encoding="utf-8", newline="\n")
@@ -378,7 +383,7 @@ class Installer:
                 raise InstallError(f"Generated workflow is excluded from the Git changes: {path}. Check ignore rules; nothing was committed.")
         self.run("git", "add", "--", *changed)
         self.run("git", "diff", "--cached", "--check")
-        self.run("git", "commit", "-m", f"{'Upgrade' if previous_mode else 'Install'} NFV {mode} review at {release}")
+        self.run("git", "commit", "-m", f"{'Upgrade' if previous_mode else 'Install'} NFV PR Auditor at {release}")
         variables = [("NFV_MODEL", self.args.model)]
         if not previous_mode:
             variables.append(("NFV_RELEASE_SHA", release))
@@ -390,7 +395,7 @@ class Installer:
         body = (
             f"Install the NFV prototype at immutable release {release} with model {self.args.model} "
             f"and {self.args.billing} inference billing.\n\n"
-            f"Selected review mode: {mode}; only this reviewer and its helpers are installed.\n\n"
+            "NFV PR Auditor reviews merged PRs; only this auditor and its helpers are installed.\n\n"
             "Keep this PR draft until the selected reviewer and trigger are confirmed disabled. Keep NFV "
             "disabled through marking ready and merging; leave unrelated CI enabled. "
             "Do not require an NFV check for its own installation PR.\n\n"
@@ -404,7 +409,7 @@ class Installer:
                      "Review existing workflow customizations; billing, model and repository budgets are independent of review mode.")
         url = self.run(
             "gh", "pr", "create", "--repo", self.repository, "--base", default_branch,
-            "--head", branch, "--draft", "--title", f"{'Upgrade' if previous_mode else 'Install'} NFV {mode} review", "--body", body,
+            "--head", branch, "--draft", "--title", f"{'Upgrade' if previous_mode else 'Install'} NFV PR Auditor", "--body", body,
         )
         print(f"Draft installation PR: {url}")
         created = json.loads(self.run(

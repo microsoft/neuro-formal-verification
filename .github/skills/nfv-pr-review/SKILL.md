@@ -1,11 +1,11 @@
 ---
 name: nfv-pr-review
-description: Bootstrap, configure, test, upgrade or troubleshoot NFV post-merge issue review (neuro-formal verification of merged pull requests with Dafny). Use when asked to install NFV, review a merged PR, or debug its reviewer.
+description: Bootstrap, configure, test, upgrade or troubleshoot NFV PR Auditor (neuro-formal verification of merged pull requests with Dafny). Use when asked to install NFV, audit a merged PR, or debug its auditor.
 ---
 
-# NFV post-merge reviewer
+# NFV PR Auditor
 
-NFV code review is a prototype GitHub Agentic Workflow (gh-aw). It reviews PRs
+NFV PR Auditor is a prototype GitHub Agentic Workflow (gh-aw). It reviews PRs
 only after they merge into the default branch. It extracts up to
 ten whole properties from captured intent/source, translate to Dafny and attempt
 verification before refutation. Findings are **conditional MODEL refutations,
@@ -13,7 +13,7 @@ never confirmed source bugs**. It retains all four property outcomes in the
 report/evidence and opens a linked triage issue only
 when accepted refutations exist.
 
-The source is `.github/workflows/nfv-post-merge-review.md`, with reusable
+The source is `.github/workflows/nfv-pr-auditor.md`, with reusable
 `nfv-source-context.md`, in `microsoft/neuro-formal-verification`.
 The `workflow` package installs post-merge issue review. Use the installer
 for the post-merge push trigger as well. User docs are in `workflow/README.md`.

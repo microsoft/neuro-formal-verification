@@ -16,7 +16,7 @@ Guidance for coding agents and contributors working in this repository. Read
 | `tests/` | Core and artifact tests |
 | `workflow/` | `nfv-workflow` package: PR collection, Dafny refutation pipeline, publication |
 | `workflow/aw.yml` | gh-aw package manifest that installs post-merge issue review |
-| `.github/workflows/nfv-post-merge-review.md` | The NFV post-merge reviewer and its `.lock.yml`; `workflow/post-merge-dispatch.yml` is its trusted push trigger |
+| `.github/workflows/nfv-pr-auditor.md` | NFV PR Auditor and its `.lock.yml`; `workflow/pr-auditor-dispatch.yml` is its trusted push trigger |
 | `.github/skills/nfv-pr-review/SKILL.md` | Agent skill to bootstrap, test and troubleshoot the PR reviewer in a repository |
 | `.github/workflows/ci.yml` | Offline checks with the real verifiers |
 
@@ -151,7 +151,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
 - The `nfv-merged-pr:` prefix of the report dedup marker is kept deliberately
   for continuity; do not rename it.
 
-## The post-merge reviewer agentic workflow (gh-aw)
+## NFV PR Auditor (gh-aw)
 
 - `workflow/install.py` provides Linux-first, agent-free installation/upgrades.
   Only post-merge issue review is installable. Upgrades disable/drain and remove
@@ -161,16 +161,16 @@ under `workflow/tests/.general-scratch/`; never commit them.
   aligned with the draft/disable/post-merge bootstrap rules. Never run the
   installer against a live client repository just to test changes.
 - Client bootstrap: never run NFV against its own initial installation PR or
-  require an NFV check for it. Keep that PR draft until the post-merge reviewer
+  require an NFV check for it. Keep that PR draft until the PR Auditor
   and push trigger are disabled and their states are verified; keep them disabled through
   marking ready and merging. If the workflow is not registered or cannot be
   disabled, leave the PR draft and report the block. Leave unrelated CI enabled.
   Enable NFV only after installation reaches the base branch, then use a
   separate user-approved pilot PR.
-- Edit `.github/workflows/nfv-post-merge-review.md` or `nfv-source-context.md`,
+- Edit `.github/workflows/nfv-pr-auditor.md` or `nfv-source-context.md`,
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
-  `gh aw compile nfv-post-merge-review nfv-source-context --approve` (locks are built with gh aw v0.88.7).
+  `gh aw compile nfv-pr-auditor nfv-source-context --approve` (locks are built with gh aw v0.88.7).
 - Flow: the reusable source-context AW session completes first. Trusted
   pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
   the immutable PR bundle. A deterministic custom SDK driver then runs

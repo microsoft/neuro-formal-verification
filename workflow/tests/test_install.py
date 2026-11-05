@@ -38,6 +38,8 @@ class FakeCLI:
     def source(self, path, pin):
         if path.endswith("nfv-pr-review.md"):
             source = "---\npermissions:\n  copilot-requests: none\njobs:\n  repository_context:\n    permissions:\n      copilot-requests: none\n---\nLegacy reviewer fixture\n"
+        elif path.endswith("nfv-post-merge-review.md"):
+            source = (SOURCE.parents[1] / ".github/workflows/nfv-pr-auditor.md").read_text(encoding="utf-8")
         else:
             source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
         if self.case.get("organization_billing"):
@@ -153,7 +155,8 @@ class FakeCLI:
         if command == "pr":
             if rest[0] == "create":
                 return 0, "https://github.com/owner/project/pull/7"
-            branch = f"nfv-{'upgrade' if self.phase == 'upgrade' else 'install'}-{self.mode}-{RELEASE[:12]}"
+            branch_mode = {"post-merge": "pr-auditor", "legacy-post-merge": "post-merge"}.get(self.mode, "pr")
+            branch = f"nfv-{'upgrade' if self.phase == 'upgrade' else 'install'}-{branch_mode}-{RELEASE[:12]}"
             if self.case.get("legacy_branch"):
                 branch = "nfv-install-" + RELEASE[:12]
             return 0, json.dumps({
@@ -175,7 +178,7 @@ class FakeCLI:
                 rows = [{"path": ".github/workflows/" + name, "state": self.state}
                         for name in INSTALL.Installer.selected_workflows(self, self.mode)]
                 if self.case.get("other_active"):
-                    other = "pr" if self.mode == "post-merge" else "post-merge"
+                    other = self.case.get("other_mode", "pr" if self.mode == "post-merge" else "post-merge")
                     rows.extend({"path": ".github/workflows/" + name, "state": "active"}
                                 for name in INSTALL.Installer.selected_workflows(self, other))
                 return 0, json.dumps({"workflows": rows, "total_count": len(rows)})
@@ -195,8 +198,8 @@ class FakeCLI:
                     return 1, "HTTP 404: Not Found"
                 pin = "d" * 40 if self.case.get("wrong_package") else RELEASE
                 path = endpoint.split("/contents/", 1)[1].split("?", 1)[0]
-                if path == "workflow/post-merge-dispatch.yml":
-                    text = (SOURCE.parent / "post-merge-dispatch.yml").read_text(encoding="utf-8")
+                if path == "workflow/pr-auditor-dispatch.yml":
+                    text = (SOURCE.parent / "pr-auditor-dispatch.yml").read_text(encoding="utf-8")
                 elif path == INSTALL.DISPATCHER:
                     text = f"# NFV package: {INSTALL.PACKAGE}/workflow@{pin}\nNative workflow fixture\n"
                 else:
@@ -262,7 +265,7 @@ class InstallerTests(unittest.TestCase):
         error, calls, _ = self.run_case()
         self.assertIsNone(error)
         self.assertIn(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}"], calls)
-        self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-post-merge-review", "--approve"], calls)
+        self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-auditor", "--approve"], calls)
         self.assertEqual(sum("/commits/HEAD" in " ".join(call) for call in calls), 1)
         self.assertIn("--draft", next(call for call in calls if call[:3] == ["gh", "pr", "create"]))
         for name, value in (("NFV_RELEASE_SHA", RELEASE), ("NFV_MODEL", "approved-model")):
@@ -286,7 +289,7 @@ class InstallerTests(unittest.TestCase):
             billing="organization", missing_secret=True, expected_billing="organization")
         self.assertIsNone(error)
         self.assertIn("organization billing", output)
-        self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-post-merge-review", "--approve"], calls)
+        self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-auditor", "--approve"], calls)
 
     def test_organization_billing_still_requires_private_release_access_and_org_owner(self):
         for case, reason in (({"missing_release": True}, "Missing NFV_RELEASE_TOKEN"),
@@ -414,7 +417,7 @@ class InstallerTests(unittest.TestCase):
     def test_legacy_pr_installation_must_upgrade_before_activation(self):
         error, calls, _ = self.run_case(
             phase="enable", review_mode="pr", legacy_package=True, legacy_branch=True)
-        self.assertIn("Upgrade to post-merge", error)
+        self.assertIn("upgrade to NFV PR Auditor", error)
         self.assertFalse(any(call[:3] == ["gh", "workflow", "enable"] for call in calls))
     def test_activation_refuses_both_mode_files_or_an_active_unselected_reviewer(self):
         for case in ("both_modes", "other_active"):
@@ -442,6 +445,31 @@ class InstallerTests(unittest.TestCase):
         self.assertFalse(any(call[:2] in (["git", "switch"], ["git", "commit"])
                              or call[:3] == ["gh", "aw", "add"]
                              or call[:3] == ["gh", "variable", "set"] for call in calls))
+
+    def test_old_post_merge_names_are_disabled_drained_and_removed_on_upgrade(self):
+        error, calls, _ = self.run_case(phase="upgrade", previous_mode="legacy-post-merge", model=None)
+        self.assertIsNone(error)
+        replacement = calls.index(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}", "--force"])
+        for name in ("nfv-post-merge-review.lock.yml", "nfv-post-merge-dispatch.yml"):
+            self.assertLess(calls.index(["gh", "workflow", "disable", name, "--repo", "owner/project"]), replacement)
+            self.assertTrue(any(f"/{name}/runs?status=in_progress" in call[-1] for call in calls))
+        staged = next(call for call in calls if call[:2] == ["git", "add"])
+        self.assertIn(".github/workflows/nfv-post-merge-review.md", staged)
+        self.assertIn(".github/workflows/nfv-post-merge-dispatch.yml", staged)
+        self.assertIn(".github/workflows/nfv-pr-auditor.md", staged)
+
+    def test_auditor_activation_refuses_a_still_active_old_post_merge_workflow(self):
+        error, calls, _ = self.run_case(
+            phase="enable", other_active=True, other_mode="legacy-post-merge")
+        self.assertIn("still active", error)
+        self.assertFalse(any(call[:3] == ["gh", "workflow", "enable"] for call in calls))
+
+    def test_old_post_merge_bootstrap_branch_still_disables_the_original_names(self):
+        error, calls, _ = self.run_case(phase="guard", review_mode="legacy-post-merge")
+        self.assertIsNone(error)
+        for name in ("nfv-post-merge-review.lock.yml", "nfv-post-merge-dispatch.yml"):
+            self.assertIn(["gh", "workflow", "disable", name, "--repo", "owner/project"], calls)
+        self.assertFalse(any(call[:3] == ["gh", "workflow", "enable"] for call in calls))
 
     def test_variable_readback_failure_does_not_publish_or_create_pr(self):
         error, calls, _ = self.run_case(wrong_pin=True)

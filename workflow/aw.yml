@@ -3,10 +3,10 @@
 
 manifest-version: "1"
 min-version: v0.88.7
-name: NFV post-merge reviewer
+name: NFV PR Auditor
 emoji: 🔎
 description: Prototype default-branch merged-PR review with trackable conditional MODEL refutation issues.
 experimental: true
 includes:
   - .github/workflows/nfv-source-context.md
-  - .github/workflows/nfv-post-merge-review.md
+  - .github/workflows/nfv-pr-auditor.md

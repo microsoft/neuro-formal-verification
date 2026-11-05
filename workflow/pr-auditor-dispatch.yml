@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-name: NFV post-merge trigger
+name: NFV PR Auditor trigger
 on:
   push:
 permissions:
