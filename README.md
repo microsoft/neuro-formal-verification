@@ -26,6 +26,9 @@ The code and artifacts are intended for research reproduction, authorized
 experimentation, and feedback on neuro-formal reasoning. The prototype reviewer
 is not a substitute for source review, testing, or a security assessment.
 
+See the draft [code and dataset transparency note](TRANSPARENCY.md) for intended
+uses, dataset provenance, evaluation, and limitations.
+
 ## Folder structure
 
 | Directory | Purpose |
