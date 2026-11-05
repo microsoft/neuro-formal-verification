@@ -804,6 +804,22 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("prototype", source)
         self.assertNotIn("Prototyp:", source)
 
+    def test_readme_is_a_short_overview_with_installation_and_reference_links(self):
+        source = (self.package / "README.md").read_text(encoding="utf-8")
+        self.assertLessEqual(len(source.split()), 150)
+        self.assertIn("https://arxiv.org/abs/2608.21516", source)
+        self.assertIn("](ONBOARDING.md)", source)
+        self.assertIn("](REFERENCE.md)", source)
+        self.assertIn('<a id="upgrade-an-existing-installation"></a>', source)
+        reference = (self.package / "REFERENCE.md").read_text(encoding="utf-8")
+        self.assertIn("### Repository permission policies", reference)
+        self.assertIn("### Upgrade an existing installation", reference)
+        onboarding = (self.package / "ONBOARDING.md").read_text(encoding="utf-8")
+        self.assertNotIn("README.md#", onboarding)
+        self.assertIn("REFERENCE.md#repository-permission-policies", onboarding)
+        self.assertIn("REFERENCE.md#upgrade-an-existing-installation", onboarding)
+        self.assertIn("REFERENCE.md#configure-github-agentic-workflows", onboarding)
+
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)

@@ -50,7 +50,7 @@ Licensed under the MIT License. -->
    It reads back the pins, model, billing permissions and required secret names,
    disables the reviewer and verifies `disabled_manually`; if blocked, leave
    the PR draft and report the failure.
-   Check [repository permission policies](README.md#repository-permission-policies)
+   Check [repository permission policies](REFERENCE.md#repository-permission-policies)
    against the generated jobs. Update approved job-specific allowlists and their
    tests/documentation; do not disable checks or grant workflow-wide write access.
 
@@ -83,7 +83,7 @@ source bugs**; failure to refute is not evidence of correctness. Never check out
 or execute inspected PR code, edit generated reports or expose secrets through
 `pull_request_target`.
 
-Already installed? Use the [upgrade procedure](README.md#upgrade-an-existing-installation),
+Already installed? Use the [upgrade procedure](REFERENCE.md#upgrade-an-existing-installation),
 not the first-installation script. Existing installations do not switch billing
-automatically. See the [configuration reference](README.md#configure-github-agentic-workflows)
+automatically. See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
 for permissions, optional settings and installer options.
