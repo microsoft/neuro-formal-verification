@@ -48,7 +48,7 @@ generated comment and completed native evidence rather than a green job alone.
 
 ## Upgrade
 
-Follow the [workflow reference's upgrade section](../../../workflow/README.md#upgrade-an-existing-installation).
+Follow the [onboarding guide's upgrade section](../../../workflow/ONBOARDING.md#upgrade-an-existing-installation).
 Pause new audits, wait for active/queued runs to finish and keep the model,
 billing mode, secrets and budgets. Update the package and runtime together,
 verify merged configuration, then re-enable and check a separately approved pilot.
