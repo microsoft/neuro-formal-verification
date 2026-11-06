@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 from string import Template
+from types import SimpleNamespace
 import unittest
 import uuid
 from unittest.mock import patch
@@ -900,16 +901,50 @@ class TemplateTests(unittest.TestCase):
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, synchronize, ready_for_review]", source)
-        gate = ("github.event.pull_request.draft == false && "
+        gate = ("github.event.pull_request.base.ref == github.event.repository.default_branch && "
+                "github.event.pull_request.draft == false && "
                 "(github.event.action == 'opened' || github.event.action == 'ready_for_review')")
         self.assertEqual(source.count("if: " + gate), 2)
         self.assertIn("github.event.action == 'ready_for_review'", lock)
         self.assertIn("cancel-in-progress: true", source)
         self.assertIn("noop:\n    report-as-issue: false", source)
         self.assertNotIn("slash_command", source)
-        self.assertNotIn("pull_request_target", lock)
-        self.assertNotIn("roles: all", source)
+        self.assertIn("  pull_request_target:\n", source)
+        self.assertIn("  pull_request_target:\n", lock)
+        self.assertIn("  roles: all\n", source)
+        self.assertNotIn("github.event.pull_request.head.repo.id == github.repository_id", lock)
+        self.assertIn("github.event.pull_request.base.ref == github.event.repository.default_branch", lock)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
+
+    def test_default_branch_activation_accepts_forks_without_auditing_pushes(self):
+        gate = re.search(r"\n  activation:\n    if: >\n(.*?)\n    runs-on:",
+                         self.lock(), re.DOTALL).group(1)
+        condition = " ".join(gate.split()).replace("&&", "and").replace("||", "or").replace("false", "False")
+        for base, default, draft, action, head_id, expected in (
+            ("master", "master", False, "opened", 2, True),
+            ("main", "main", False, "ready_for_review", 2, True),
+            ("dev", "dev", False, "opened", 1, True),
+            ("release", "main", False, "opened", 2, False),
+            ("main", "main", True, "opened", 2, False),
+            ("main", "main", False, "synchronize", 2, False),
+            ("main", "main", False, "reopened", 2, False),
+        ):
+            with self.subTest(base=base, default=default, draft=draft, action=action, head_id=head_id):
+                github = SimpleNamespace(
+                    repository_id=1,
+                    event=SimpleNamespace(
+                        action=action, repository=SimpleNamespace(default_branch=default),
+                        pull_request=SimpleNamespace(
+                            draft=draft, base=SimpleNamespace(ref=base),
+                            head=SimpleNamespace(repo=SimpleNamespace(id=head_id)),
+                        ),
+                    ),
+                )
+                self.assertEqual(expected, eval(condition, {"__builtins__": {}}, {"github": github}))
+        worker = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
+        for compiled in (self.lock(), worker):
+            self.assertNotIn("check_membership", compiled)
+        self.assertIn("daily-effective-workflow-guardrail", self.lock())
 
     def test_path_filters_skip_the_documentation_and_submodule_failure_cases(self):
         from nfv_workflow.repository_context import SUFFIXES

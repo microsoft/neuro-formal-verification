@@ -168,8 +168,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
-- Audits start on non-draft `opened` and `ready_for_review` events. Each ready
-  transition explicitly requests a rerun. `synchronize` only cancels an older
+- Audits start on non-draft `opened` and `ready_for_review` events targeting the
+  onboarded repository's default branch, including forks
+  and external contributors. Execute only trusted-base `pull_request_target`
+  workflow code; PR-head code remains inspection-only data.
+  Each ready transition explicitly requests a rerun. `synchronize` only cancels an older
   per-PR workflow attempt; it starts no inference or audit. Reopening does not
   audit. Typed collection supersession records an incomplete operational skip
   and a no-op, never a proof outcome or empty successful report; other failures

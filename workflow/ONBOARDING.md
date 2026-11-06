@@ -6,6 +6,12 @@ Licensed under the MIT License. -->
 Already installed? Use the [upgrade procedure](#upgrade-an-existing-installation),
 not the first-installation script.
 
+NFV audits non-draft, supported-source PRs into the onboarded repository's default
+branch, including forks and external contributors. Audits start on opening or
+draft-to-ready transitions, not later pushes. External contributors can trigger
+billable inference under the configured limits. The `pull_request_target`
+workflow runs trusted base-branch code and never executes inspected PR code.
+
 1. **Authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI; authenticate
    both CLIs. For Microsoft-provided Copilot access, sign in with the account
    assigned that seat. Select an approved model ID permitted by that account's

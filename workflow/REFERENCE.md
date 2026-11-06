@@ -35,8 +35,13 @@ and return types while preserving the original source line numbers.
   the model is frozen. Drafts rejected by Dafny's Boogie resolution stage use the
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
-* Audits start on non-draft `opened` and `ready_for_review` events whose changed
-  paths include a supported source suffix. Each draft-to-ready transition
+* Audits start on non-draft `opened` and `ready_for_review` events targeting the
+  onboarded repository's default branch, including fork PRs and external
+  contributors, whose changed paths include a supported source suffix.
+  The `pull_request_target` workflow runs trusted base-branch code; PR-head code
+  is captured only as immutable data, never executed. External contributors can
+  trigger billable inference under the repository's configured limits.
+  Each draft-to-ready transition
   explicitly requests an audit of the latest head. Reopening does not.
   Drafts and documentation/configuration/submodule-only PRs are skipped before
   either inference session starts. Keep NFV advisory, not a required merge check.

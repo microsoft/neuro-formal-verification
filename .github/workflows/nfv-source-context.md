@@ -9,6 +9,7 @@ on:
         required: false
       NFV_RELEASE_TOKEN:
         required: false
+  roles: all
 permissions:
   contents: read
   pull-requests: read
