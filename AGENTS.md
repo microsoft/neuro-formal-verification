@@ -191,6 +191,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `copilot-requests` permissions to `write` instead of `none`, without PAT
   fallback. Preserve the selected mode through upgrades. Both modes need
   `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
+- Upgrade handoffs must show literal, copy/paste-ready release-variable set and
+  read-back commands for the actual client repository. Derive the full SHA from
+  both installed package pins on the merged client default branch, verify they
+  agree, and never use placeholders or the latest NFV branch tip. Leave NFV
+  disabled if pins cannot be verified; check variable read-back before enabling.
 - NFV is advisory, never a required merge check or input to a required CI
   aggregator. Keep operational failures visible. Both workflows explicitly use
   `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}` for job-scoped publication,
