@@ -53,6 +53,11 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn("Maintainers must not merge", contributing)
         self.assertIn("python -m unittest discover -s tests", contributing)
         self.assertIn("[AGENTS.md](AGENTS.md)", contributing)
+        for required in (
+            "naming clearance", "authoring-team permission", "legal/IP",
+            "Microsoft organization", "not release approval",
+        ):
+            self.assertIn(required, contributing)
 
     def test_privacy_notice_and_opt_out_instructions(self):
         privacy = (ROOT / "PRIVACY").read_text(encoding="utf-8")
@@ -91,7 +96,7 @@ class ReleaseTests(unittest.TestCase):
             self.assertIn(name, notice)
             self.assertTrue(ROOT.joinpath(*name.split("/")).is_file())
 
-    def test_tracked_headers_and_binaries_with_frozen_tooling_skips(self):
+    def test_tracked_source_headers_and_no_prebuilt_runtime_binaries(self):
         if not (ROOT / ".git").exists():
             self.skipTest("Tracked-source audit requires Git metadata")
         paths = subprocess.check_output(
@@ -119,11 +124,6 @@ class ReleaseTests(unittest.TestCase):
                             hashlib.sha256(path.read_bytes()).hexdigest(),
                             frozen_tooling[name],
                         )
-                        if "Copyright (c) Microsoft Corporation." not in header:
-                            self.skipTest(
-                                "Frozen historical source lacks a header; release requires "
-                                "approval to update its hash or a legal exception"
-                            )
                     self.assertIn("Copyright (c) Microsoft Corporation.", header)
                     self.assertIn("Licensed under the MIT License.", header)
 

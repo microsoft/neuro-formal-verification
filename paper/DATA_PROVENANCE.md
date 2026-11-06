@@ -28,6 +28,11 @@ attribution. The HumanEval MIT notice is also retained in
 The acquisition metadata does not record the upstream commit,
 EvalPlus package version or downloaded cache digest.
 
+Microsoft-authored reconstruction tooling carries copyright and MIT headers.
+`manifest.json` records its release-file hashes separately from original source
+hashes and Git blobs. These tooling notices do not relicense upstream benchmark
+content; the dataset and retained results keep their frozen bytes.
+
 The upstream research is **nl2postcond** (Endres et al., FSE 2024), as cited in
 the paper's unmodified references. The acquisition recipe selects
 `eval_results/gpt4_simple_no_ref.zip`, specifically the GPT-4
