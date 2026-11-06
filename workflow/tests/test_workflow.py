@@ -1209,8 +1209,8 @@ class ExtractionInputTests(ScratchTest):
         cli.save(self.directory / "nfv-context.json", {"files": []})
         for superseded in (False, True):
             with self.subTest(superseded=superseded):
-                trusted = {**record, "status": "superseded", "diagnostic": "PR changed"} if superseded else record
-                cli.save(root / "collection-status.json", trusted)
+                collection_record = {**record, "status": "superseded", "diagnostic": "PR changed"} if superseded else record
+                cli.save(root / "collection-status.json", collection_record)
                 if superseded:
                     (root / "bundle.json").unlink()
                 prepared = subprocess.run([sys.executable, "-", str(root / "bundle.json"),
@@ -1220,7 +1220,7 @@ class ExtractionInputTests(ScratchTest):
                 index = cli.load(self.directory / "nfv-context-input.json")
                 self.assertEqual(index["identity"], record["identity"])
                 if superseded:
-                    self.assertEqual(index, trusted)
+                    self.assertEqual(index, collection_record)
                 cli.save(self.directory / "nfv-context-input.json",
                          record if superseded else {**record, "status": "superseded"})
                 result = subprocess.run([sys.executable, "-"], input=script, cwd=self.directory,
@@ -1228,7 +1228,7 @@ class ExtractionInputTests(ScratchTest):
                                         capture_output=True, text=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 handoff = cli.load(self.directory / "nfv-context-validated" / "context.json")
-                self.assertEqual(handoff, trusted if superseded else {"identity": data["identity"], "files": []})
+                self.assertEqual(handoff, collection_record if superseded else {"identity": data["identity"], "files": []})
 
 
 class AuditTests(ScratchTest):
