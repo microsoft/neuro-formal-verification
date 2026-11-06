@@ -8,9 +8,11 @@ you to agree to a Contributor License Agreement (CLA) declaring that you have th
 right to, and actually do, grant us the rights to use your contribution. For
 details, visit [Contributor License Agreements](https://cla.opensource.microsoft.com).
 
-Follow the Microsoft CLA bot's instructions on your pull request. You will only
-need to agree once across repositories using our CLA. Maintainers must not merge
-contributions until the `license/cla` check confirms that all CLA requirements
+When you submit a pull request, the Microsoft CLA bot automatically determines
+whether an agreement is required and reports its status. Follow the bot's
+instructions; you will only need to agree once across repositories using our
+CLA. Maintainers must not merge contributions until the `license/cla` check
+confirms that all CLA requirements
 are met. If that check is missing, maintainers must resolve the integration
 before accepting contributions.
 
@@ -62,3 +64,9 @@ Do not include credentials, personal files, confidential content, or generated
 scratch artifacts in a contribution. Do not execute inspected PR-head code when
 working on the reviewer. Report security vulnerabilities privately as described
 in [SECURITY.md](SECURITY.md), not in a public issue or pull request.
+
+Preserve the required notices in `LICENSE.TXT`, `NOTICE.txt` and `PRIVACY`.
+Keep the compatibility copy `LICENSE` identical to `LICENSE.TXT`. Do not commit
+pre-built executables, libraries or packages, Microsoft product icons, or
+unauthorized branding. Discuss substantial changes in an issue before starting;
+see [SUPPORT.md](SUPPORT.md) for the project's support expectations.

@@ -1,0 +1,55 @@
+Privacy and telemetry
+
+Data Collection. The software may collect information about you and your use of
+the software and send it to Microsoft. Microsoft may use this information to
+provide services and improve our products and services. You may turn off the
+telemetry as described in the repository. There are also some features in the
+software that may enable you and Microsoft to collect data from users of your
+applications. If you use these features, you must comply with applicable law,
+including providing appropriate notices to users of your applications together
+with a copy of Microsoft's privacy statement. Our privacy statement is located
+at https://go.microsoft.com/fwlink/?LinkID=824704. You can learn more about data
+collection and use in the help documentation and our privacy statement. Your use
+of the software operates as your consent to these practices.
+
+NFV data handling
+
+NFV has no separate usage-telemetry uploader. Results and diagnostic files from
+local runs are not automatically sent to NFV maintainers. Requested inference
+sends source, intent and model context to Copilot or the selected provider.
+GitHub Actions retains workflow logs and evidence artifacts, and the reviewer
+publishes PR comments in the consuming repository. These services have their own
+data-handling policies. Optional gh-aw OpenTelemetry export sends traces to an
+operator-configured endpoint; it is not enabled by an NFV-owned collector.
+
+Turning off telemetry and avoiding cloud collection
+
+- Optional workflow OTLP export: clear GH_AW_DEFAULT_OTLP_ENDPOINT for the
+  consuming repository. Have its administrator remove or override any applicable
+  organization/enterprise default for this repository, and remove any explicitly
+  configured observability.otlp endpoint. The paper benchmark also reads a
+  GH_AW_DEFAULT_OTLP_ENDPOINT secret; clear that secret if using that workflow.
+  With no resolved endpoint, the generated workflows skip OTLP export. Do not
+  merely remove authentication headers while leaving an endpoint configured.
+
+- Copilot CLI client telemetry: when launching the CLI directly, pass
+  --disable-client-telemetry. This applies only to that CLI process, not to
+  separately supervised SDK/AW CLI processes or service-side collection.
+
+- .NET CLI telemetry: set DOTNET_CLI_TELEMETRY_OPTOUT=1 before running tools.
+  In PowerShell: $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
+  In a POSIX shell: export DOTNET_CLI_TELEMETRY_OPTOUT=1
+  The NFV workflow's verifier subprocess already sets this opt-out.
+
+- To avoid Microsoft/GitHub cloud collection, do not run cloud inference or
+  hosted workflows. Disable the installed NFV workflows in the consuming
+  repository's Actions settings, and separately cancel active/queued runs.
+  Local saved-artifact checks, such as python -m paper.smoke --timeout 60,
+  require no inference. Use locally installed verifiers with the opt-out above.
+
+These controls do not erase existing logs, artifacts, provider records or
+published comments. Turning off OTLP or CLI client telemetry does not prevent
+service-side processing of requests you choose to send. Do not submit secrets,
+personal information or source you are not authorized to share. Before collecting
+data from application users, provide the required notices and comply with
+applicable law and the selected providers' terms.
