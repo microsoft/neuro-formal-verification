@@ -71,7 +71,9 @@ not the first-installation script.
    ```
 
 7. **Approve a separate, billable pilot:** Use a small code-change PR based on
-   the installed branch. Documentation, configuration and submodule-only PRs
+   the installed branch, opened non-draft or transitioned from draft to ready.
+   Later pushes do not start another audit; toggle draft to ready for an explicit
+   rerun. Documentation, configuration and submodule-only PRs
    without a supported source-suffix change do not start NFV.
    Verify the generated comment and `nfv-evidence` report:
    `completed: true`, no global errors and recorded property outcomes, not just
@@ -80,6 +82,8 @@ not the first-installation script.
    The separate `review-status.json` records driver completion/submission or an
    infrastructure failure; it is not a property verdict. Infrastructure failures
    can still fail Actions checks. Keep NFV advisory, not required for merging.
+   An outdated snapshot records `status: superseded` with `completed: false`,
+   not an audit verdict or a successful pilot; it posts no report.
 
 NFV is a prototype. Findings are **conditional MODEL refutations, never confirmed
 source bugs**; failure to refute is not evidence of correctness. Never check out

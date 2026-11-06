@@ -11,7 +11,7 @@ from pathlib import Path
 
 from . import read_prompt
 from .check import check
-from .github import Abstain, GitHub, collect, reanchor
+from .github import Abstain, GitHub, Superseded, collect, reanchor, repository, sha
 from .publish import LABEL, publication_allowed, publish
 
 
@@ -20,6 +20,24 @@ def load(path):
     if path.stat().st_size > 12_000_000:
         raise Abstain("Input file exceeds 12 MB")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def collection_status(path):
+    status = load(path)
+    if (not isinstance(status, dict) or status.get("schema") != 1
+            or status.get("kind") != "nfv-collection-attempt"
+            or status.get("status") not in ("collected", "superseded")):
+        raise Abstain("Invalid trusted collection status")
+    ident = status.get("identity")
+    if not isinstance(ident, dict) or type(ident.get("number")) is not int or ident["number"] < 1:
+        raise Abstain("Invalid collection snapshot identity")
+    repository(ident["repository"])
+    for field in ("head_sha", "base_sha", "source_sha"):
+        sha(ident[field])
+    if status["status"] == "superseded" and (
+            not isinstance(status.get("diagnostic"), str) or not status["diagnostic"].strip()):
+        raise Abstain("Superseded collection requires an explicit diagnostic")
+    return status
 
 
 def save(path, value):
@@ -231,6 +249,7 @@ def main(argv=None):
     p.add_argument("--side", choices=("head", "base"), default="head",
                    help="base: pre-merge snapshot anchored on removed lines (before/after analysis; not publishable)")
     p.add_argument("--sources-dir", help="Also write captured sources as plain files with repository line numbers")
+    p.add_argument("--status-out", help="Record collection status; explicitly superseded snapshots skip without a bundle")
     p = commands.add_parser("context-manifest", help="Validate source-context session output; never execute source")
     p.add_argument("--bundle", required=True)
     p.add_argument("--manifest", required=True)
@@ -302,10 +321,22 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == "collect":
-            bundle = collect(load(args.event), GitHub(), side=args.side)
-            save(args.out, bundle)
-            if args.sources_dir:
-                write_sources(bundle, args.sources_dir)
+            try:
+                bundle = collect(load(args.event), GitHub(), side=args.side)
+            except Superseded as exc:
+                if not args.status_out:
+                    raise
+                status = {"schema": 1, "kind": "nfv-collection-attempt", "status": "superseded",
+                          "identity": exc.identity, "diagnostic": str(exc)}
+                save(args.status_out, status)
+                print(json.dumps(status))
+            else:
+                save(args.out, bundle)
+                if args.sources_dir:
+                    write_sources(bundle, args.sources_dir)
+                if args.status_out:
+                    save(args.status_out, {"schema": 1, "kind": "nfv-collection-attempt",
+                                           "status": "collected", "identity": bundle["identity"]})
         elif args.command == "context-manifest":
             from .repository_context import sanitize_manifest
             sanitize_manifest(load(args.bundle), args.manifest, args.out, hints_only=args.hints_only)

@@ -12,9 +12,20 @@ from pathlib import Path
 import subprocess
 import sys
 
-from .cli import audit, audit_limits, awf_provider, load, propose, save
+from .cli import audit, audit_limits, awf_provider, collection_status, load, propose, save
 from .github import Abstain
 from .outcomes import InferenceFailure
+
+
+def submit(output, command, payload):
+    result = subprocess.run(
+        ["safeoutputs", command, "."], input=json.dumps(payload, ensure_ascii=False),
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
+    )
+    save(output / "publication.json", {"tool": command, "returncode": result.returncode,
+                                     "stdout": result.stdout, "stderr": result.stderr})
+    if result.returncode:
+        raise Abstain("Safe-output submission failed: " + result.stderr[-2000:])
 
 
 def review(status=None):
@@ -41,7 +52,19 @@ def review(status=None):
     with (output / "sandbox-run.json").open("x", encoding="utf-8") as stream:
         json.dump({"execution": "sandboxed-foreground"}, stream)
     status["stage"] = "inputs"
+    if env.get("NFV_COLLECTION_STATUS"):
+        collection = collection_status(env["NFV_COLLECTION_STATUS"])
+        if collection["status"] == "superseded":
+            status["identity"] = collection["identity"]
+            status["diagnostic"] = collection["diagnostic"]
+            status["publication"] = "unconfirmed"
+            save(output / "collection-status.json", collection)
+            submit(output, "noop", {"message": "NFV skipped: " + collection["diagnostic"]})
+            status["publication"] = "not_needed"
+            return {"status": "superseded", "publication": "not_needed"}
     bundle = load(env["NFV_BUNDLE"])
+    if env.get("NFV_COLLECTION_STATUS") and collection["identity"] != bundle["identity"]:
+        raise Abstain("Collection status does not match the captured bundle")
     status["identity"] = bundle["identity"]
     save(output / "bundle.json", bundle)
     status["stage"] = "extraction"
@@ -61,15 +84,7 @@ def review(status=None):
         raise Abstain("NFV audit produced an empty report")
     status["stage"] = "publication"
     status["publication"] = "unconfirmed"
-    result = subprocess.run(
-        ["safeoutputs", "add_comment", "."],
-        input=json.dumps({"body": body}, ensure_ascii=False),
-        capture_output=True, text=True, encoding="utf-8", timeout=60,
-    )
-    save(output / "publication.json", {"returncode": result.returncode,
-                                     "stdout": result.stdout, "stderr": result.stderr})
-    if result.returncode:
-        raise Abstain("Safe-output submission failed: " + result.stderr[-2000:])
+    submit(output, "add_comment", {"body": body})
     status["publication"] = "submitted"
     return {**summary, "publication": "submitted"}
 
@@ -92,7 +107,8 @@ def main():
               "stage": "setup", "publication": "not_attempted"}
     try:
         summary = review(status)
-        status.update(status="completed", completed=True)
+        superseded = summary.get("status") == "superseded"
+        status.update(status="superseded" if superseded else "completed", completed=not superseded)
         record_status(status)
         print(json.dumps(summary), flush=True)
     except (Abstain, InferenceFailure, OSError, ValueError, KeyError, TypeError, RuntimeError,

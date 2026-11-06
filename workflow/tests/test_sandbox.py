@@ -152,6 +152,53 @@ class SandboxTests(unittest.TestCase):
         self.assertFalse((self.output / "report.json").exists())
         self.assertFalse(self.calls)
 
+    def test_superseded_attempt_submits_only_noop_without_a_fabricated_audit(self):
+        self.bundle_path.unlink()
+        record = {"schema": 1, "kind": "nfv-collection-attempt", "status": "superseded",
+                  "identity": {"repository": "owner/project", "number": 7, "head_sha": "a" * 40,
+                               "base_sha": "b" * 40, "source_sha": "a" * 40},
+                  "diagnostic": "PR changed during collection"}
+        path = self.directory / "collection-status.json"
+        save(path, record)
+        self.environment["NFV_COLLECTION_STATUS"] = str(path)
+        def noop(command, **kwargs):
+            self.calls.append("noop")
+            self.assertEqual(command, ["safeoutputs", "noop", "."])
+            self.assertEqual(json.loads(kwargs["input"]), {"message": "NFV skipped: PR changed during collection"})
+            return SimpleNamespace(returncode=0, stdout="queued", stderr="")
+        self.assertEqual(self.execute(submit=noop, main=True), 0)
+        status = json.loads((self.output / "review-status.json").read_text())
+        self.assertEqual(status["status"], "superseded")
+        self.assertEqual(status["publication"], "not_needed")
+        self.assertFalse(status["completed"])
+        self.assertFalse(status["analysis_completed"])
+        self.assertEqual(status["identity"], record["identity"])
+        self.assertEqual(self.calls, ["noop"])
+        for name in ("bundle.json", "proposals.json", "report.json", "comment.md"):
+            self.assertFalse((self.output / name).exists())
+
+    def test_invalid_skip_metadata_and_failed_noop_remain_infrastructure_failures(self):
+        record = {"schema": 1, "kind": "nfv-collection-attempt", "status": "superseded",
+                  "identity": {"repository": "owner/project", "number": 7, "head_sha": "a" * 40,
+                               "base_sha": "b" * 40, "source_sha": "a" * 40},
+                  "diagnostic": "PR changed"}
+        path = self.directory / "collection-status.json"
+        self.environment["NFV_COLLECTION_STATUS"] = str(path)
+        def failed(command, **kwargs):
+            self.calls.append("noop")
+            return SimpleNamespace(returncode=1, stdout="", stderr="safe-output unavailable")
+        for invalid in (True, False):
+            with self.subTest(invalid=invalid):
+                save(path, {**record, "schema": 99} if invalid else record)
+                self.assertEqual(self.execute(submit=failed, main=True), 1)
+                status = json.loads((self.output / "review-status.json").read_text())
+                self.assertEqual(status["status"], "infrastructure_failure")
+                self.assertFalse(status["analysis_completed"])
+                self.assertFalse((self.output / "report.json").exists())
+                self.assertEqual(self.calls, [] if invalid else ["noop"])
+                shutil.rmtree(self.output)
+                self.calls.clear()
+
     def test_retry_cannot_overwrite_the_first_attempt_status_or_resubmit(self):
         self.assertEqual(self.execute(main=True), 0)
         path = self.output / "review-status.json"
