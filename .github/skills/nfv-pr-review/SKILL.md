@@ -35,7 +35,7 @@ Guide the user through secure token entry; never receive or display token values
 Create the installation branch, commit and push it, and open a **draft PR**.
 Use gh-aw v0.88.7 and compile both workflows.
 
-Read back `NFV_RELEASE_SHA`, `NFV_MODEL`, both installed package pins, required
+Read back the workflow-local runtime pins, compiled locks, `NFV_MODEL`, both installed package pins, required
 secret names, all three billing permissions and workflow state. Report observed
 values, not just commands run; secret-name presence does not prove validity or
 model access.
@@ -51,7 +51,10 @@ generated comment and completed native evidence rather than a green job alone.
 Follow the [onboarding guide's upgrade section](../../../workflow/ONBOARDING.md#upgrade-an-existing-installation).
 Pause new audits, wait for active/queued runs to finish and keep the model,
 billing mode, secrets and budgets. Update the package and runtime together,
-verify merged configuration, then re-enable and check a separately approved pilot.
+run the reviewed installer's `--pin-release` on the upgrade branch to bind and
+compile both workflows, verify merged configuration, then re-enable and check a
+separately approved pilot. New workflows ignore the `NFV_RELEASE_SHA` repository
+variable; never change it as a substitute for upgrading sources and locks.
 
 ## Troubleshoot a run
 
@@ -66,10 +69,10 @@ look for `missing_tool` safe outputs.
 | All jobs skipped | The PR is a draft. Mark it ready. |
 | Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; either mode requires `NFV_RELEASE_TOKEN` while NFV is private. |
 | Organization inference is denied | Confirm an organization-owned target, the organization CLI-billing policy, allowed model and all three `copilot-requests: write` entries. Do not silently fall back to a PAT. |
-| Pin check fails | `NFV_RELEASE_SHA` is unset or not a 40-hex commit. |
+| Pin check fails | Run the reviewed installer's `--pin-release` on the installation/upgrade branch and review both compiled pins; raw templates are intentionally unconfigured. |
 | `Permission denied … could not request permission` for shell commands | The bash allowlist is too narrow. The workflow needs `bash: ["*"]`. Recompile. |
 | `Failed to download checksums … copilot-cli` | The firewall blocks the SDK download. `COPILOT_CLI_PATH` must point to `$RUNNER_TEMP/gh-aw/bin/copilot` (set by the collect step). |
-| `No GitHub OAuth token or Copilot HMAC key provided` | The nested Copilot client is not using the AWF api-proxy. The release must include `awf_provider()` (SDK BYOK provider for `http://api-proxy:10002`). Upgrade `NFV_RELEASE_SHA`. |
+| `No GitHub OAuth token or Copilot HMAC key provided` | The nested Copilot client is not using the AWF api-proxy. The release must include `awf_provider()` (SDK BYOK provider for `http://api-proxy:10002`). Upgrade the pinned workflows and runtime together. |
 | Every property abstains with a substantive reason | This is a normal outcome. Reasons appear in the comment's *Abstentions and errors* section. |
 | Workflow files appear in a test PR's diff | The test PR's head was not parented on a base that already contains the workflow. |
 

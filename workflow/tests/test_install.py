@@ -28,7 +28,9 @@ class FakeCLI:
         self.root, self.phase, self.case = root, phase, case
         self.calls = []
         self.state = "disabled_manually" if phase == "enable" else "active"
-        self.variables = {"NFV_RELEASE_SHA": RELEASE, "NFV_MODEL": "approved-model"}
+        self.variables = {"NFV_MODEL": "approved-model"}
+        if case.get("stale_variable"):
+            self.variables["NFV_RELEASE_SHA"] = "d" * 40
         self.installed = False
         self.extension_installed = not case.get("missing_extension")
 
@@ -42,7 +44,16 @@ class FakeCLI:
             source = source.replace("      copilot-requests: none", "      copilot-requests: write")
         if self.case.get("legacy_billing"):
             source = "\n".join(line for line in source.split("\n") if "copilot-requests:" not in line)
+        if self.phase == "enable":
+            source = source.replace("NFV_INSTALL_RELEASE_SHA",
+                                    "d" * 40 if self.case.get("wrong_runtime") else RELEASE)
         return source.replace("---\n", f"---\nsource: {INSTALL.PACKAGE}/workflow@{pin}\n", 1)
+
+    def compiled(self, path, pin):
+        source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
+        if self.case.get("wrong_lock"):
+            pin = "d" * 40
+        return source.replace("NFV_INSTALL_RELEASE_SHA", pin)
 
     def __call__(self, args, **kwargs):
         args = list(args)
@@ -65,7 +76,7 @@ class FakeCLI:
             if command == "status":
                 return 0, " M personal.txt" if self.case.get("dirty") else ""
             if command == "branch":
-                return 0, "feature" if self.case.get("wrong_branch") else "main"
+                return 0, "feature" if self.case.get("wrong_branch") or self.phase == "pin" else "main"
             if command == "ls-files":
                 files = list(INSTALL.WORKFLOW_FILES) + [".github/aw/actions-lock.json", ".gitattributes"]
                 if self.case.get("ignored_workflow"):
@@ -117,13 +128,20 @@ class FakeCLI:
                         source = (self.root / path).read_text(encoding="utf-8")
                         if INSTALL.workflow_billing(source, path) != self.case["expected_billing"]:
                             raise AssertionError("Compilation used the wrong billing mode")
-                return (1, "Compilation rejected") if self.case.get("compile_failure") else (0, "Compiled (fixture)")
+                if self.case.get("compile_failure"):
+                    return 1, "Compilation rejected"
+                for path in INSTALL.WORKFLOW_FILES:
+                    if path.endswith(".lock.yml"):
+                        pin = INSTALL.runtime_release(
+                            (self.root / path.replace(".lock.yml", ".md")).read_text(encoding="utf-8"), path)
+                        (self.root / path).write_text(self.compiled(path, pin), encoding="utf-8")
+                return 0, "Compiled (fixture)"
         if command == "variable":
             action, name = rest[:2]
             if action == "set":
                 self.variables[name] = rest[-1]
                 return 0, ""
-            return 0, "d" * 40 if self.case.get("wrong_pin") and name == "NFV_RELEASE_SHA" else self.variables[name]
+            return 0, "wrong-model" if self.case.get("wrong_model") and name == "NFV_MODEL" else self.variables[name]
         if command == "workflow":
             if self.case.get("unregistered"):
                 return 1, "HTTP 404: Not Found"
@@ -151,8 +169,6 @@ class FakeCLI:
                 return 0, json.dumps({"private": not self.case.get("public_nfv")})
             if endpoint == "repos/owner/project":
                 return 0, json.dumps({"owner": {"type": "User" if self.case.get("personal_repo") else "Organization"}})
-            if "/actions/variables/NFV_RELEASE_SHA" in endpoint:
-                return 0, json.dumps({"value": "d" * 40 if self.case.get("wrong_pin") else RELEASE})
             if "/actions/workflows/" in endpoint:
                 return 0, json.dumps({"state": self.state})
             if "/commits/" in endpoint:
@@ -164,7 +180,7 @@ class FakeCLI:
                     return 1, "HTTP 404: Not Found"
                 pin = "d" * 40 if self.case.get("wrong_package") else RELEASE
                 path = endpoint.split("/contents/", 1)[1].split("?", 1)[0]
-                text = self.source(path, pin) if path.endswith(".md") else "Compiled fixture\n"
+                text = self.source(path, pin) if path.endswith(".md") else self.compiled(path, RELEASE)
                 return 0, json.dumps({
                     "type": "file", "encoding": "base64",
                     "content": base64.b64encode(text.encode()).decode(),
@@ -190,6 +206,8 @@ class InstallerTests(unittest.TestCase):
         if phase == "install":
             if model is not None:
                 argv += ["--model", model]
+        elif phase == "pin":
+            argv += ["--pin-release"]
         else:
             argv += ["--verify-bootstrap" if phase == "guard" else "--enable-after-merge",
                      "--pull-request", "7"]
@@ -200,6 +218,12 @@ class InstallerTests(unittest.TestCase):
         installer = INSTALL.Installer(INSTALL.options(argv))
         installer.root = root
         fake = FakeCLI(root, phase, **case)
+        if phase == "pin":
+            for path in INSTALL.BILLING_SCOPES:
+                file = root / path
+                file.parent.mkdir(parents=True, exist_ok=True)
+                pin = "d" * 40 if case.get("mismatched_package") and path.endswith("nfv-pr-review.md") else RELEASE
+                file.write_text(fake.source(path, pin), encoding="utf-8")
         stdout, stderr = io.StringIO(), io.StringIO()
         error = None
         with patch.object(INSTALL.subprocess, "run", side_effect=fake), \
@@ -219,8 +243,9 @@ class InstallerTests(unittest.TestCase):
         self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"], calls)
         self.assertEqual(sum("/commits/HEAD" in " ".join(call) for call in calls), 1)
         self.assertIn("--draft", next(call for call in calls if call[:3] == ["gh", "pr", "create"]))
-        for name, value in (("NFV_RELEASE_SHA", RELEASE), ("NFV_MODEL", "approved-model")):
-            self.assertIn(["gh", "variable", "set", name, "--repo", "owner/project", "--body", value], calls)
+        self.assertIn(["gh", "variable", "set", "NFV_MODEL", "--repo", "owner/project",
+                       "--body", "approved-model"], calls)
+        self.assertFalse(any("NFV_RELEASE_SHA" in call for call in calls))
         self.assertIn(["gh", "workflow", "disable", INSTALL.WORKFLOW, "--repo", "owner/project"], calls)
         self.assertFalse(any(call[:3] in (["gh", "workflow", "enable"], ["gh", "workflow", "run"],
                                          ["gh", "pr", "merge"]) for call in calls))
@@ -327,9 +352,10 @@ class InstallerTests(unittest.TestCase):
 
     def test_enable_requires_merge_and_matching_package_and_pin(self):
         reasons = {
-            "unmerged": "only after the installation PR is merged", "wrong_pin": "runtime pin does not match",
-            "wrong_package": "Installed package and runtime pin differ", "detached_merge": "merge is not retained",
+            "unmerged": "only after the installation PR is merged", "wrong_runtime": "Installed package and runtime pin differ",
+            "wrong_package": "runtime pin does not match", "detached_merge": "merge is not retained",
             "missing_secret": "Missing COPILOT_GITHUB_TOKEN", "missing_lock": "HTTP 404",
+            "wrong_lock": "Compiled workflow and source release pins differ",
         }
         for option, reason in reasons.items():
             with self.subTest(option=option):
@@ -366,10 +392,44 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("NFV enablement was not confirmed", error)
 
     def test_variable_readback_failure_does_not_publish_or_create_pr(self):
-        error, calls, _ = self.run_case(wrong_pin=True)
-        self.assertIn("Variable read-back failed: NFV_RELEASE_SHA", error)
+        error, calls, _ = self.run_case(wrong_model=True)
+        self.assertIn("Variable read-back failed: NFV_MODEL", error)
         self.assertFalse(any(call[:2] == ["git", "push"] or call[:3] == ["gh", "pr", "create"]
                              for call in calls))
+
+    def test_stale_release_variable_cannot_override_merged_workflow_pins(self):
+        error, calls, _ = self.run_case(phase="enable", stale_variable=True)
+        self.assertIsNone(error)
+        self.assertFalse(any("NFV_RELEASE_SHA" in " ".join(call) for call in calls))
+
+    def test_manual_upgrade_pins_and_compiles_without_configuring_variables_or_enabling(self):
+        error, calls, output = self.run_case(phase="pin", organization_billing=True,
+                                           expected_billing="organization")
+        self.assertIsNone(error)
+        self.assertIn(f"pinned to {RELEASE}", output)
+        self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"], calls)
+        self.assertFalse(any(call[:2] in (["gh", "variable"], ["gh", "workflow"], ["gh", "pr"])
+                             or call[0] == "git" and call[1] in ("switch", "commit", "push")
+                             for call in calls))
+
+    def test_manual_upgrade_rejects_mixed_package_pins_and_stale_locks(self):
+        for case, reason in (({"mismatched_package": True}, "differ between workflows"),
+                             ({"wrong_lock": True}, "Compiled workflow and source release pins differ")):
+            with self.subTest(case=case):
+                error, _, _ = self.run_case(phase="pin", **case)
+                self.assertIn(reason, error)
+
+    def test_configuring_release_rejects_nonimmutable_and_legacy_metadata(self):
+        source = FakeCLI(Path("."), "install").source(INSTALL.WORKFLOW_FILES[0], RELEASE)
+        for modified in (source.replace(RELEASE, "dev"),
+                         source.replace('NFV_RELEASE_SHA: "NFV_INSTALL_RELEASE_SHA"',
+                                        "NFV_RELEASE_SHA: ${{ vars.NFV_RELEASE_SHA }}"),
+                         source.replace('NFV_RELEASE_SHA: "NFV_INSTALL_RELEASE_SHA"',
+                                        'NFV_RELEASE_SHA: "not-a-sha"')):
+            with self.subTest(source=modified), self.assertRaises(INSTALL.InstallError):
+                INSTALL.configure_release(modified, RELEASE, INSTALL.WORKFLOW_FILES[0])
+        configured = INSTALL.configure_release(source, RELEASE, INSTALL.WORKFLOW_FILES[0])
+        self.assertEqual(configured, INSTALL.configure_release(configured, RELEASE, INSTALL.WORKFLOW_FILES[0]))
 
     def test_existing_gitattributes_rules_are_preserved(self):
         error, _, _ = self.run_case(existing_attributes=True)
@@ -395,6 +455,8 @@ class InstallerTests(unittest.TestCase):
             ["--repository", "owner/project", "--enable-after-merge", "--pull-request", "7",
              "--billing", "organization"],
             ["--repository", "owner/project", "--billing", "automatic"],
+            ["--repository", "owner/project", "--pin-release", "--billing", "pat"],
+            ["--repository", "owner/project", "--pin-release", "--ref", RELEASE],
         ):
             with self.subTest(argv=argv), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 INSTALL.options(argv)

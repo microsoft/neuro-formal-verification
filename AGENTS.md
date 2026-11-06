@@ -184,8 +184,12 @@ under `workflow/tests/.general-scratch/`; never commit them.
   array masquerading as a successful review. Incremental reports have
   `completed: false` until analysis finishes and cannot be published. Retain
   completed or interrupted evidence in the separate `nfv-evidence` artifact.
-- Configuration: repository variables `NFV_RELEASE_SHA` (40-hex commit of this
-  repo) and `NFV_MODEL`; default PAT billing requires `COPILOT_GITHUB_TOKEN`.
+- Configuration: `NFV_MODEL` is a repository variable; the installer writes the
+  full immutable package SHA into workflow-local runtime pins and compiles both
+  locks. Manual upgrades run `install.py --pin-release` on the upgrade branch.
+  Never fall back to a repository release variable or floating ref; validate
+  merged package/runtime/lock agreement before activation. Raw templates fail
+  until configured. Default PAT billing requires `COPILOT_GITHUB_TOKEN`.
   Installer `--billing organization` is explicit opt-in for organization-owned
   targets with the CLI-billing policy enabled; it sets all three
   `copilot-requests` permissions to `write` instead of `none`, without PAT

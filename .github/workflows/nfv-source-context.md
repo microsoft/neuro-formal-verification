@@ -56,14 +56,21 @@ safe-outputs:
             path: nfv-context-validated/context.json
             if-no-files-found: error
 steps:
-  - name: Validate trusted release pin
+  - name: Validate installed release pin
+    id: nfv_release
     env:
-      NFV_RELEASE_SHA: ${{ vars.NFV_RELEASE_SHA }}
-    run: '[[ "$NFV_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]'
+      NFV_RELEASE_SHA: "NFV_INSTALL_RELEASE_SHA"
+    run: |
+      set -euo pipefail
+      [[ "$NFV_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+        echo "::error::Install NFV or run install.py --pin-release before enabling this workflow"
+        exit 1
+      }
+      echo "sha=$NFV_RELEASE_SHA" >> "$GITHUB_OUTPUT"
   - uses: actions/checkout@v7.0.1
     with:
       repository: microsoft/neuro-formal-verification
-      ref: ${{ vars.NFV_RELEASE_SHA }}
+      ref: ${{ steps.nfv_release.outputs.sha }}
       path: nfv-plugin
       token: ${{ secrets.NFV_RELEASE_TOKEN || github.token }}
       persist-credentials: false

@@ -947,7 +947,8 @@ class TemplateTests(unittest.TestCase):
         self.assertIn('bundle="$RUNNER_TEMP/gh-aw/nfv/bundle.json"', source)
         self.assertIn('tool_dir="$RUNNER_TEMP/gh-aw/nfv-tools"', source)
         self.assertIn('--mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro"', lock)
-        self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", lock)
+        self.assertIn("ref: ${{ steps.nfv_release.outputs.sha }}", lock)
+        self.assertNotIn("vars.NFV_RELEASE_SHA", lock)
         self.assertIn("persist-credentials: false", source)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
 

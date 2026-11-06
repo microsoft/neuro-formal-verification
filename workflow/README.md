@@ -6,6 +6,9 @@ Licensed under the MIT License. -->
 A prototype GitHub Agentic Workflow based on
 [*Neuro-Formal Verification: Agentic Language-Agnostic Formal Program Reasoning*](https://arxiv.org/abs/2608.21516).
 
+The installer binds the runtime to the installed package's immutable release in
+both workflows; upgrades do not require a separate release repository variable.
+
 For each eligible PR, NFV reads the change and its stated intent, selects
 behavioral properties, and translates relevant source into Dafny. It attempts
 verification and refutation, then posts one evidence-linked PR comment.

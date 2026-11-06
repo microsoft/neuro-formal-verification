@@ -49,7 +49,7 @@ not the first-installation script.
 
    The agent uses `workflow/install.py` (Python 3.10+, gh-aw v0.88.7), pins both
    workflows and runtime to one latest trusted NFV default-branch SHA, sets
-   `NFV_RELEASE_SHA` and `NFV_MODEL`, and opens a **draft installation PR**.
+   workflow-local release pins and `NFV_MODEL`, and opens a **draft installation PR**.
    It reads back the pins, model, billing permissions and required secret names,
    disables the reviewer and verifies `disabled_manually`; if blocked, leave
    the PR draft and report the failure.
@@ -61,7 +61,8 @@ not the first-installation script.
    never run or require NFV on its own installation PR. Leave unrelated CI enabled.
    Keep NFV advisory after installation too: exclude its jobs from required merge
    checks and required CI aggregators; leave operational failures visible.
-   After merge, have the agent verify both package pins against `NFV_RELEASE_SHA`,
+   After merge, have the agent verify both workflow-local runtime pins and compiled
+   locks against the merged immutable package pins,
    the approved model, consistent billing permissions and required secret names.
    If anything fails, leave NFV disabled. Otherwise enable and verify `active`:
 
@@ -96,22 +97,40 @@ existing installation. Keep the approved model, secrets and budgets. Disable
 new audits and wait for all active/queued runs to finish before changing shared
 configuration. Preserve the selected billing mode unless a change is approved.
 
-Resolve the trusted NFV release once, replace the package with
-`gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
-both workflows and open an upgrade PR. Reapply the approved billing permissions
+Resolve the trusted NFV release once. Create an upgrade branch named
+`nfv-upgrade-<first 12 characters of SHA>`, replace the package with
+`gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, and
+reapply the approved billing permissions
 after package replacement, and retain intentional local customizations.
-Recheck [repository permission policies](REFERENCE.md#repository-permission-policies)
-against the regenerated jobs.
-After the approved merge, update `NFV_RELEASE_SHA` and read it back. Replace
-`OWNER/repo` with the target repository and `<SHA>` with the same full trusted
-40-character SHA used by both merged workflow package pins:
+From the target checkout, run the following using `install.py` from that reviewed
+NFV release (replace the script-path placeholder):
 
 ```text
-gh variable set NFV_RELEASE_SHA --repo OWNER/repo --body <SHA>
-gh variable get NFV_RELEASE_SHA --repo OWNER/repo
+python <PATH_TO_REVIEWED_INSTALL_PY> --repository OWNER/repo --pin-release
 ```
 
-Verify the returned SHA matches both merged package pins, and verify the model,
-billing permissions and required secret names before enabling NFV and reading
-back `active`. Repeat a separately approved pilot; leave audits paused on failure.
-`gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.
+This reads the full immutable package SHA from both installed workflow sources,
+writes matching workflow-local runtime pins and recompiles both locks with
+gh-aw v0.88.7. It preserves billing/model/budgets, does not commit, and does not
+enable NFV. Review and commit the sources, locks and package/action records,
+then open the upgrade PR.
+Recheck [repository permission policies](REFERENCE.md#repository-permission-policies)
+against the regenerated jobs.
+After the approved merge, validate the merged package, runtime and compiled pins
+and enable NFV using the reviewed installer:
+
+```text
+python <PATH_TO_REVIEWED_INSTALL_PY> --repository OWNER/repo --enable-after-merge --pull-request <UPGRADE_PR_NUMBER>
+```
+
+The activation check also verifies the model, billing permissions, required secret
+names and workflow state. Repeat a separately approved pilot; leave audits paused
+on failure.
+
+New workflows do not read the `NFV_RELEASE_SHA` repository variable; an existing
+value can remain during migration and cannot override the merged pins. Older
+workflow releases still require their original variable until replaced. A bare
+`gh aw add`, `gh aw update` or `gh aw upgrade` does not configure NFV's runtime pin:
+run `--pin-release` and review/recompile before activation. Raw templates fail
+explicitly until pinned. Upgrades and rollbacks replace the reviewed workflow
+sources and locks rather than changing a shared runtime variable.

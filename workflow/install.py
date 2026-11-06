@@ -27,6 +27,7 @@ WORKFLOW_FILES = (
 )
 SHA = r"[0-9a-f]{40}"
 MODEL = r"[A-Za-z0-9][A-Za-z0-9_.:/-]*"
+PIN_SETTING = r"(?m)^([ \t]*NFV_RELEASE_SHA:)[ \t]*(.*)$"
 BILLING_SCOPES = {
     ".github/workflows/nfv-source-context.md": ("  ",),
     ".github/workflows/nfv-pr-review.md": ("  ", "      "),
@@ -35,6 +36,44 @@ BILLING_SCOPES = {
 
 class InstallError(ValueError):
     pass
+
+
+def package_release(source, path):
+    frontmatter = source.split("\n---\n", 1)[0]
+    entries = re.findall(r"(?m)^source:[ \t]*(.*)$", frontmatter)
+    if len(entries) != 1:
+        raise InstallError(f"Expected one immutable NFV package source: {path}")
+    match = re.fullmatch(rf"{re.escape(PACKAGE)}/workflow@({SHA})", entries[0])
+    if not match:
+        raise InstallError(f"Expected one immutable NFV package source: {path}")
+    return match[1]
+
+
+def runtime_release(source, path):
+    frontmatter = source.split("\n---\n", 1)[0]
+    entries = re.findall(PIN_SETTING, frontmatter)
+    if len(entries) != 1 or "vars.NFV_RELEASE_SHA" in frontmatter:
+        raise InstallError(f"Expected one workflow-local NFV release pin: {path}")
+    value = entries[0][1]
+    match = re.fullmatch(rf'({SHA})|"({SHA})"|\'({SHA})\'', value)
+    if not match or "ref: ${{ steps.nfv_release.outputs.sha }}" not in frontmatter:
+        raise InstallError(f"Invalid workflow-local NFV release pin: {path}")
+    return next(group for group in match.groups() if group is not None)
+
+
+def configure_release(source, release, path):
+    if package_release(source, path) != release:
+        raise InstallError(f"Installed package and runtime pin differ: {path}")
+    frontmatter, separator, prompt = source.partition("\n---\n")
+    entries = re.findall(PIN_SETTING, frontmatter)
+    if len(entries) != 1 or not re.fullmatch(
+            rf'"(?:NFV_INSTALL_RELEASE_SHA|{SHA})"', entries[0][1]):
+        raise InstallError(f"Upgrade NFV templates before configuring the release pin: {path}")
+    frontmatter = re.sub(PIN_SETTING, lambda match: f'{match[1]} "{release}"', frontmatter)
+    configured = frontmatter + separator + prompt
+    if runtime_release(configured, path) != release:
+        raise InstallError(f"Installed package and runtime pin differ: {path}")
+    return configured
 
 
 def workflow_billing(source, path):
@@ -70,13 +109,18 @@ def options(argv=None):
                         help="Inference billing (installation default: pat; organization requires an enabled org policy)")
     parser.add_argument("--ref", default="HEAD", help="Trusted NFV ref (default: latest commit on NFV's default branch)")
     phase = parser.add_mutually_exclusive_group()
+    phase.add_argument("--pin-release", action="store_true",
+                       help="Pin and compile installed workflows from their immutable package metadata; does not commit or enable NFV")
     phase.add_argument("--verify-bootstrap", action="store_true", help="Retry disabling NFV for the draft installation PR")
     phase.add_argument("--enable-after-merge", action="store_true", help="Enable NFV after the installation PR merges")
     parser.add_argument("--pull-request", type=int, help="Installation PR number for either follow-up phase")
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repository):
         parser.error("--repository must be OWNER/REPO")
-    if args.verify_bootstrap or args.enable_after_merge:
+    if args.pin_release:
+        if args.model or args.billing is not None or args.pull_request or args.ref != "HEAD":
+            parser.error("--pin-release reads package metadata; do not pass --model, --billing, --pull-request or --ref")
+    elif args.verify_bootstrap or args.enable_after_merge:
         if not args.pull_request or args.pull_request < 1 or args.model or args.billing is not None:
             parser.error("Follow-up phases require --pull-request NUMBER, without --model or --billing")
     else:
@@ -165,15 +209,43 @@ class Installer:
             ) from error
 
     def check_package_source(self, source, release, path):
-        if not re.search(rf"(?m)^source: {re.escape(PACKAGE)}/workflow@{release}\r?$", source):
+        if package_release(source, path) != release or runtime_release(source, path) != release:
             raise InstallError(f"Installed package and runtime pin differ: {path}")
+
+    def pin_workflows(self, release=None):
+        sources = {}
+        for path in BILLING_SCOPES:
+            file = self.root / path
+            if not file.is_file():
+                raise InstallError(f"Installation did not produce {path}")
+            sources[path] = file.read_text(encoding="utf-8")
+        releases = {package_release(source, path) for path, source in sources.items()}
+        if len(releases) != 1 or release is not None and releases != {release}:
+            raise InstallError("Installed package and runtime pin differ between workflows.")
+        release = releases.pop()
+        configured = {path: configure_release(source, release, path) for path, source in sources.items()}
+        for path, source in configured.items():
+            (self.root / path).write_text(source, encoding="utf-8", newline="\n")
+        return release
+
+    def compile_workflows(self):
+        if not re.match(rf"gh aw version {re.escape(COMPILER)}(?:\s|$)", self.run("gh", "aw", "version")):
+            raise InstallError(f"Use gh-aw {COMPILER}.")
+        print(self.run("gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"))
+        for path in WORKFLOW_FILES:
+            if not (self.root / path).is_file():
+                raise InstallError(f"Installation did not produce {path}")
+            source = (self.root / path).read_text(encoding="utf-8")
+            if runtime_release(source, path) != runtime_release(
+                    (self.root / path.replace(".lock.yml", ".md")).read_text(encoding="utf-8"), path):
+                raise InstallError(f"Compiled workflow and source release pins differ: {path}")
 
     def follow_up(self, default_branch):
         pr = json.loads(self.run(
             "gh", "pr", "view", str(self.args.pull_request), "--repo", self.repository,
             "--json", "state,isDraft,baseRefName,headRefName,mergeCommit,url",
         ))
-        if pr["baseRefName"] != default_branch or not re.fullmatch(r"nfv-install-[0-9a-f]{12}", pr["headRefName"]):
+        if pr["baseRefName"] != default_branch or not re.fullmatch(r"nfv-(install|upgrade)-[0-9a-f]{12}", pr["headRefName"]):
             raise InstallError("Expected an NFV installation PR targeting the default branch.")
         if self.args.verify_bootstrap:
             if pr["state"] != "OPEN" or not pr["isDraft"]:
@@ -187,18 +259,23 @@ class Installer:
         relation = self.api(f"repos/{self.repository}/compare/{pr['mergeCommit']['oid']}...{head}")
         if relation["status"] not in ("identical", "ahead"):
             raise InstallError("The installation merge is not retained on the default branch.")
-        release = self.api(f"repos/{self.repository}/actions/variables/NFV_RELEASE_SHA")["value"]
-        if not re.fullmatch(SHA, release) or pr["headRefName"] != f"nfv-install-{release[:12]}":
-            raise InstallError("The runtime pin does not match this installation PR.")
+        release = None
         billing_modes = set()
         for path in WORKFLOW_FILES:
             record = self.api(f"repos/{self.repository}/contents/{path}?ref={head}")
             if record["type"] != "file" or record["encoding"] != "base64":
                 raise InstallError(f"Installed workflow is not a captured file: {path}")
+            source = base64.b64decode("".join(record["content"].split()), validate=True).decode("utf-8")
             if path.endswith(".md"):
-                source = base64.b64decode("".join(record["content"].split()), validate=True).decode("utf-8")
+                captured_release = package_release(source, path)
+                if release is None:
+                    release = captured_release
+                    if not pr["headRefName"].endswith("-" + release[:12]):
+                        raise InstallError("The runtime pin does not match this installation PR.")
                 self.check_package_source(source, release, path)
                 billing_modes.add(workflow_billing(source, path))
+            elif runtime_release(source, path) != release:
+                raise InstallError(f"Compiled workflow and source release pins differ: {path}")
         if len(billing_modes) != 1:
             raise InstallError("Installed workflows disagree on Copilot billing. Leave NFV disabled.")
         billing = billing_modes.pop()
@@ -236,6 +313,7 @@ class Installer:
         self.run("git", "switch", "-c", branch, base)
         print(f"Installing NFV {release} with model {self.args.model} and {self.args.billing} billing on {branch}.")
         print(self.run("gh", "aw", "add", f"{PACKAGE}/workflow@{release}"))
+        self.pin_workflows(release)
         for path in BILLING_SCOPES:
             file = self.root / path
             if not file.is_file():
@@ -244,7 +322,7 @@ class Installer:
             configured = configure_billing(source, path, self.args.billing)
             if configured != source:
                 file.write_text(configured, encoding="utf-8", newline="\n")
-        print(self.run("gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"))
+        self.compile_workflows()
         for path in WORKFLOW_FILES:
             file = self.root / path
             if not file.is_file():
@@ -276,7 +354,7 @@ class Installer:
         self.run("git", "add", "--", *changed)
         self.run("git", "diff", "--cached", "--check")
         self.run("git", "commit", "-m", f"Install NFV PR review at {release}")
-        for name, value in (("NFV_RELEASE_SHA", release), ("NFV_MODEL", self.args.model)):
+        for name, value in (("NFV_MODEL", self.args.model),):
             self.run("gh", "variable", "set", name, "--repo", self.repository, "--body", value)
             if self.run("gh", "variable", "get", name, "--repo", self.repository) != value:
                 raise InstallError(f"Variable read-back failed: {name}. Do not proceed with installation.")
@@ -315,7 +393,13 @@ class Installer:
 
     def execute(self):
         default_branch = self.check_checkout_identity()
-        if self.args.verify_bootstrap or self.args.enable_after_merge:
+        if self.args.pin_release:
+            if self.run("git", "branch", "--show-current") == default_branch:
+                raise InstallError("Configure release pins on an installation/upgrade branch, not the default branch.")
+            release = self.pin_workflows()
+            self.compile_workflows()
+            print(f"NFV workflows are pinned to {release}. Review and commit the sources and locks; NFV was not enabled.")
+        elif self.args.verify_bootstrap or self.args.enable_after_merge:
             self.follow_up(default_branch)
         else:
             self.install(default_branch)

@@ -401,9 +401,16 @@ draft/disable/merge sequence, use the [onboarding guide](ONBOARDING.md).
 This section is the configuration reference, not a second installation procedure.
 The [standalone installer](install.py) requires Python 3.10+, Git and authenticated
 `gh`; `python install.py --help` lists installation, bootstrap-verification and
-post-merge activation options. Workflow locks use **gh-aw v0.88.7**. Commit both
+post-merge activation and `--pin-release` upgrade options. Workflow locks use **gh-aw v0.88.7**. Commit both
 workflow sources and their `.lock.yml` files, plus generated package records and
 action locks under `.github/aw/`.
+
+The installer writes the same full immutable package SHA into the workflow-local
+`NFV_RELEASE_SHA` setting in both sources and recompiles their locks. Checkout
+uses only the validated step output, not a repository variable or floating ref.
+Unconfigured templates fail before runtime checkout. For manual package upgrades,
+run `--pin-release` on the upgrade branch as described in onboarding; merged
+activation checks package, runtime and compiled pins for agreement.
 
 ### Repository variables
 
@@ -411,7 +418,6 @@ Configure these as protected Actions repository variables:
 
 | Variable | Default / purpose |
 |---|---|
-| `NFV_RELEASE_SHA` | Full trusted NFV commit; both installed package pins and runtime must use this same SHA |
 | `NFV_MODEL` | Copilot model ID selected with installer `--model MODEL`. The billing identity and its policies must permit the selected model |
 | `NFV_SYNTAX_ROUNDS` | 6 repairs, maximum 20 |
 | `NFV_PROOF_ROUNDS` | 10 repairs, maximum 30 |
