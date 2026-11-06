@@ -19,6 +19,14 @@ class Abstain(ValueError):
     """Missing or unsupported evidence; not a finding."""
 
 
+class Superseded(Abstain):
+    """The event snapshot no longer identifies the current PR."""
+
+    def __init__(self, message, identity):
+        super().__init__(message)
+        self.identity = dict(identity)
+
+
 def sha(value):
     if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
         raise Abstain("Expected an immutable, full commit SHA")
@@ -112,6 +120,10 @@ def identity(event):
 
 
 def unchanged(latest, ident):
+    sha(latest["head"]["sha"])
+    sha(latest["base"]["sha"])
+    if latest["state"] not in ("open", "closed") or type(latest.get("merged")) is not bool:
+        raise Abstain("GitHub returned an invalid PR snapshot")
     state = ("closed", True) if ident["merged"] else ("open", False)
     return (latest["head"]["sha"], latest["base"]["sha"], latest["state"],
             bool(latest.get("merged"))) == (ident["head_sha"], ident["base_sha"], *state)
@@ -195,7 +207,7 @@ def collect(event, api, side="head"):
     prefix = f"repos/{repo}"
     latest = api.request(f"{prefix}/pulls/{number}")
     if not unchanged(latest, ident):
-        raise Abstain("PR identity changed since event; refusing mutable snapshot")
+        raise Superseded("PR identity changed since event; refusing mutable snapshot", ident)
     comparison = api.request(
         f"{prefix}/compare/{ident['base_sha']}...{ident['head_sha']}")
     files = comparison.get("files", [])
@@ -379,7 +391,7 @@ def collect(event, api, side="head"):
             calls.update(re.findall(r"\b([A-Za-z_]\w*)\s*\(", text))
     latest = api.request(f"{prefix}/pulls/{number}")
     if not unchanged(latest, ident):
-        raise Abstain("PR changed during collection")
+        raise Superseded("PR changed during collection", ident)
     bundle = {"schema": 1, "identity": ident, "signals": signals, "changed": changed,
               "sources": sources, "declarations_and_preconditions": declarations[:500],
               "callee_names": sorted(calls)[:500], "context_omissions": omissions,

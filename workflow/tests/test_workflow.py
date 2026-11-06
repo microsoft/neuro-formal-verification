@@ -3,8 +3,10 @@
 
 import base64
 import copy
+from contextlib import redirect_stdout
 import fnmatch
 import hashlib
+import io
 import json
 import os
 import re
@@ -19,8 +21,9 @@ import uuid
 from unittest.mock import patch
 
 from nfv_workflow.check import Dafny, accepted, check
+from nfv_workflow import cli
 from nfv_workflow.cli import audit, audit_limits, awf_provider, submission, write_sources
-from nfv_workflow.github import (Abstain, GitHub, added_lines, change_blocks, collect, identity,
+from nfv_workflow.github import (Abstain, GitHub, Superseded, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
 from nfv_workflow.publish import comment, marker, publication_allowed, publish, render
@@ -755,8 +758,39 @@ class CollectionTests(unittest.TestCase):
                 result["head"]["sha"] = "f" * 40
             return result
         api.request = request
-        with self.assertRaises(Abstain):
+        with self.assertRaises(Superseded) as raised:
             collect(event(), api)
+        self.assertEqual(raised.exception.identity, identity(event()))
+
+    def test_pr_changed_during_collection_is_explicitly_superseded(self):
+        api = self.api()
+        original = api.request
+        calls = 0
+        def request(path):
+            nonlocal calls
+            result = original(path)
+            if path.endswith("/pulls/7"):
+                calls += 1
+                if calls == 2:
+                    result = copy.deepcopy(result)
+                    result["head"]["sha"] = "f" * 40
+            return result
+        api.request = request
+        with self.assertRaisesRegex(Superseded, "during collection"):
+            collect(event(), api)
+
+    def test_malformed_current_identity_is_not_a_successful_superseded_skip(self):
+        for field, value in (("head", {"sha": "moving-ref"}), ("state", "unknown"), ("merged", None)):
+            with self.subTest(field=field):
+                api = self.api()
+                original = api.request
+                def request(path):
+                    result = original(path)
+                    return {**result, field: value} if path.endswith("/pulls/7") else result
+                api.request = request
+                with self.assertRaises(Abstain) as raised:
+                    collect(event(), api)
+                self.assertNotIsInstance(raised.exception, Superseded)
 
     def test_blob_hash_is_verified(self):
         raw = b"int x;"
@@ -785,6 +819,38 @@ class CollectionTests(unittest.TestCase):
         api.request = request
         with self.assertRaises(Abstain):
             collect(event(), api)
+
+
+class CollectionStatusTests(ScratchTest):
+    def test_explicit_skip_records_identity_without_a_bundle_or_sources(self):
+        captured = self.directory / "event.json"
+        output = self.directory / "bundle.json"
+        status = self.directory / "status.json"
+        captured.write_text(json.dumps(event()))
+        args = ["collect", "--event", str(captured), "--out", str(output),
+                "--sources-dir", str(self.directory / "src")]
+        error = Superseded("PR changed", identity(event()))
+        with patch.object(cli, "collect", side_effect=error), redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(args), 1)
+            self.assertEqual(cli.main(args + ["--status-out", str(status)]), 0)
+        record = cli.collection_status(status)
+        self.assertEqual(record["status"], "superseded")
+        self.assertEqual(record["identity"], error.identity)
+        self.assertFalse(output.exists())
+        self.assertFalse((self.directory / "src").exists())
+
+    def test_genuine_collection_failures_are_not_superseded_successes(self):
+        captured = self.directory / "event.json"
+        output = self.directory / "bundle.json"
+        status = self.directory / "status.json"
+        captured.write_text(json.dumps(event()))
+        for error in (Abstain("Inventory incomplete"), OSError("GitHub unavailable")):
+            with self.subTest(error=error), patch.object(cli, "collect", side_effect=error), \
+                    redirect_stdout(io.StringIO()):
+                self.assertEqual(cli.main(["collect", "--event", str(captured), "--out", str(output),
+                                           "--status-out", str(status)]), 1)
+            self.assertFalse(status.exists())
+            self.assertFalse(output.exists())
 
 
 class TemplateTests(unittest.TestCase):
@@ -833,8 +899,13 @@ class TemplateTests(unittest.TestCase):
 
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
-        self.assertIn("types: [opened, synchronize, reopened, ready_for_review]", source)
-        self.assertIn("if: github.event.pull_request.draft == false", source)
+        self.assertIn("types: [opened, synchronize, ready_for_review]", source)
+        gate = ("github.event.pull_request.draft == false && "
+                "(github.event.action == 'opened' || github.event.action == 'ready_for_review')")
+        self.assertEqual(source.count("if: " + gate), 2)
+        self.assertIn("github.event.action == 'ready_for_review'", lock)
+        self.assertIn("cancel-in-progress: true", source)
+        self.assertIn("noop:\n    report-as-issue: false", source)
         self.assertNotIn("slash_command", source)
         self.assertNotIn("pull_request_target", lock)
         self.assertNotIn("roles: all", source)
@@ -861,8 +932,9 @@ class TemplateTests(unittest.TestCase):
     def test_source_context_binds_files_only_hints_and_guards_artifact_handoff(self):
         source = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
         lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
-        self.assertIn("index = context_input(bundle)", source)
-        self.assertIn("--manifest nfv-context.json --hints-only", source)
+        self.assertIn("index = context_input(captured)", source)
+        self.assertIn('"nfv-context.json",', source)
+        self.assertIn("hints_only=True", source)
         self.assertIn('{"files": [{"path":', source)
         self.assertNotIn('"copy":', source)
         handoff = source.split("    handoff-context:", 1)[1].split("\nsteps:", 1)[0]
@@ -872,7 +944,9 @@ class TemplateTests(unittest.TestCase):
         post = source.split("post-steps:", 1)[1].split("\n---\n", 1)[0]
         self.assertIn("name: nfv-source-context-validated\n", post)
         self.assertNotIn("download-artifact", post)
-        self.assertLess(post.index("nfv-workflow context-manifest"), post.index("upload-artifact"))
+        self.assertLess(post.index("sanitize_manifest("), post.index("upload-artifact"))
+        self.assertIn('root / "collection-status.json"', post)
+        self.assertNotIn('load("nfv-context-input.json")', post)
 
     def test_billing_defaults_preserve_pat_auth_and_allow_an_org_billed_caller(self):
         source, lock = self.source(), self.lock()
@@ -1095,6 +1169,66 @@ class ExtractionInputTests(ScratchTest):
                 self.assertNotEqual(0, result.returncode)
                 self.assertTrue(result.stderr)
                 self.assertFalse((self.directory / "nfv-input.json").exists())
+
+    def test_superseded_context_handoff_requires_the_same_trusted_snapshot(self):
+        block = TemplateTests().source().split('ready=$(python - "$collection" <<\'PY\'\n', 1)[1]
+        script = "\n".join(line[6:] for line in block.split("\n      PY", 1)[0].splitlines()) + "\n"
+        path = self.directory / "status.json"
+        context = self.directory / "nfv-context" / "context.json"
+        context.parent.mkdir()
+        record = {"schema": 1, "kind": "nfv-collection-attempt",
+                  "identity": bundle()["identity"], "status": "collected"}
+        for matching in (True, False):
+            with self.subTest(matching=matching):
+                cli.save(path, record)
+                skipped = {**record, "status": "superseded", "diagnostic": "PR changed"}
+                if not matching:
+                    skipped["identity"] = {**record["identity"], "head_sha": "f" * 40}
+                cli.save(context, skipped)
+                result = subprocess.run([sys.executable, "-", str(path.resolve())],
+                                        input=script, cwd=self.directory, capture_output=True, text=True)
+                self.assertEqual(result.returncode == 0, matching, result.stderr)
+                self.assertEqual(cli.load(path), skipped if matching else record)
+                if matching:
+                    self.assertEqual(result.stdout.strip(), "false")
+                self.assertFalse((self.directory / "nfv-input.json").exists())
+
+    def test_source_context_handoff_uses_trusted_status_not_agent_input(self):
+        source = (TemplateTests.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        preparation = source.split('      python - "$bundle" "$collection" <<\'PY\'\n', 1)[1]
+        preparation = "\n".join(line[6:] for line in preparation.split("\n      PY", 1)[0].splitlines()) + "\n"
+        block = source.split("post-steps:", 1)[1].split("      python - <<'PY'\n", 1)[1]
+        script = "\n".join(line[6:] for line in block.split("\n      PY", 1)[0].splitlines()) + "\n"
+        root = self.directory / "gh-aw" / "nfv-context"
+        root.mkdir(parents=True)
+        data = bundle()
+        data["source_inventory"] = sorted(data["sources"])
+        cli.save(root / "bundle.json", data)
+        record = {"schema": 1, "kind": "nfv-collection-attempt",
+                  "identity": data["identity"], "status": "collected"}
+        cli.save(self.directory / "nfv-context.json", {"files": []})
+        for superseded in (False, True):
+            with self.subTest(superseded=superseded):
+                collection_record = {**record, "status": "superseded", "diagnostic": "PR changed"} if superseded else record
+                cli.save(root / "collection-status.json", collection_record)
+                if superseded:
+                    (root / "bundle.json").unlink()
+                prepared = subprocess.run([sys.executable, "-", str(root / "bundle.json"),
+                                           str(root / "collection-status.json")], input=preparation,
+                                          cwd=self.directory, capture_output=True, text=True)
+                self.assertEqual(prepared.returncode, 0, prepared.stderr)
+                index = cli.load(self.directory / "nfv-context-input.json")
+                self.assertEqual(index["identity"], record["identity"])
+                if superseded:
+                    self.assertEqual(index, collection_record)
+                cli.save(self.directory / "nfv-context-input.json",
+                         record if superseded else {**record, "status": "superseded"})
+                result = subprocess.run([sys.executable, "-"], input=script, cwd=self.directory,
+                                        env={**os.environ, "RUNNER_TEMP": str(self.directory.resolve())},
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                handoff = cli.load(self.directory / "nfv-context-validated" / "context.json")
+                self.assertEqual(handoff, collection_record if superseded else {"identity": data["identity"], "files": []})
 
 
 class AuditTests(ScratchTest):

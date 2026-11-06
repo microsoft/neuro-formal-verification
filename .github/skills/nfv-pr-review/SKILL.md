@@ -16,6 +16,11 @@ The source is `.github/workflows/nfv-pr-review.md` in
 `microsoft/neuro-formal-verification`. The gh-aw package is `workflow/aw.yml`.
 User docs are in `workflow/README.md`.
 
+Audits start when a PR opens non-draft or transitions from draft to ready.
+Each ready transition requests a rerun; reopening and later pushes do not.
+Pushes only cancel older attempts. Later changes need an explicit draft-to-ready
+transition before they are audited.
+
 ## Bootstrap a repository
 
 Follow the single [onboarding guide](../../../workflow/ONBOARDING.md), including
@@ -71,7 +76,8 @@ look for `missing_tool` safe outputs.
 
 | Symptom | Cause and fix |
 |---|---|
-| All jobs skipped | The PR is a draft. Mark it ready. |
+| All jobs skipped | Drafts and cancellation-only push events start no audit. Open non-draft or mark the PR ready; toggle draft to ready for a rerun. |
+| `status: superseded` | Collection detected an obsolete snapshot. No audit or report completed; this is not a property verdict. Request a new audit with draft-to-ready when appropriate. |
 | Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; either mode requires `NFV_RELEASE_TOKEN` while NFV is private. |
 | Organization inference is denied | Confirm an organization-owned target, the organization CLI-billing policy, allowed model and all three `copilot-requests: write` entries. Do not silently fall back to a PAT. |
 | Pin check fails | `NFV_RELEASE_SHA` is unset or not a 40-hex commit. |

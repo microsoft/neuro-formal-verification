@@ -6,7 +6,7 @@ Licensed under the MIT License. -->
 See the [overview](README.md) or [installation guide](ONBOARDING.md) to get started.
 
 This is a prototype implementation of a GitHub Agentic Workflow that reviews a
-pull request when it is opened or updated, selects up to **ten nontrivial properties** from the
+pull request when it opens non-draft or is marked ready, selects up to **ten nontrivial properties** from the
 PR description, PR conversation comments, and commit messages (not review
 comments or reviews), and from changed code/comments. A separate source-context
 AW session first inspects a shallow trusted-base checkout and changed-head
@@ -35,10 +35,15 @@ and return types while preserving the original source line numbers.
   the model is frozen. Drafts rejected by Dafny's Boogie resolution stage use the
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
-* The workflow runs on non-draft PRs (`opened`, `synchronize`, `reopened`,
-  `ready_for_review`) whose changed paths include a supported source suffix.
+* Audits start on non-draft `opened` and `ready_for_review` events whose changed
+  paths include a supported source suffix. Each draft-to-ready transition
+  explicitly requests an audit of the latest head. Reopening does not.
   Drafts and documentation/configuration/submodule-only PRs are skipped before
   either inference session starts. Keep NFV advisory, not a required merge check.
+  `synchronize` events participate only in per-PR workflow concurrency: a push
+  cancels an older attempt but starts neither inference session nor a new audit.
+  These cancellation-only Actions runs may appear skipped. Later changes are not
+  automatically re-audited; toggle draft to ready to request another audit.
 
 The source-context agent selects only paths from a captured, supported-source
 inventory and emits a files/symbols list, not snapshot metadata. Trusted code
@@ -107,9 +112,10 @@ provenance, not authentication or source/model semantic correspondence.
 
 The source identity is the event's **immutable PR head SHA**, with the base SHA
 recorded and changed files obtained from the immutable `base...head` comparison.
-A PR whose head or base
-moves during collection is rejected; the next `synchronize` run reviews the new
-head and cancels the older run.
+A PR whose head or base moves during collection is marked superseded, without
+an audit verdict or report. Pushes request cancellation of older workflow runs,
+not an audit of the new head. Cancellation and collection checks are not a
+race-free guarantee of detecting every change after collection.
 
 The agent posts **one PR comment** (never a
 review approval or change request). It opens with a one-line description of NFV
@@ -212,7 +218,17 @@ a synthetic successful review. When evidence cannot be written, the diagnostic
 remains in logs. Failures before the Python driver starts and later safe-output
 failures remain in their Actions job logs.
 
-The PR triggers, permissions and failure exit codes are unchanged. NFV remains
+An obsolete collection records `status: superseded`, `completed: false`,
+`analysis_completed: false`, `publication: not_needed`, its captured identity and
+a diagnostic. The driver acknowledges a no-op instead of extracting properties,
+running an audit or submitting a report. An already-started source-context
+session may still use a model call to hand off the skipped status. Supersession is an operational skip,
+never a completed audit, proof verdict, empty successful review or property
+outcome. Other collection failures and unsuccessful no-op submissions still fail.
+The default `nfv-workflow collect` CLI remains strict; its workflow-only
+`--status-out` option distinguishes typed supersession from genuine failures.
+
+Permissions and other failure exit codes are unchanged. NFV remains
 advisory and must not be required for merging, but infrastructure failures can
 still produce a red Actions check; there is no no-red-cross guarantee.
 

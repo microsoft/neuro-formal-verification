@@ -11,6 +11,9 @@ behavioral properties, and translates relevant source into Dafny. It attempts
 verification and refutation, then posts one evidence-linked PR comment.
 PR code is inspected as data, never executed.
 
+Audits start when a PR opens non-draft or is marked ready. Later pushes cancel
+older attempts without starting another audit; toggle draft to ready to rerun.
+
 Results concern translated models under stated assumptions. Findings are
 **conditional MODEL refutations, not confirmed source bugs**; failure to refute
 does not establish correctness.

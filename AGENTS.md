@@ -168,6 +168,12 @@ under `workflow/tests/.general-scratch/`; never commit them.
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
+- Audits start on non-draft `opened` and `ready_for_review` events. Each ready
+  transition explicitly requests a rerun. `synchronize` only cancels an older
+  per-PR workflow attempt; it starts no inference or audit. Reopening does not
+  audit. Typed collection supersession records an incomplete operational skip
+  and a no-op, never a proof outcome or empty successful report; other failures
+  stay failures. Preserve the strict default collector CLI.
 - Flow: the reusable source-context AW session completes first. Trusted
   pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
   the immutable PR bundle. A deterministic custom SDK driver then runs
