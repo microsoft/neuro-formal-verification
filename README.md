@@ -58,9 +58,11 @@ See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for resources and contact informati
 Report security vulnerabilities privately using [SECURITY.md](SECURITY.md),
 not through public GitHub issues.
 
+See [PRIVACY](PRIVACY) for data handling and telemetry opt-out instructions.
+
 ## License and third-party content
 
-Project code is available under the [MIT license](LICENSE). The paper benchmark
+Project code is available under the [MIT license](LICENSE.TXT). The paper benchmark
 includes programs and derived data from
 [microsoft/intent-formalization](https://github.com/microsoft/intent-formalization/tree/main/nl2postcondition-fse2024),
 including HumanEval problems via EvalPlus. See [NOTICE.txt](NOTICE.txt),
