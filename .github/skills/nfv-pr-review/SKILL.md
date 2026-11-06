@@ -52,6 +52,14 @@ Follow the [onboarding guide's upgrade section](../../../workflow/ONBOARDING.md#
 Pause new audits, wait for active/queued runs to finish and keep the model,
 billing mode, secrets and budgets. Update the package and runtime together,
 verify merged configuration, then re-enable and check a separately approved pilot.
+For the post-merge client handoff, inspect both installed package pins on the
+client's default branch and confirm the same full 40-character SHA. Print
+copy/paste-ready `gh variable set NFV_RELEASE_SHA` and `gh variable get
+NFV_RELEASE_SHA` commands with the actual `--repo` and literal `--body` SHA.
+Never leave placeholders or shell-variable substitutions, or substitute the
+latest NFV branch tip. If either pin is unavailable or inconsistent, report the
+block and leave NFV disabled. Require the variable read-back to match before
+re-enabling.
 
 ## Troubleshoot a run
 

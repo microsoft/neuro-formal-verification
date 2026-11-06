@@ -111,6 +111,17 @@ gh variable set NFV_RELEASE_SHA --repo OWNER/repo --body <SHA>
 gh variable get NFV_RELEASE_SHA --repo OWNER/repo
 ```
 
+These are generic documentation examples, not a completed client handoff.
+After the approved upgrade merge, the agent must inspect both installed workflow
+package pins on the client's default branch and confirm they contain the same
+full 40-character SHA. Then show both commands above in one copy/paste-ready
+code block with the actual client repository and verified SHA substituted.
+Do not leave `OWNER/repo`, `<SHA>` or shell-variable substitutions for the user
+to resolve, and do not use the latest NFV branch tip instead of the installed
+release. If the pins disagree or cannot be verified, report the block and leave
+NFV disabled rather than guess. State that the commands are for the merged
+upgrade and must run before NFV is re-enabled.
+
 Verify the returned SHA matches both merged package pins, and verify the model,
 billing permissions and required secret names before enabling NFV and reading
 back `active`. Repeat a separately approved pilot; leave audits paused on failure.
