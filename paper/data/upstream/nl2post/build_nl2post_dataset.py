@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """
 Build nl2post_dataset.json: 100 specs x 2 (reference + mutant) = 200 entries.
 

@@ -70,3 +70,20 @@ Keep the compatibility copy `LICENSE` identical to `LICENSE.TXT`. Do not commit
 pre-built executables, libraries or packages, Microsoft product icons, or
 unauthorized branding. Discuss substantial changes in an issue before starting;
 see [SUPPORT.md](SUPPORT.md) for the project's support expectations.
+
+## Before publishing a release
+
+Maintainers must obtain naming clearance, authoring-team permission for included
+code or data from other Microsoft teams, and applicable legal/IP, privacy and
+announcement approvals before publication. Keep approval records in the approved
+review system, not in this public repository.
+
+Review the exact release snapshot for sensitive information, internal-only
+comments, unauthorized branding and pre-built binaries. Check third-party notices,
+license copies, telemetry opt-outs and the CLA integration, including scanner
+coverage for otherwise skipped file types. Preserve dataset and result bytes;
+record any tooling changes in the manifest without replacing original provenance.
+
+Publish only from a Microsoft organization repository. Promote reviewed `dev`
+changes to `main` by squash merge, not by exposing intermediate development
+commits. Documentation, license notices and passing CI are not release approval.
