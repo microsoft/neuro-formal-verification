@@ -16,7 +16,10 @@ The source is `.github/workflows/nfv-pr-review.md` in
 `microsoft/neuro-formal-verification`. The gh-aw package is `workflow/aw.yml`.
 User docs are in `workflow/README.md`.
 
-Audits start when a PR opens non-draft or transitions from draft to ready.
+Audits start when a supported-source PR into the onboarded repository's default
+branch opens non-draft or transitions from draft to ready, including fork PRs
+and external contributors. Trusted-base `pull_request_target` execution keeps PR
+code inspection-only; external contributors can trigger billable inference.
 Each ready transition requests a rerun; reopening and later pushes do not.
 Pushes only cancel older attempts. Later changes need an explicit draft-to-ready
 transition before they are audited.
