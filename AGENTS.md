@@ -88,7 +88,9 @@ under `workflow/tests/.general-scratch/`; never commit them.
   order. Verified properties use collapsed verification details with full
   models in the artifact; failure diagnostics have 300-character excerpts.
   Compact non-refutation details before refutation source/proof sections to
-  meet the 60,000-character comment budget; never mutate accepted evidence.
+  meet the 60,000-character and 50-URL comment budgets (URLs in code also count).
+  Compact source mappings retain path/line references without repeated links;
+  never mutate accepted evidence or drop a property to meet publication limits.
   Display shorter properties only after entailment with free inputs/outputs and
   the frozen-model negative/input-domain checks. Label candidate patches
   `refutation-with-fix (model-checked candidate)` only after complete-property,

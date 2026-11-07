@@ -91,6 +91,10 @@ inference or enabling the workflows.
    Later pushes do not start another audit; toggle draft to ready for an explicit
    rerun. Documentation, configuration and submodule-only PRs
    without a supported source-suffix change do not start NFV.
+   Copilot-authored PRs may require a maintainer to **Approve and run workflows**
+   after reviewing the change, even on same-repository branches. Approval-expired
+   runs never executed NFV. Keep GitHub's approval protection enabled; request
+   and approve a fresh eligible attempt rather than treating expiry as a model failure.
    Verify the generated comment and `nfv-evidence` report:
    `completed: true`, no global errors and recorded property outcomes, not just
    a green job. For organization mode, confirm attribution in its billing dashboard;

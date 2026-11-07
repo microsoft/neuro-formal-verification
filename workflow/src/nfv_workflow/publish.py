@@ -33,6 +33,14 @@ def dafny_block(source):
 
 
 LABEL = "NFV-formal-review"
+COMMENT_LIMIT = 60000
+LINK_LIMIT = 50
+COMMENT_URL = re.compile(r"https?://[^\s]+")
+
+
+def comment_fits(body):
+    # gh-aw counts URL occurrences even inside code spans and fences.
+    return len(body) <= COMMENT_LIMIT and len(COMMENT_URL.findall(body)) <= LINK_LIMIT
 
 
 def marker(identity):
@@ -84,9 +92,12 @@ def fenced(language, body):
     return f"{fence}{language}\n{body.rstrip()}\n{fence}"
 
 
-def source_link(path, low, high, repo, commit):
+def source_link(path, low, high, repo, commit, linked=True):
+    label = f"{code_span(path)} lines {low}-{high}"
+    if not linked:
+        return label
     url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{low}-L{high}"
-    return f"[{code_span(path)} lines {low}-{high}]({url})"
+    return f"[{label}]({url})"
 
 
 def source_block(bundle, path, low, high, language, repo, commit, notes=None):
@@ -225,7 +236,7 @@ def general_section(index, finding, bundle, repo, commit, presentation=None, com
                     abstract_inputs.append("per-element results of " + shown)
                 else:
                     mapped_inputs.append(shown)
-                links = [source_link(row["path"], row["line"], row["line"], repo, commit)
+                links = [source_link(row["path"], row["line"], row["line"], repo, commit, linked=not compact)
                          for row in item["anchors"]]
                 mapping_details.append(f"- {code_span(key)} maps to {code_span(item['expression'])}: "
                                        + ", ".join(links)
@@ -241,7 +252,7 @@ def general_section(index, finding, bundle, repo, commit, presentation=None, com
         failure = presentation["failure"]
         mapping_details.extend([
             f"Source-level failure expression: {code_span(failure['expression'])}; "
-            + ", ".join(source_link(row["path"], row["line"], row["line"], repo, commit)
+            + ", ".join(source_link(row["path"], row["line"], row["line"], repo, commit, linked=not compact)
                         for row in failure["anchors"]),
             "The checked witness and proof evidence are unchanged.",
         ])
@@ -416,8 +427,8 @@ def render(report, bundle, evidence_url, presentation=None, followups=None):
                                     mappings.get(finding["candidate"]["id"])))
     header.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     body = "\n\n".join(header)
-    if len(body) > 60000:
-        raise Abstain("Publication exceeds bounded size")
+    if not comment_fits(body):
+        raise Abstain("Publication exceeds bounded size or link count")
     return body
 
 
@@ -449,7 +460,10 @@ def comment(report, bundle, evidence_url, proposed, presentation=None, followups
         lines.extend(f"- error: {text(str(x)[:300])}" for x in errors[:5])
         lines.append("</details>")
     lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
-    return "\n\n".join(lines)
+    body = "\n\n".join(lines)
+    if not comment_fits(body):
+        raise Abstain("Publication exceeds bounded size or link count")
+    return body
 
 
 def analysis_comment(report, bundle, evidence_url, presentation=None, followups=None):
@@ -568,13 +582,14 @@ def analysis_comment(report, bundle, evidence_url, presentation=None, followups=
     for _, index, compact in sorted(
             compact_sections,
             key=lambda item: (item[0] == REFUTED, -(len(lines[item[1]]) - len(item[2])))):
-        if len(body) <= 60000:
+        if comment_fits(body):
             break
-        if len(compact) < len(lines[index]):
+        if (len(compact) < len(lines[index])
+                or len(COMMENT_URL.findall(compact)) < len(COMMENT_URL.findall(lines[index]))):
             lines[index] = compact
             body = "\n\n".join(lines)
-    if len(body) > 60000:
-        raise Abstain("Publication exceeds bounded size")
+    if not comment_fits(body):
+        raise Abstain("Publication exceeds bounded size or link count")
     return body
 
 

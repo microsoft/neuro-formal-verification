@@ -119,6 +119,22 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(refreshed.call_count, 0)
         self.assertIn(self.value["explanation"], Path(summary["comment"]).read_text())
 
+    def test_link_compaction_preserves_mapping_anchors_without_repeated_hyperlinks(self):
+        translation = copy.deepcopy(self.translation)
+        translation["presentation"] = self.value
+        translation["model"] += "// " + " ".join(
+            f"https://example.test/model/{index}" for index in range(60)) + "\n"
+        report, _ = self.report(translation)
+        before = copy.deepcopy((report, self.bundle, self.value))
+        body = render(report, self.bundle, self.url)
+        self.assertLessEqual(len(re.findall(r"https?://[^\s]+", body)), 50)
+        self.assertIn(f"`{self.claim['path']}` lines 1-1", body)
+        self.assertIn(f"`{self.claim['path']}` lines 4-4", body)
+        self.assertNotIn("#L1-L1)", body)
+        self.assertNotIn("#L4-L4)", body)
+        self.assertIn(self.value["explanation"], body)
+        self.assertEqual((report, self.bundle, self.value), before)
+
     def test_audit_does_not_refresh_invalid_proof_evidence(self):
         report, _ = self.report()
         report["findings"][0]["dafny"] += "// tampered"
