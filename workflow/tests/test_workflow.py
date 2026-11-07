@@ -904,7 +904,8 @@ class TemplateTests(unittest.TestCase):
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, synchronize, ready_for_review]", source)
-        gate = ("github.event.pull_request.base.ref == github.event.repository.default_branch && "
+        gate = ("vars.NFV_RELEASE_SHA != '' && "
+                "github.event.pull_request.base.ref == github.event.repository.default_branch && "
                 "github.event.pull_request.draft == false && "
                 "(github.event.action == 'opened' || github.event.action == 'ready_for_review')")
         self.assertEqual(source.count("if: " + gate), 2)
@@ -943,11 +944,23 @@ class TemplateTests(unittest.TestCase):
                         ),
                     ),
                 )
-                self.assertEqual(expected, eval(condition, {"__builtins__": {}}, {"github": github}))
+                for release in ("", "a" * 40):
+                    with self.subTest(release=release):
+                        scope = {"github": github, "vars": SimpleNamespace(NFV_RELEASE_SHA=release)}
+                        self.assertEqual(expected and bool(release),
+                                         eval(condition, {"__builtins__": {}}, scope))
         worker = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
         for compiled in (self.lock(), worker):
             self.assertNotIn("check_membership", compiled)
         self.assertIn("daily-effective-workflow-guardrail", self.lock())
+
+    def test_bootstrap_release_gate_precedes_both_inference_sessions(self):
+        worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
+        worker_lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
+        self.assertIn("if: vars.NFV_RELEASE_SHA != ''\n", worker)
+        self.assertIn("  activation:\n    if: vars.NFV_RELEASE_SHA != ''\n", worker_lock)
+        reviewer = self.lock().split("\n  activation:", 1)[1]
+        self.assertRegex(reviewer, r"if: >\s+vars\.NFV_RELEASE_SHA != '' &&")
 
     def test_path_filters_skip_the_documentation_and_submodule_failure_cases(self):
         from nfv_workflow.repository_context import SUFFIXES
