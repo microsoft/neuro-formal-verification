@@ -921,7 +921,7 @@ class TemplateTests(unittest.TestCase):
         for pattern in patterns:
             self.assertIn('      - "' + pattern + '"', lock)
         for paths in (["doc/openvmm-upstream-roadmap.md", "openvmm"],
-                      [".github/skills/nvx-openvmm-rebase/SKILL.md",
+                      [".github/skills/project-maintenance/SKILL.md",
                        ".github/copilot-instructions.md", ".gitmodules"]):
             self.assertFalse(any(fnmatch.fnmatchcase(path, pattern)
                                  for path in paths for pattern in patterns))

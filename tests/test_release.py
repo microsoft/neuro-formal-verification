@@ -91,7 +91,6 @@ class ReleaseTests(unittest.TestCase):
             "paper/licenses/microsoft-intent-formalization-evalplus-LICENSE",
             "paper/licenses/openai-human-eval-LICENSE",
             "workflow/licenses/github-gh-aw-LICENSE",
-            "workflow/licenses/microsoft-nvx-LICENSE",
         ):
             self.assertIn(name, notice)
             self.assertTrue(ROOT.joinpath(*name.split("/")).is_file())
