@@ -42,9 +42,9 @@ class FakeCLI:
         if path.endswith(".lock.yml"):
             return source
         if self.case.get("organization_billing"):
-            source = INSTALL.configure_billing(source, path, "organization")
+            source = INSTALL.configure_copilot_permissions(source, path, "organization")
         if self.case.get("mismatched_billing") and path.endswith("nfv-pr-review.md"):
-            source = INSTALL.configure_billing(source, path, "organization")
+            source = INSTALL.configure_copilot_permissions(source, path, "organization")
         if self.case.get("invalid_billing") and path.endswith("nfv-pr-review.md"):
             source = source.replace("      copilot-requests: none", "      copilot-requests: write")
         if self.case.get("legacy_billing"):

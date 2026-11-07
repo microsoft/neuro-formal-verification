@@ -56,7 +56,7 @@ def workflow_billing(source, path):
     return "organization" if entries[0][1] == "write" else "pat"
 
 
-def configure_billing(source, path, billing):
+def configure_copilot_permissions(source, path, billing):
     if workflow_billing(source, path) == billing:
         return source
     frontmatter, separator, prompt = source.partition("\n---\n")
@@ -351,7 +351,7 @@ class Installer:
                 if not file.is_file():
                     raise InstallError(f"Installation did not produce {path}")
                 source = file.read_text(encoding="utf-8")
-                configured = configure_billing(source, path, self.args.billing)
+                configured = configure_copilot_permissions(source, path, self.args.billing)
                 if configured != source:
                     file.write_text(configured, encoding="utf-8", newline="\n")
             print(self.run("gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"))
