@@ -748,15 +748,15 @@
       "destination": "paper/data/__init__.py",
       "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
-      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "modified_from_materialized_source": false
+      "release_sha256": "1c8a20fa5b81a909cb9336b543c6f7e11af5415bbab6e880cb9b0eaf2d2f20f8",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nfv/data/build_safe.py",
       "destination": "paper/data/build_safe.py",
       "source_sha256": "a23b330ae432960546889afa53e53c2f4852e08c29c5e93189eff87e59a861e0",
       "source_git_blob": "3ec4a55b95303cff3c880026452246b7be587a89",
-      "release_sha256": "7758124ba91c0186f912521140ca9df4579bf74ed1b2991795ec6a39e696ecf1",
+      "release_sha256": "6466c055b603b8c2e33e1eeada84e6c9b61fc7f57043d9e7b8dad43fcb58b1e6",
       "modified_from_materialized_source": true
     },
     {
@@ -764,7 +764,7 @@
       "destination": "paper/data/build_subset.py",
       "source_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc",
       "source_git_blob": "0e22eecd8af06efbf2af8254a763d4a8f70e9901",
-      "release_sha256": "c7b8a8a34b8f47c2254225c0eb56a71b1a0109011175faa2e4dec72fb57f5e9b",
+      "release_sha256": "efc06e83070dc2daed50831b9b2a1bb62c22c7bd2bd34892fd842c79c1d52341",
       "modified_from_materialized_source": true
     },
     {
@@ -780,7 +780,7 @@
       "destination": "paper/data/killing_tests.py",
       "source_sha256": "ff66e0d8f1d629c57c53956ed27d3a178bd2ee57f7b56c071c7d54ff60e27731",
       "source_git_blob": "7ad272adebd048342cbfc2e5c31fcbd1ee244bee",
-      "release_sha256": "75882ae4e4a1c0e055af71833c6442cb0c0020319ad9208e260e52aed3290543",
+      "release_sha256": "73ce05fcf3d174ba87dcb96cbee43925f78e11163cecaaf29b276d6d507b03fa",
       "modified_from_materialized_source": true
     },
     {
@@ -796,7 +796,7 @@
       "destination": "paper/data/rebuild_dataset.py",
       "source_sha256": "44a48c4b4a755f68feda7d648b0e3e06f784d97a7b237e3923875d49cd78bed5",
       "source_git_blob": "09eb897e25311fb89cef39e34ce633b77b391fa2",
-      "release_sha256": "4ddc41b99ce840950d2110d6fbf7e752a4f1ab783d2042330dfa4d1ed57d6e8b",
+      "release_sha256": "6a2540d6a3ac1111a46b41ee3b442160061b9f67b984ab883ea4791350def56b",
       "modified_from_materialized_source": true
     },
     {
@@ -812,7 +812,7 @@
       "destination": "paper/data/verify_no_leak.py",
       "source_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830",
       "source_git_blob": "eeac36b979e973f1811934fbebabb814c138eb06",
-      "release_sha256": "5be8b53b974b3b01020fdd13bd219d4dca56ad9b592875a6cee2f08b84fa4544",
+      "release_sha256": "5616c53680b5774265e41302aed16717745d9547c727638b78a36daaf40f6f99",
       "modified_from_materialized_source": true
     },
     {
@@ -891,8 +891,8 @@
       "source": "nl2post/build_nl2post_dataset.py",
       "destination": "paper/data/upstream/nl2post/build_nl2post_dataset.py",
       "source_git_blob": "ba2f14b8c02a1bef6bd267f84777a6fc9ceef5b0",
-      "release_sha256": "08860cfc69b7e9eaec736830f6231981eccb85f02ddc0b76ca043d44ea00825a",
-      "modified_from_materialized_source": null
+      "release_sha256": "218aee48cce12833f9baa70bd138f29b52f88a8c90f9294e3e17f41614077b28",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nl2post/nl2post_dataset.json",
@@ -906,15 +906,15 @@
       "source": "nl2post/validate_specs.py",
       "destination": "paper/data/upstream/nl2post/validate_specs.py",
       "source_git_blob": "dbb21e5d2ddfc8aa97193a2fec7dcaf07a067199",
-      "release_sha256": "18d01d594a9501200ae8b69098223ce16f2265fb5a8f1d7bcc9c981ebc548d32",
-      "modified_from_materialized_source": null
+      "release_sha256": "4e865adc9cf1578d3788641ac583372312a7039eb67c4726c0fb20be44202a35",
+      "modified_from_materialized_source": true
     },
     {
       "source": "nl2post/verify_nl2post_dataset.py",
       "destination": "paper/data/upstream/nl2post/verify_nl2post_dataset.py",
       "source_git_blob": "5efaa48c886501874e510433ec28298375acfa17",
-      "release_sha256": "1730cfa85bfa728eb71208da4d1914d12ba93d86d9ae142ee3e0e45260ac1037",
-      "modified_from_materialized_source": null
+      "release_sha256": "91444f5943bfd2d388899e74f3bc6eafe719c34e12816be6fe0a296aaf2eddb5",
+      "modified_from_materialized_source": true
     },
     {
       "source": "results/nl2post_spec_validation.json",

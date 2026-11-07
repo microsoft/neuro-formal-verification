@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Derive a named entry subset from a completed run, and record its provenance.
 
 A subset is stored as `paper/data/subsets/<name>.json` and selected at run time

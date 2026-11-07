@@ -12,6 +12,9 @@ draft-to-ready transitions, not later pushes. External contributors can trigger
 billable inference under the configured limits. The `pull_request_target`
 workflow runs trusted base-branch code and never executes inspected PR code.
 
+Review [data handling and telemetry opt-outs](../PRIVACY) before using hosted
+inference or enabling the workflows.
+
 1. **Authenticate:** Install Git, GitHub CLI (`gh`) and Copilot CLI; authenticate
    both CLIs. For Microsoft-provided Copilot access, sign in with the account
    assigned that seat. Select an approved model ID permitted by that account's

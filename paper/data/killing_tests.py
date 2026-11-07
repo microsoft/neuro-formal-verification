@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """Join the killing test back onto the benchmark entries.
 
 `nl2post_safe.json` deliberately drops the killing test -- the benchmark is
