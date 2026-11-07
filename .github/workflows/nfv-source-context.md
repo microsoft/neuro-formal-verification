@@ -10,6 +10,7 @@ on:
       NFV_RELEASE_TOKEN:
         required: false
   roles: all
+if: vars.NFV_RELEASE_SHA != ''
 permissions:
   contents: read
   pull-requests: read

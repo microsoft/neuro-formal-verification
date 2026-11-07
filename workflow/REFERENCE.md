@@ -49,6 +49,10 @@ and return types while preserving the original source line numbers.
   cancels an older attempt but starts neither inference session nor a new audit.
   These cancellation-only Actions runs may appear skipped. Later changes are not
   automatically re-audited; toggle draft to ready to request another audit.
+  Both inference sessions require a nonempty `NFV_RELEASE_SHA`. First installs
+  leave it unset through the installation merge, then configure it only during
+  verified post-merge activation. GitHub's workflow state can be `active` while
+  inference remains gated off; workflow registration alone does not enable NFV.
 
 The source-context agent selects only paths from a captured, supported-source
 inventory and emits a files/symbols list, not snapshot metadata. Trusted code

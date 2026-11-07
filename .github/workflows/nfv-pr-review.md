@@ -25,7 +25,7 @@ on:
       - "**.[pP][yY]"
       - "**.[rR][sS]"
   roles: all
-if: github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
+if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
 permissions:
   contents: read
   pull-requests: read
@@ -48,7 +48,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   repository_context:
-    if: github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
+    if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
     permissions:
       # gh-aw uses this only to mark an incomplete workflow run failed.
       actions: write

@@ -43,14 +43,19 @@ Guide the user through secure token entry; never receive or display token values
 Create the installation branch, commit and push it, and open a **draft PR**.
 Use gh-aw v0.88.7 and compile both workflows.
 
-Read back `NFV_RELEASE_SHA`, `NFV_MODEL`, both installed package pins, required
+Read back `NFV_MODEL`, both installed package pins, required
 secret names, all three billing permissions and workflow state. Report observed
 values, not just commands run; secret-name presence does not prove validity or
 model access.
-Never run NFV on its installation PR. Verify the reviewer is disabled before
-marking ready or merging, keep it disabled through the approved merge, then
-recheck the merged default-branch snapshot before enabling and verifying `active`.
-Leave the PR draft if disabling is blocked; leave unrelated CI enabled.
+Never run NFV on its installation PR. Leave `NFV_RELEASE_SHA` unset and verify
+both source/compiled inference gates before marking ready or merging. GitHub
+can return 404 when disabling an unregistered workflow; do not rely on that API
+for first-install safety. Post-merge activation disables the registered reviewer,
+verifies the merged installation, then sets and reads back the runtime pin
+before enabling and verifying `active`. Leave unrelated CI enabled.
+Preserve shared gh-aw skills, maintenance schedules and existing action pins;
+do not accept unrelated compiler-generated changes or replace the client's
+installed compiler automatically.
 Only start a separate pilot and billable audit with user approval, and check its
 generated comment and completed native evidence rather than a green job alone.
 

@@ -57,27 +57,34 @@ inference or enabling the workflows.
    ```
 
    The agent uses `workflow/install.py` (Python 3.10+, gh-aw v0.88.7), pins both
-   workflows and runtime to one latest trusted NFV default-branch SHA, sets
-   `NFV_RELEASE_SHA` and `NFV_MODEL`, and opens a **draft installation PR**.
-   It reads back the pins, model, billing permissions and required secret names,
-   disables the reviewer and verifies `disabled_manually`; if blocked, leave
-   the PR draft and report the failure.
+   workflows to one latest trusted NFV default-branch SHA, sets `NFV_MODEL`,
+   and opens a **draft installation PR**. Leave `NFV_RELEASE_SHA` unset until
+   post-merge activation: both inference sessions are gated off while it is
+   empty. The installer refuses a repository or inherited organization runtime
+   pin rather than deleting it; inability to inspect inherited variables also
+   blocks bootstrap. It verifies the source and compiled gates, package pins, model, billing
+   permissions and required secret names before handoff.
+   The version check accepts gh-aw's version on stdout or stderr. Existing
+   gh-aw skills and maintenance schedules are preserved byte-for-byte; the
+   shared action lock retains existing pins and only adds missing entries.
+   Conflicting pins or other unexpected changes block the install.
    Check [repository permission policies](REFERENCE.md#repository-permission-policies)
    against the generated jobs. Update approved job-specific allowlists and their
    tests/documentation; do not disable checks or grant workflow-wide write access.
 
-6. **Merge, then enable:** Approve the installation merge **with NFV disabled**;
+6. **Merge, then enable:** Approve the installation merge **with inference gated off**;
    never run or require NFV on its own installation PR. Leave unrelated CI enabled.
    Keep NFV advisory after installation too: exclude its jobs from required merge
    checks and required CI aggregators; leave operational failures visible.
-   After merge, have the agent verify both package pins against `NFV_RELEASE_SHA`,
-   the approved model, consistent billing permissions and required secret names.
-   If anything fails, leave NFV disabled. Otherwise enable and verify `active`:
-
-   ```text
-   gh workflow enable nfv-pr-review.lock.yml --repo OWNER/repo
-   gh api repos/OWNER/repo/actions/workflows/nfv-pr-review.lock.yml --jq .state
-   ```
+   GitHub may not register the reviewer until it reaches the default branch;
+   a pre-merge `gh workflow disable` can therefore return 404. Registration as
+   `active` does not bypass the empty-release gate.
+   After merge, use the installer's `--enable-after-merge` phase. It disables
+   the now-registered reviewer, validates the merged gates and matching package
+   pins, model, billing and required secret names, then sets `NFV_RELEASE_SHA`
+   to the installed release and reads it back before enabling and verifying
+   `active`. If registration is delayed or any check fails, leave NFV gated
+   off or API-disabled and retry activation; do not set the runtime pin early.
 
 7. **Approve a separate, billable pilot:** Use a small code-change PR based on
    the installed branch, opened non-draft or transitioned from draft to ready.

@@ -155,15 +155,18 @@ under `workflow/tests/.general-scratch/`; never commit them.
 
 - `workflow/install.py` provides Linux-first, agent-free initial installation.
   Keep its offline tests in `workflow/tests/test_install.py`
-  aligned with the draft/disable/post-merge bootstrap rules. Never run the
+  aligned with the draft/gate/post-merge bootstrap rules. Never run the
   installer against a live client repository just to test changes.
 - Client bootstrap: never run NFV against its own initial installation PR or
-  require an NFV check for it. Keep that PR draft until `nfv-pr-review.lock.yml`
-  is disabled and its disabled state is verified; keep it disabled through
-  marking ready and merging. If the workflow is not registered or cannot be
-  disabled, leave the PR draft and report the block. Leave unrelated CI enabled.
-  Enable NFV only after installation reaches the base branch, then use a
-  separate user-approved pilot PR.
+  require an NFV check for it. Keep that PR draft until both source/compiled
+  inference gates are verified and `NFV_RELEASE_SHA` is confirmed unset; leave
+  the variable unset through marking ready and merging. An unregistered
+  workflow cannot be API-disabled. Post-merge activation disables the registered
+  reviewer, verifies the merged snapshot, then sets/reads back its runtime pin
+  before enabling. Leave unrelated CI enabled; use a separate approved pilot.
+  Preserve shared gh-aw skill/maintenance files byte-for-byte and retain existing
+  action pins when adding NFV pins. Compiler version detection must accept
+  stdout or stderr without mixing stderr into JSON command results.
 - Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
