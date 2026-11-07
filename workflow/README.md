@@ -44,6 +44,9 @@ property fails, not an execution trace. Verification shows the checked
 property and its assumptions. Both link to source and formal evidence;
 neither establishes source-code correctness.
 
+Reports are bounded by size and URL count; full source and formal evidence remain
+in the run artifact when details are compacted.
+
 ## Report contents
 
 | Report element | What the developer sees |

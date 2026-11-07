@@ -65,6 +65,13 @@ preparation failures; they never become an empty successful formal review.
 
 ## What a finding means
 
+Generated comments respect a 60,000-character budget and gh-aw's 50-URL limit,
+which counts URLs inside code too. Verification/failure details are compacted
+before refutation details. Compact input mappings retain source paths and line
+numbers without repeated hyperlinks; full source, mappings and models remain
+in the linked artifact. Accepted evidence and whole property outcomes are unchanged.
+If essential content still exceeds a limit, publication fails explicitly.
+
 **A finding is a checked conditional MODEL refutation, not a source-confirmed
 bug. Source-to-model correspondence is not established.**
 

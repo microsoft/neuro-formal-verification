@@ -8,6 +8,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import re
 import shutil
 from types import SimpleNamespace
 import unittest
@@ -234,6 +235,49 @@ class AnalysisTests(unittest.TestCase):
         self.assertLessEqual(len(body), 60000)
         self.assertNotIn(padding, body)
         self.assertIn("full Dafny", body)
+
+    def test_link_heavy_model_compacts_without_changing_accepted_evidence(self):
+        urls = " ".join(f"https://example.test/model/{index}" for index in range(60))
+        self.translation["model"] += "// " + urls + "\n"
+        report = self.execute([self.translation], Verifier())
+        before = copy.deepcopy((report, self.bundle))
+        body = render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertLess(len(body), 60000)
+        self.assertLessEqual(len(re.findall(r"https?://[^\s]+", body)), 50)
+        self.assertNotIn(urls, body)
+        self.assertIn("**Outcome: refuted**", body)
+        self.assertIn(text(self.claim["property"]), body)
+        self.assertIn("n = 2", body)
+        self.assertIn("full Dafny", body)
+        self.assertEqual((report, self.bundle), before)
+
+    def test_link_compaction_starts_only_above_the_exact_link_limit(self):
+        report = self.execute([self.translation], Verifier())
+        url = "https://github.com/local/synthetic/actions/runs/123"
+        remaining = 50 - len(re.findall(r"https?://[^\s]+", render(report, self.bundle, url)))
+        urls = " ".join(f"https://example.test/model/{index}" for index in range(remaining))
+        self.translation["model"] += "// " + urls + "\n"
+        report = self.execute([self.translation], Verifier())
+        body = render(report, self.bundle, url)
+        self.assertEqual(len(re.findall(r"https?://[^\s]+", body)), 50)
+        self.assertIn(urls, body)
+        self.translation["model"] += "// https://example.test/over-budget\n"
+        report = self.execute([self.translation], Verifier())
+        body = render(report, self.bundle, url)
+        self.assertLessEqual(len(re.findall(r"https?://[^\s]+", body)), 50)
+        self.assertNotIn(urls, body)
+
+    def test_irreducible_link_heavy_property_is_not_dropped_to_fit(self):
+        statement = " ".join(f"https://example.test/property/{index}" for index in range(60))
+        report = {"schema": 3, "mode": "general-model-analysis",
+                  "identity": self.bundle["identity"], "properties": [
+                      {"id": "failed", "property": statement, "status": INVALID,
+                       "diagnostic": "Invalid model."}],
+                  "findings": [], "verified": [], "errors": [], "completed": True}
+        before = copy.deepcopy(report)
+        with self.assertRaisesRegex(Abstain, "link count"):
+            render(report, self.bundle, "https://github.com/local/synthetic/actions/runs/123")
+        self.assertEqual(report, before)
 
     def test_refutations_appear_first_without_changing_property_labels_or_evidence(self):
         positive = self.execute([self.translation], Verifier(positive=True))
