@@ -879,6 +879,9 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("](REFERENCE.md)", source)
         self.assertIn("](ONBOARDING.md#upgrade-an-existing-installation)", source)
         self.assertIn('<a id="upgrade-an-existing-installation"></a>', source)
+        for image in ("nfv-report-refutation.png", "nfv-report-verification.png"):
+            self.assertIn(f"](images/{image})", source)
+            self.assertTrue((self.package / "images" / image).is_file())
         reference = (self.package / "REFERENCE.md").read_text(encoding="utf-8")
         self.assertIn("### Repository permission policies", reference)
         self.assertNotIn("### Upgrade an existing installation", reference)

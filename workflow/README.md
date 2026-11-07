@@ -52,6 +52,12 @@ neither establishes source-code correctness.
 | Expandable details | Source context, model evidence and any model-checked candidate fix |
 | Evidence links | Captured source and the run's full formal models and diagnostics |
 
+## Report screenshots
+
+![NFV report showing a model refutation, counterexample input and failure sketch](images/nfv-report-refutation.png)
+
+![NFV report showing model verification with expanded assumptions and checked property](images/nfv-report-verification.png)
+
 **Installation:** [Onboarding](ONBOARDING.md).
 
 <a id="upgrade-an-existing-installation"></a>
