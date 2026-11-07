@@ -1059,6 +1059,9 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", lock)
         self.assertIn("persist-credentials: false", source)
         self.assertNotIn("ref: ${{ github.event.pull_request.head.sha }}", lock)
+        self.assertIn("path: ${{ runner.temp }}/nfv-context\n", source)
+        self.assertIn('NFV_CONTEXT_MANIFEST: ${{ runner.temp }}/nfv-context/context.json', source)
+        self.assertIn('--manifest "$NFV_CONTEXT_MANIFEST"', source)
 
     def test_driver_uses_writable_evidence_separate_from_read_only_inputs(self):
         source, lock = self.source(), self.lock()
@@ -1209,7 +1212,7 @@ class ExtractionInputTests(ScratchTest):
         block = TemplateTests().source().split('ready=$(python - "$collection" <<\'PY\'\n', 1)[1]
         script = "\n".join(line[6:] for line in block.split("\n      PY", 1)[0].splitlines()) + "\n"
         path = self.directory / "status.json"
-        context = self.directory / "nfv-context" / "context.json"
+        context = self.directory / "downloaded context" / "context.json"
         context.parent.mkdir()
         record = {"schema": 1, "kind": "nfv-collection-attempt",
                   "identity": bundle()["identity"], "status": "collected"}
@@ -1221,7 +1224,8 @@ class ExtractionInputTests(ScratchTest):
                     skipped["identity"] = {**record["identity"], "head_sha": "f" * 40}
                 cli.save(context, skipped)
                 result = subprocess.run([sys.executable, "-", str(path.resolve())],
-                                        input=script, cwd=self.directory, capture_output=True, text=True)
+                                        input=script, cwd=self.directory, capture_output=True, text=True,
+                                        env={**os.environ, "NFV_CONTEXT_MANIFEST": str(context.resolve())})
                 self.assertEqual(result.returncode == 0, matching, result.stderr)
                 self.assertEqual(cli.load(path), skipped if matching else record)
                 if matching:

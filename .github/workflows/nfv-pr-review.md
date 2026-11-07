@@ -115,7 +115,7 @@ steps:
   - uses: actions/download-artifact@v8.0.1
     with:
       name: nfv-source-context
-      path: nfv-context
+      path: ${{ runner.temp }}/nfv-context
   - name: Initialize empty workspace repository (no PR code is checked out)
     run: |
       git init -q "$GITHUB_WORKSPACE"
@@ -123,6 +123,7 @@ steps:
   - name: Capture immutable source as untrusted text
     env:
       GH_TOKEN: ${{ github.token }}
+      NFV_CONTEXT_MANIFEST: ${{ runner.temp }}/nfv-context/context.json
       NFV_MODEL: ${{ vars.NFV_MODEL }}
       NFV_SYNTAX_ROUNDS: ${{ vars.NFV_SYNTAX_ROUNDS }}
       NFV_PROOF_ROUNDS: ${{ vars.NFV_PROOF_ROUNDS }}
@@ -136,15 +137,16 @@ steps:
       collection="$RUNNER_TEMP/gh-aw/nfv/collection-status.json"
       nfv-workflow collect --event "$GITHUB_EVENT_PATH" --out "$bundle" --sources-dir nfv-src --status-out "$collection"
       ready=$(python - "$collection" <<'PY'
+      import os
       import sys
       from nfv_workflow.cli import collection_status, load, save
       from nfv_workflow.github import Abstain
       status = collection_status(sys.argv[1])
-      context = load("nfv-context/context.json")
+      context = load(os.environ["NFV_CONTEXT_MANIFEST"])
       if status["status"] == "superseded":
           print("false")
       elif context.get("status") == "superseded":
-          context = collection_status("nfv-context/context.json")
+          context = collection_status(os.environ["NFV_CONTEXT_MANIFEST"])
           if context["identity"] != status["identity"]:
               raise Abstain("Invalid superseded source-context handoff")
           save(sys.argv[1], context)
@@ -154,7 +156,7 @@ steps:
       PY
       )
       if [[ "$ready" == true ]]; then
-      nfv-workflow enrich --bundle "$bundle" --manifest nfv-context/context.json --out "$bundle" --sources-dir nfv-src
+      nfv-workflow enrich --bundle "$bundle" --manifest "$NFV_CONTEXT_MANIFEST" --out "$bundle" --sources-dir nfv-src
       python - "$bundle" <<'PY'
       import json
       import sys
