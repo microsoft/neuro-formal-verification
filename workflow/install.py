@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Agent-free initial NFV installation using Python's standard library and gh."""
+"""Agent-free NFV installation and upgrades using Python's standard library and gh."""
 
 import argparse
 import base64
@@ -19,6 +19,12 @@ from urllib.parse import quote
 PACKAGE = "microsoft/neuro-formal-verification"
 WORKFLOW = "nfv-pr-review.lock.yml"
 COMPILER = "v0.88.7"
+PAUSE_GATE = "vars.NFV_ENABLED != 'false'"
+SHARED_FILES = (
+    ".github/skills/agentic-workflows/SKILL.md",
+    ".github/workflows/agentics-maintenance.yml",
+)
+ACTION_LOCK = ".github/aw/actions-lock.json"
 WORKFLOW_FILES = (
     ".github/workflows/nfv-source-context.md",
     ".github/workflows/nfv-source-context.lock.yml",
@@ -70,6 +76,7 @@ def options(argv=None):
                         help="Inference billing (installation default: pat; organization requires an enabled org policy)")
     parser.add_argument("--ref", default="HEAD", help="Trusted NFV ref (default: latest commit on NFV's default branch)")
     phase = parser.add_mutually_exclusive_group()
+    phase.add_argument("--upgrade", action="store_true", help="Prepare a paused upgrade, preserving model and billing")
     phase.add_argument("--verify-bootstrap", action="store_true", help="Retry disabling NFV for the draft installation PR")
     phase.add_argument("--enable-after-merge", action="store_true", help="Enable NFV after the installation PR merges")
     parser.add_argument("--pull-request", type=int, help="Installation PR number for either follow-up phase")
@@ -79,6 +86,9 @@ def options(argv=None):
     if args.verify_bootstrap or args.enable_after_merge:
         if not args.pull_request or args.pull_request < 1 or args.model or args.billing is not None:
             parser.error("Follow-up phases require --pull-request NUMBER, without --model or --billing")
+    elif args.upgrade:
+        if args.model or args.billing is not None or args.pull_request:
+            parser.error("--upgrade preserves the existing model and billing; omit --model, --billing and --pull-request")
     else:
         if args.billing is None:
             args.billing = "pat"
@@ -97,7 +107,7 @@ class Installer:
         self.repository = args.repository
         self.root = Path.cwd()
 
-    def run(self, *args):
+    def run(self, *args, include_stderr=False):
         result = subprocess.run(args, cwd=self.root, capture_output=True, text=True, encoding="utf-8")
         if result.returncode:
             raise InstallError(
@@ -105,7 +115,65 @@ class Installer:
             )
         if result.stderr:
             print(result.stderr, file=sys.stderr, end="" if result.stderr.endswith("\n") else "\n")
-        return result.stdout.rstrip("\r\n")
+        return (result.stdout + ("\n" + result.stderr if include_stderr else "")).rstrip("\r\n")
+
+    def set_variable(self, name, value):
+        self.run("gh", "variable", "set", name, "--repo", self.repository, "--body", value)
+        if self.run("gh", "variable", "get", name, "--repo", self.repository) != value:
+            raise InstallError(f"Variable read-back failed: {name}. Leave NFV paused.")
+
+    def update_package(self, release):
+        snapshots = {}
+        for path in (*SHARED_FILES, ACTION_LOCK):
+            file = self.root / path
+            if file.is_symlink():
+                raise InstallError(f"Shared gh-aw file is a symlink: {path}")
+            snapshots[path] = file.read_bytes() if file.exists() else None
+        complete = False
+        try:
+            command = ["gh", "aw", "add", f"{PACKAGE}/workflow@{release}"]
+            if self.args.upgrade:
+                command.append("--force")
+            print(self.run(*command))
+            for path in BILLING_SCOPES:
+                file = self.root / path
+                if not file.is_file():
+                    raise InstallError(f"Installation did not produce {path}")
+                source = file.read_text(encoding="utf-8")
+                configured = configure_billing(source, path, self.args.billing)
+                if configured != source:
+                    file.write_text(configured, encoding="utf-8", newline="\n")
+            print(self.run("gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"))
+            previous = snapshots[ACTION_LOCK]
+            if previous is not None:
+                file = self.root / ACTION_LOCK
+                old = json.loads(previous)
+                current = json.loads(file.read_text(encoding="utf-8"))
+                if not isinstance(old, dict) or not isinstance(current, dict):
+                    raise InstallError("Invalid shared action lock; expected an object.")
+                merged = {**old, **current}
+                for section in ("entries", "containers"):
+                    existing, generated = old.get(section, {}), current.get(section, {})
+                    if not isinstance(existing, dict) or not isinstance(generated, dict):
+                        raise InstallError(f"Invalid shared action lock section: {section}")
+                    for key in existing.keys() & generated.keys():
+                        if existing[key] != generated[key]:
+                            raise InstallError(f"Shared action pin changed unexpectedly: {key}")
+                    if section in old or section in current:
+                        merged[section] = {**existing, **generated}
+                file.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8", newline="\n")
+            complete = True
+        finally:
+            for path, before in snapshots.items():
+                if path == ACTION_LOCK and complete:
+                    continue
+                file = self.root / path
+                if before is None:
+                    if file.exists():
+                        file.unlink()
+                else:
+                    file.parent.mkdir(parents=True, exist_ok=True)
+                    file.write_bytes(before)
 
     def api(self, endpoint):
         return json.loads(self.run("gh", "api", "--hostname", "github.com", endpoint))
@@ -151,13 +219,18 @@ class Installer:
                     "Never pass a token value to this script."
                 )
 
-    def disable_reviewer(self):
+    def disable_reviewer(self, allow_unregistered=False):
         try:
             self.run("gh", "workflow", "disable", WORKFLOW, "--repo", self.repository)
             state = self.api(f"repos/{self.repository}/actions/workflows/{WORKFLOW}")["state"]
             if state != "disabled_manually":
                 raise InstallError(f"Unexpected reviewer state: {state}")
         except InstallError as error:
+            if allow_unregistered and re.search(r"\bHTTP 404\b", str(error)):
+                if self.run("gh", "variable", "get", "NFV_ENABLED", "--repo", self.repository) != "false":
+                    raise InstallError("Unregistered workflow is not protected by NFV_ENABLED=false.") from error
+                print("Reviewer is not registered yet (HTTP 404); NFV_ENABLED=false keeps it paused through merge.")
+                return
             raise InstallError(
                 "Keep the installation PR draft; NFV is not confirmed disabled. "
                 "If GitHub has not registered it yet, retry --verify-bootstrap --pull-request NUMBER "
@@ -173,13 +246,23 @@ class Installer:
             "gh", "pr", "view", str(self.args.pull_request), "--repo", self.repository,
             "--json", "state,isDraft,baseRefName,headRefName,mergeCommit,url",
         ))
-        if pr["baseRefName"] != default_branch or not re.fullmatch(r"nfv-install-[0-9a-f]{12}", pr["headRefName"]):
-            raise InstallError("Expected an NFV installation PR targeting the default branch.")
+        if pr["baseRefName"] != default_branch or not re.fullmatch(r"nfv-(install|upgrade)-[0-9a-f]{12}", pr["headRefName"]):
+            raise InstallError("Expected an NFV installation or upgrade PR targeting the default branch.")
+        upgrade = pr["headRefName"].startswith("nfv-upgrade-")
         if self.args.verify_bootstrap:
             if pr["state"] != "OPEN" or not pr["isDraft"]:
                 raise InstallError("Bootstrap verification requires an open draft installation PR.")
-            self.disable_reviewer()
-            print(f"NFV is disabled. Review {pr['url']}; keep it disabled through marking ready and merging.")
+            release = self.run("gh", "variable", "get", "NFV_RELEASE_SHA", "--repo", self.repository)
+            if not upgrade:
+                record = self.api(
+                    f"repos/{self.repository}/contents/{WORKFLOW_FILES[2]}?ref={pr['headRefName']}"
+                )
+                source = base64.b64decode("".join(record["content"].split()), validate=True).decode("utf-8")
+                self.check_package_source(source, release, WORKFLOW_FILES[2])
+                self.check_pause_gate(source)
+            self.set_variable("NFV_ENABLED", "false")
+            self.disable_reviewer(allow_unregistered=not upgrade)
+            print(f"NFV is paused. Review {pr['url']}; keep it paused through marking ready and merging.")
             return
         if pr["state"] != "MERGED" or not (pr.get("mergeCommit") or {}).get("oid"):
             raise InstallError("NFV can be enabled only after the installation PR is merged.")
@@ -188,16 +271,25 @@ class Installer:
         if relation["status"] not in ("identical", "ahead"):
             raise InstallError("The installation merge is not retained on the default branch.")
         release = self.api(f"repos/{self.repository}/actions/variables/NFV_RELEASE_SHA")["value"]
-        if not re.fullmatch(SHA, release) or pr["headRefName"] != f"nfv-install-{release[:12]}":
+        if not upgrade and (not re.fullmatch(SHA, release) or pr["headRefName"] != f"nfv-install-{release[:12]}"):
             raise InstallError("The runtime pin does not match this installation PR.")
         billing_modes = set()
+        package_pins = set()
         for path in WORKFLOW_FILES:
             record = self.api(f"repos/{self.repository}/contents/{path}?ref={head}")
             if record["type"] != "file" or record["encoding"] != "base64":
                 raise InstallError(f"Installed workflow is not a captured file: {path}")
             if path.endswith(".md"):
                 source = base64.b64decode("".join(record["content"].split()), validate=True).decode("utf-8")
-                self.check_package_source(source, release, path)
+                if upgrade:
+                    match = re.search(rf"(?m)^source: {re.escape(PACKAGE)}/workflow@({SHA})\r?$", source)
+                    if not match:
+                        raise InstallError(f"Missing immutable package pin: {path}")
+                    package_pins.add(match[1])
+                else:
+                    self.check_package_source(source, release, path)
+                if path == WORKFLOW_FILES[2]:
+                    self.check_pause_gate(source)
                 billing_modes.add(workflow_billing(source, path))
         if len(billing_modes) != 1:
             raise InstallError("Installed workflows disagree on Copilot billing. Leave NFV disabled.")
@@ -206,9 +298,14 @@ class Installer:
         model = self.run("gh", "variable", "get", "NFV_MODEL", "--repo", self.repository)
         if not re.fullmatch(MODEL, model):
             raise InstallError("NFV_MODEL is missing or invalid. Leave NFV disabled.")
+        if upgrade:
+            if len(package_pins) != 1 or pr["headRefName"] != f"nfv-upgrade-{next(iter(package_pins))[:12]}":
+                raise InstallError("The upgrade PR and merged package pins disagree. Leave NFV paused.")
+            self.set_variable("NFV_RELEASE_SHA", package_pins.pop())
         self.run("gh", "workflow", "enable", WORKFLOW, "--repo", self.repository)
         if self.api(f"repos/{self.repository}/actions/workflows/{WORKFLOW}")["state"] != "active":
             raise InstallError("NFV enablement was not confirmed.")
+        self.set_variable("NFV_ENABLED", "true")
         print(f"NFV is enabled with {billing} billing. No audit was started. Use a separate, approved pilot PR.")
 
     def install(self, default_branch):
@@ -216,7 +313,16 @@ class Installer:
             raise InstallError("The checkout has local changes. Preserve them and use a clean checkout; nothing was installed.")
         if self.run("git", "branch", "--show-current") != default_branch:
             raise InstallError(f"Start from the target default branch: {default_branch}")
-        if any(self.root.joinpath(path).exists() for path in WORKFLOW_FILES):
+        if self.args.upgrade:
+            modes = {workflow_billing((self.root / path).read_text(encoding="utf-8"), path)
+                     for path in BILLING_SCOPES}
+            if len(modes) != 1:
+                raise InstallError("Existing workflows disagree on Copilot billing; no upgrade was prepared.")
+            self.args.billing = modes.pop()
+            self.args.model = self.run("gh", "variable", "get", "NFV_MODEL", "--repo", self.repository)
+            if not re.fullmatch(MODEL, self.args.model):
+                raise InstallError("NFV_MODEL is missing or invalid; no upgrade was prepared.")
+        elif any(self.root.joinpath(path).exists() for path in WORKFLOW_FILES):
             raise InstallError("NFV files already exist. Use the documented upgrade procedure instead.")
         self.check_secret_names(self.args.billing)
         release = self.api(f"repos/{PACKAGE}/commits/{quote(self.args.ref, safe='')}")["sha"]
@@ -224,27 +330,20 @@ class Installer:
             raise InstallError("Could not resolve an immutable NFV release.")
         if not re.search(r"github/gh-aw(?:\s|$)", self.run("gh", "extension", "list")):
             self.run("gh", "extension", "install", "github/gh-aw", "--pin", COMPILER)
-        if not re.match(rf"gh aw version {re.escape(COMPILER)}(?:\s|$)", self.run("gh", "aw", "version")):
+        version = self.run("gh", "aw", "version", include_stderr=True)
+        if not re.search(rf"(?m)^gh aw version {re.escape(COMPILER)}(?:\s|$)", version):
             raise InstallError(f"Use gh-aw {COMPILER}. The installer will not replace a different installed compiler.")
         self.run("git", "fetch", "origin", default_branch)
         base = self.run("git", "rev-parse", "FETCH_HEAD")
         if self.run("git", "rev-parse", "HEAD") != base:
             raise InstallError("The local default branch differs from origin. Reconcile it before installing; no checkout was changed.")
-        branch = f"nfv-install-{release[:12]}"
+        kind = "upgrade" if self.args.upgrade else "install"
+        branch = f"nfv-{kind}-{release[:12]}"
         attributes = self.root / ".gitattributes"
         before = attributes.read_bytes() if attributes.exists() else None
         self.run("git", "switch", "-c", branch, base)
         print(f"Installing NFV {release} with model {self.args.model} and {self.args.billing} billing on {branch}.")
-        print(self.run("gh", "aw", "add", f"{PACKAGE}/workflow@{release}"))
-        for path in BILLING_SCOPES:
-            file = self.root / path
-            if not file.is_file():
-                raise InstallError(f"Installation did not produce {path}")
-            source = file.read_text(encoding="utf-8")
-            configured = configure_billing(source, path, self.args.billing)
-            if configured != source:
-                file.write_text(configured, encoding="utf-8", newline="\n")
-        print(self.run("gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"))
+        self.update_package(release)
         for path in WORKFLOW_FILES:
             file = self.root / path
             if not file.is_file():
@@ -254,6 +353,8 @@ class Installer:
                 self.check_package_source(source, release, path)
                 if workflow_billing(source, path) != self.args.billing:
                     raise InstallError(f"Installed workflow billing differs from the selected mode: {path}")
+                if path == WORKFLOW_FILES[2]:
+                    self.check_pause_gate(source)
         if before is not None and not attributes.exists():
             raise InstallError(".gitattributes was removed. Review manually; nothing was committed.")
         if attributes.exists():
@@ -275,17 +376,19 @@ class Installer:
                 raise InstallError(f"Generated workflow is excluded from the Git changes: {path}. Check ignore rules; nothing was committed.")
         self.run("git", "add", "--", *changed)
         self.run("git", "diff", "--cached", "--check")
-        self.run("git", "commit", "-m", f"Install NFV PR review at {release}")
-        for name, value in (("NFV_RELEASE_SHA", release), ("NFV_MODEL", self.args.model)):
-            self.run("gh", "variable", "set", name, "--repo", self.repository, "--body", value)
-            if self.run("gh", "variable", "get", name, "--repo", self.repository) != value:
-                raise InstallError(f"Variable read-back failed: {name}. Do not proceed with installation.")
+        self.set_variable("NFV_ENABLED", "false")
+        self.disable_reviewer(allow_unregistered=not self.args.upgrade)
+        self.run("git", "commit", "-m", f"{kind.capitalize()} NFV PR review at {release}")
+        if not self.args.upgrade:
+            for name, value in (("NFV_RELEASE_SHA", release), ("NFV_MODEL", self.args.model)):
+                self.set_variable(name, value)
         self.run("git", "push", "--set-upstream", "origin", branch)
         body = (
-            f"Install the NFV prototype at immutable release {release} with model {self.args.model} "
+            f"{kind.capitalize()} the NFV prototype at immutable release {release} with model {self.args.model} "
             f"and {self.args.billing} inference billing.\n\n"
-            "Keep this PR draft until nfv-pr-review.lock.yml is confirmed disabled. Keep NFV "
-            "disabled through marking ready and merging; leave unrelated CI enabled. "
+            "NFV_ENABLED=false is verified; keep NFV paused through marking ready and merging. "
+            "A first-install workflow may return HTTP 404 until merge; the pause latch prevents activation. "
+            "Registered workflows are also disabled. Leave unrelated CI enabled. "
             "Do not require an NFV check for its own installation PR.\n\n"
             "Review workflows, generated locks, package/action records and any .gitattributes "
             "change. Do not merge without approval. Enable NFV only after the installation "
@@ -293,7 +396,7 @@ class Installer:
         )
         url = self.run(
             "gh", "pr", "create", "--repo", self.repository, "--base", default_branch,
-            "--head", branch, "--draft", "--title", "Install NFV PR review", "--body", body,
+            "--head", branch, "--draft", "--title", f"{kind.capitalize()} NFV PR review", "--body", body,
         )
         print(f"Draft installation PR: {url}")
         created = json.loads(self.run(
@@ -302,8 +405,7 @@ class Installer:
         ))
         if not created["isDraft"] or created["headRefName"] != branch or created["baseRefName"] != default_branch:
             raise InstallError("Installation PR identity/draft status was not confirmed. Do not mark ready or merge.")
-        self.disable_reviewer()
-        print(f"NFV is disabled. Review PR {created['number']}, then approve and merge while it remains disabled.")
+        print(f"NFV is paused. Review PR {created['number']}, then approve and merge while it remains paused.")
         print("After merge: " + shlex.join([
             sys.executable, str(Path(__file__).resolve()), "--repository", self.repository,
             "--enable-after-merge", "--pull-request", str(created["number"]),
@@ -312,6 +414,10 @@ class Installer:
         if self.args.billing == "organization":
             print("Confirm the organization permits CLI billing and the selected model. "
                   "Policy, model access and billing attribution require the approved pilot; no PAT fallback is used.")
+
+    def check_pause_gate(self, source):
+        if source.count(PAUSE_GATE) != 2:
+            raise InstallError("This release lacks the verified pre-merge NFV pause gate; use a newer trusted release.")
 
     def execute(self):
         default_branch = self.check_checkout_identity()

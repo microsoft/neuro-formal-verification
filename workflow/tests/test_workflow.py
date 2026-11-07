@@ -901,7 +901,8 @@ class TemplateTests(unittest.TestCase):
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, synchronize, ready_for_review]", source)
-        gate = ("github.event.pull_request.base.ref == github.event.repository.default_branch && "
+        gate = ("vars.NFV_ENABLED != 'false' && "
+                "github.event.pull_request.base.ref == github.event.repository.default_branch && "
                 "github.event.pull_request.draft == false && "
                 "(github.event.action == 'opened' || github.event.action == 'ready_for_review')")
         self.assertEqual(source.count("if: " + gate), 2)
@@ -919,15 +920,17 @@ class TemplateTests(unittest.TestCase):
     def test_default_branch_activation_accepts_forks_without_auditing_pushes(self):
         gate = re.search(r"\n  activation:\n    if: >\n(.*?)\n    runs-on:",
                          self.lock(), re.DOTALL).group(1)
-        condition = " ".join(gate.split()).replace("&&", "and").replace("||", "or").replace("false", "False")
-        for base, default, draft, action, head_id, expected in (
-            ("master", "master", False, "opened", 2, True),
-            ("main", "main", False, "ready_for_review", 2, True),
-            ("dev", "dev", False, "opened", 1, True),
-            ("release", "main", False, "opened", 2, False),
-            ("main", "main", True, "opened", 2, False),
-            ("main", "main", False, "synchronize", 2, False),
-            ("main", "main", False, "reopened", 2, False),
+        condition = " ".join(gate.split()).replace("&&", "and").replace("||", "or").replace("== false", "== False")
+        for base, default, draft, action, head_id, enabled, expected in (
+            ("master", "master", False, "opened", 2, "", True),
+            ("main", "main", False, "ready_for_review", 2, "true", True),
+            ("dev", "dev", False, "opened", 1, "", True),
+            ("release", "main", False, "opened", 2, "", False),
+            ("main", "main", True, "opened", 2, "", False),
+            ("main", "main", False, "synchronize", 2, "", False),
+            ("main", "main", False, "reopened", 2, "", False),
+            ("main", "main", False, "opened", 2, "false", False),
+            ("main", "main", False, "ready_for_review", 2, "false", False),
         ):
             with self.subTest(base=base, default=default, draft=draft, action=action, head_id=head_id):
                 github = SimpleNamespace(
@@ -940,7 +943,10 @@ class TemplateTests(unittest.TestCase):
                         ),
                     ),
                 )
-                self.assertEqual(expected, eval(condition, {"__builtins__": {}}, {"github": github}))
+                self.assertEqual(expected, eval(
+                    condition, {"__builtins__": {}},
+                    {"github": github, "vars": SimpleNamespace(NFV_ENABLED=enabled)},
+                ))
         worker = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
         for compiled in (self.lock(), worker):
             self.assertNotIn("check_membership", compiled)

@@ -433,6 +433,7 @@ Configure these as protected Actions repository variables:
 | Variable | Default / purpose |
 |---|---|
 | `NFV_RELEASE_SHA` | Full trusted NFV commit; both installed package pins and runtime must use this same SHA |
+| `NFV_ENABLED` | `false` pauses new NFV runs; installer sets it before publishing and clears it only after merged-snapshot checks. Unset retains existing enabled behavior |
 | `NFV_MODEL` | Copilot model ID selected with installer `--model MODEL`. The billing identity and its policies must permit the selected model |
 | `NFV_SYNTAX_ROUNDS` | 6 repairs, maximum 20 |
 | `NFV_PROOF_ROUNDS` | 10 repairs, maximum 30 |

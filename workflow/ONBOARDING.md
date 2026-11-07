@@ -60,13 +60,15 @@ inference or enabling the workflows.
    workflows and runtime to one latest trusted NFV default-branch SHA, sets
    `NFV_RELEASE_SHA` and `NFV_MODEL`, and opens a **draft installation PR**.
    It reads back the pins, model, billing permissions and required secret names,
-   disables the reviewer and verifies `disabled_manually`; if blocked, leave
-   the PR draft and report the failure.
+   and sets and verifies `NFV_ENABLED=false` before publishing the PR.
+   Registered reviewers are also disabled and checked for `disabled_manually`.
+   On first installation, GitHub may return HTTP 404 until merge; the verified
+   pause gate keeps NFV inactive anyway. Other failures block publication.
    Check [repository permission policies](REFERENCE.md#repository-permission-policies)
    against the generated jobs. Update approved job-specific allowlists and their
    tests/documentation; do not disable checks or grant workflow-wide write access.
 
-6. **Merge, then enable:** Approve the installation merge **with NFV disabled**;
+6. **Merge, then enable:** Approve the installation merge **with NFV paused**;
    never run or require NFV on its own installation PR. Leave unrelated CI enabled.
    Keep NFV advisory after installation too: exclude its jobs from required merge
    checks and required CI aggregators; leave operational failures visible.
@@ -77,7 +79,13 @@ inference or enabling the workflows.
    ```text
    gh workflow enable nfv-pr-review.lock.yml --repo OWNER/repo
    gh api repos/OWNER/repo/actions/workflows/nfv-pr-review.lock.yml --jq .state
+   gh variable set NFV_ENABLED --repo OWNER/repo --body true
+   gh variable get NFV_ENABLED --repo OWNER/repo
    ```
+
+   `workflow/install.py --enable-after-merge --pull-request NUMBER --repository OWNER/repo`
+   performs the merged-snapshot checks and activation. Enabling the workflow
+   alone does not clear the installer's pause latch.
 
 7. **Approve a separate, billable pilot:** Use a small code-change PR based on
    the installed branch, opened non-draft or transitioned from draft to ready.
@@ -104,15 +112,26 @@ for permissions, optional settings and installer options.
 
 ## Upgrade an existing installation
 
-Ask the agent to upgrade; do not rerun the first-installation script against an
-existing installation. Keep the approved model, secrets and budgets. Disable
+Ask the agent to use the installer's explicit upgrade mode, not its
+first-installation mode:
+
+```text
+python workflow/install.py --repository OWNER/repo --upgrade --ref <SHA>
+```
+
+Run this trusted-release script in a clean target default-branch checkout.
+It uses gh-aw v0.88.7, reads the existing model and billing mode, preserves shared
+gh-aw skill/maintenance files and other action-pin records, and opens a paused
+draft upgrade PR. It does not change the runtime pin before merge.
+Keep the approved model, secrets and budgets. Disable
 new audits and wait for all active/queued runs to finish before changing shared
 configuration. Preserve the selected billing mode unless a change is approved.
 
-Resolve the trusted NFV release once, replace the package with
-`gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
-both workflows and open an upgrade PR. Reapply the approved billing permissions
-after package replacement, and retain intentional local customizations.
+Resolve the trusted NFV release once. The upgrade mode replaces the package with
+`gh aw add ... --force` and recompiles both workflows with the existing billing
+permissions. Retain intentional NFV workflow customizations and review the diff.
+Do not use bare `gh aw add/compile` in a mixed-version repository: they can
+rewrite shared skills, maintenance schedules and action locks.
 Recheck [repository permission policies](REFERENCE.md#repository-permission-policies)
 against the regenerated jobs.
 After the approved merge, update `NFV_RELEASE_SHA` and read it back. Replace
@@ -137,5 +156,8 @@ upgrade and must run before NFV is re-enabled.
 
 Verify the returned SHA matches both merged package pins, and verify the model,
 billing permissions and required secret names before enabling NFV and reading
-back `active`. Repeat a separately approved pilot; leave audits paused on failure.
+back `active`. Clear and read back `NFV_ENABLED=true` only after those checks;
+the installer's `--enable-after-merge --pull-request NUMBER` mode verifies the
+merged upgrade, aligns the runtime pin and activates it.
+Repeat a separately approved pilot; leave audits paused on failure.
 `gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.

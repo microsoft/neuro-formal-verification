@@ -50,6 +50,8 @@ class FakeCLI:
         if kwargs["cwd"] != self.root:
             raise AssertionError("Command escaped the target checkout")
         code, output = self.response(args)
+        if args[:3] == ["gh", "aw", "version"] and self.case.get("version_stderr"):
+            return subprocess.CompletedProcess(args, code, stdout="", stderr=output)
         return subprocess.CompletedProcess(args, code, stdout=output, stderr="")
 
     def response(self, args):
@@ -102,8 +104,18 @@ class FakeCLI:
                     file = self.root / path
                     file.parent.mkdir(parents=True, exist_ok=True)
                     pin = "d" * 40 if self.case.get("wrong_package") else RELEASE
-                    text = self.source(path, pin) if path.endswith(".md") else "Compiled fixture\n"
+                    text = (self.source(path, pin) if path.endswith(".md") else
+                            '{"entries": {"nfv/action@v1": {"sha": "new"}}}\n' if path == INSTALL.ACTION_LOCK
+                            else "Compiled fixture\n")
                     file.write_text(text, encoding="utf-8")
+                if self.case.get("shared_files"):
+                    for path in INSTALL.SHARED_FILES:
+                        file = self.root / path
+                        file.parent.mkdir(parents=True, exist_ok=True)
+                        if path.endswith("agentics-maintenance.yml"):
+                            file.unlink()
+                        else:
+                            file.write_text("Rewritten shared skill\n")
                 rule = "* -text" if self.case.get("bad_attributes") else ".github/workflows/*.lock.yml linguist-generated=true"
                 attributes = self.root / ".gitattributes"
                 before = attributes.read_bytes() if attributes.exists() else b""
@@ -142,7 +154,8 @@ class FakeCLI:
             return 0, json.dumps({
                 "number": 7, "isDraft": not self.case.get("not_draft"),
                 "state": "MERGED" if self.phase == "enable" and not self.case.get("unmerged") else "OPEN",
-                "baseRefName": "main", "headRefName": "nfv-install-" + RELEASE[:12],
+                "baseRefName": "main", "headRefName": "nfv-" +
+                ("upgrade-" if self.case.get("upgrade_pr") or self.phase == "upgrade" else "install-") + RELEASE[:12],
                 "mergeCommit": {"oid": "b" * 40}, "url": "https://github.com/owner/project/pull/7",
             })
         if command == "api":
@@ -182,12 +195,28 @@ class InstallerTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, root)
         if case.get("existing_attributes"):
             (root / ".gitattributes").write_bytes(b"* text=auto\n*.py text eol=lf\n")
+        if case.get("shared_files"):
+            for path in INSTALL.SHARED_FILES:
+                file = root / path
+                file.parent.mkdir(parents=True, exist_ok=True)
+                file.write_bytes(b"Existing shared configuration\n")
+            file = root / INSTALL.ACTION_LOCK
+            file.parent.mkdir(parents=True, exist_ok=True)
+            file.write_text('{"entries": {"other/action@v0.88.2": {"sha": "original"}}}\n')
         if case.get("existing_install"):
             installed = root / INSTALL.WORKFLOW_FILES[0]
             installed.parent.mkdir(parents=True)
             installed.write_text("Existing installation\n", encoding="utf-8")
         argv = ["--repository", "owner/project"]
-        if phase == "install":
+        if phase == "upgrade":
+            argv += ["--upgrade"]
+            for path in INSTALL.BILLING_SCOPES:
+                file = root / path
+                file.parent.mkdir(parents=True, exist_ok=True)
+                source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
+                file.write_text(INSTALL.configure_billing(source, path, "organization"), encoding="utf-8")
+            case["expected_billing"] = "organization"
+        elif phase == "install":
             if model is not None:
                 argv += ["--model", model]
         else:
@@ -210,6 +239,13 @@ class InstallerTests(unittest.TestCase):
                 installer.execute()
             except INSTALL.InstallError as failure:
                 error = str(failure)
+        if case.get("shared_files"):
+            for path in INSTALL.SHARED_FILES:
+                self.assertEqual((root / path).read_bytes(), b"Existing shared configuration\n")
+            lock = json.loads((root / INSTALL.ACTION_LOCK).read_text())
+            self.assertEqual(lock["entries"]["other/action@v0.88.2"], {"sha": "original"})
+            if error is None:
+                self.assertIn("nfv/action@v1", lock["entries"])
         return error, fake.calls, stdout.getvalue()
 
     def test_install_pins_compiles_and_creates_only_a_guarded_draft(self):
@@ -311,19 +347,26 @@ class InstallerTests(unittest.TestCase):
                 self.assertIn(reason, error)
                 self.assertFalse(any(call[0] == "git" and call[1] in ("commit", "push") for call in calls))
 
-    def test_unregistered_or_active_reviewer_leaves_draft_and_reports_block(self):
-        for option in ("unregistered", "disable_ineffective"):
-            with self.subTest(option=option):
-                error, calls, _ = self.run_case(**{option: True})
-                self.assertIn("Keep the installation PR draft", error)
-                self.assertIn("--draft", next(call for call in calls if call[:3] == ["gh", "pr", "create"]))
-                self.assertFalse(any(call[:3] == ["gh", "workflow", "enable"] for call in calls))
+    def test_unregistered_first_install_is_paused_before_publication(self):
+        error, calls, output = self.run_case(unregistered=True)
+        self.assertIsNone(error)
+        self.assertIn("NFV_ENABLED=false keeps it paused through merge", output)
+        pause = calls.index(["gh", "variable", "set", "NFV_ENABLED", "--repo", "owner/project", "--body", "false"])
+        publish = next(i for i, call in enumerate(calls) if call[:3] == ["gh", "pr", "create"])
+        self.assertLess(pause, publish)
+        self.assertFalse(any(call[:3] == ["gh", "workflow", "enable"] for call in calls))
+
+    def test_ineffective_disable_does_not_publish(self):
+        error, calls, _ = self.run_case(disable_ineffective=True)
+        self.assertIn("Keep the installation PR draft", error)
+        self.assertFalse(any(call[:3] == ["gh", "pr", "create"] for call in calls))
 
     def test_bootstrap_guard_can_be_retried_without_reinstalling(self):
         error, calls, _ = self.run_case(phase="guard")
         self.assertIsNone(error)
         self.assertTrue(any(call[:3] == ["gh", "workflow", "disable"] for call in calls))
-        self.assertFalse(any(call[0] == "gh" and call[1] in ("aw", "variable") for call in calls))
+        self.assertFalse(any(call[:2] == ["gh", "aw"] for call in calls))
+        self.assertIn(["gh", "variable", "set", "NFV_ENABLED", "--repo", "owner/project", "--body", "false"], calls)
 
     def test_enable_requires_merge_and_matching_package_and_pin(self):
         reasons = {
@@ -342,8 +385,25 @@ class InstallerTests(unittest.TestCase):
         self.assertIsNone(error)
         self.assertIn(["gh", "workflow", "enable", INSTALL.WORKFLOW, "--repo", "owner/project"], calls)
         self.assertFalse(any(call[0] == "git" and call[1] in ("fetch", "switch", "commit", "push")
-                             or call[:3] in (["gh", "workflow", "run"], ["gh", "variable", "set"])
+                             or call[:3] == ["gh", "workflow", "run"]
                              for call in calls))
+        self.assertIn(["gh", "variable", "set", "NFV_ENABLED", "--repo", "owner/project", "--body", "true"], calls)
+
+    def test_version_on_stderr_and_shared_files_are_preserved(self):
+        error, _, _ = self.run_case(version_stderr=True, shared_files=True)
+        self.assertIsNone(error)
+        error, _, _ = self.run_case(shared_files=True, compile_failure=True)
+        self.assertIn("Compilation rejected", error)
+
+    def test_upgrade_preserves_billing_model_and_defers_runtime_change(self):
+        error, calls, _ = self.run_case(phase="upgrade", shared_files=True)
+        self.assertIsNone(error)
+        self.assertIn(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}", "--force"], calls)
+        self.assertFalse(any(call[:3] == ["gh", "variable", "set"] and
+                             call[3] in ("NFV_MODEL", "NFV_RELEASE_SHA") for call in calls))
+        error, calls, _ = self.run_case(phase="enable", upgrade_pr=True, organization_billing=True)
+        self.assertIsNone(error)
+        self.assertIn(["gh", "variable", "set", "NFV_RELEASE_SHA", "--repo", "owner/project", "--body", RELEASE], calls)
 
     def test_activation_reads_organization_billing_from_merged_workflows_without_pat(self):
         error, calls, output = self.run_case(phase="enable", organization_billing=True, missing_secret=True)
