@@ -20,9 +20,13 @@ Audits start when a supported-source PR into the onboarded repository's default
 branch opens non-draft or transitions from draft to ready, including fork PRs
 and external contributors. Trusted-base `pull_request_target` execution keeps PR
 code inspection-only; external contributors can trigger billable inference.
-Each ready transition requests a rerun; reopening and later pushes do not.
-Pushes only cancel older attempts. Later changes need an explicit draft-to-ready
-transition before they are audited.
+Each PR gets one automatic attempt, reserved by a trusted admission comment
+before either inference session starts; failures consume that attempt too.
+Pushes and repeated readiness transitions never cancel or restart an audit.
+Retry a failure only with an explicit rerun of its workflow. Keep the admission
+record; completed NFV bot reports also suppress duplicate automatic audits.
+Both collectors use the event's immutable head/base snapshot even after PR
+updates, closure or merge. Completed reports are posted after merge too.
 
 ## Bootstrap a repository
 
@@ -84,8 +88,8 @@ look for `missing_tool` safe outputs.
 
 | Symptom | Cause and fix |
 |---|---|
-| All jobs skipped | Drafts and cancellation-only push events start no audit. Open non-draft or mark the PR ready; toggle draft to ready for a rerun. |
-| `status: superseded` | Collection detected an obsolete snapshot. No audit or report completed; this is not a property verdict. Request a new audit with draft-to-ready when appropriate. |
+| Both inference sessions skipped | Check the release gate, draft/default-branch eligibility and existing admission/report comments. Repeated readiness events do not retry an admitted PR. |
+| `status: superseded` | The default strict collector detected an obsolete snapshot. Installed collectors must use `--event-snapshot`; do not fabricate a completed audit or delete a reservation to retry. |
 | Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; either mode requires `NFV_RELEASE_TOKEN` while NFV is private. |
 | Organization inference is denied | Confirm an organization-owned target, the organization CLI-billing policy, allowed model and all three `copilot-requests: write` entries. Do not silently fall back to a PAT. |
 | Pin check fails | `NFV_RELEASE_SHA` is unset or not a 40-hex commit. |

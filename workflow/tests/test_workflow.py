@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 from nfv_workflow.check import Dafny, accepted, check
 from nfv_workflow import cli
+from nfv_workflow import admission
 from nfv_workflow.cli import audit, audit_limits, awf_provider, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, Superseded, added_lines, change_blocks, collect, identity,
                                  reanchor, removed_lines, sha, source_path)
@@ -780,6 +781,56 @@ class CollectionTests(unittest.TestCase):
         with self.assertRaisesRegex(Superseded, "during collection"):
             collect(event(), api)
 
+    def test_event_snapshot_survives_push_merge_and_closure_before_or_during_collection(self):
+        for state, merged, head in (("open", False, "f" * 40), ("closed", True, "a" * 40),
+                                    ("closed", False, "a" * 40)):
+            for change_on_read in (1, 2):
+                with self.subTest(state=state, merged=merged, change_on_read=change_on_read):
+                    captured = event(False)
+                    captured["action"] = "ready_for_review"
+                    captured["pull_request"].update(state="open", changed_files=1, body="Event intent")
+                    api = self.api()
+                    request, pages = api.request, api.pages
+                    calls = []
+                    def immutable_request(path):
+                        calls.append(path)
+                        result = request(path)
+                        if "/compare/" in path:
+                            return {**result, "commits": pages("fixture/commits"), "total_commits": 1}
+                        if path.endswith("/pulls/7"):
+                            if calls.count(path) >= change_on_read:
+                                return {**result, "state": state, "merged": merged,
+                                        "head": {"sha": head}, "base": {"sha": "e" * 40},
+                                        "changed_files": 999}
+                            return {**captured["pull_request"], "merged": False}
+                        return result
+                    def immutable_pages(path):
+                        self.assertFalse(path.endswith("/pulls/7/commits"))
+                        return pages(path)
+                    api.request, api.pages = immutable_request, immutable_pages
+                    result = collect(captured, api, event_snapshot=True)
+                    self.assertEqual(result["identity"], identity(captured))
+                    self.assertEqual(result["changed"], {"src/f.cpp": [1]})
+                    self.assertEqual(result["signals"][0]["text"], "Event intent")
+                    self.assertIn("repos/owner/project/compare/" + "b" * 40 + "..." + "a" * 40, calls)
+                    self.assertIn("repos/owner/project/git/trees/" + "a" * 40 + "?recursive=1", calls)
+
+    def test_event_snapshot_still_rejects_incomplete_immutable_inventory(self):
+        for files, commits, total in ((2, 1, 1), (1, 1, 2)):
+            with self.subTest(files=files, commits=commits, total=total):
+                captured = event()
+                captured["pull_request"]["changed_files"] = files
+                api = self.api()
+                original = api.request
+                def request(path):
+                    result = original(path)
+                    if "/compare/" in path:
+                        result.update(commits=[{}] * commits, total_commits=total)
+                    return result
+                api.request = request
+                with self.assertRaisesRegex(Abstain, "inventory"):
+                    collect(captured, api, event_snapshot=True)
+
     def test_malformed_current_identity_is_not_a_successful_superseded_skip(self):
         for field, value in (("head", {"sha": "moving-ref"}), ("state", "unknown"), ("merged", None)):
             with self.subTest(field=field):
@@ -853,6 +904,110 @@ class CollectionStatusTests(ScratchTest):
             self.assertFalse(status.exists())
             self.assertFalse(output.exists())
 
+    def test_event_snapshot_mode_is_explicit_and_default_stays_strict(self):
+        captured, output = self.directory / "event.json", self.directory / "bundle.json"
+        cli.save(captured, event())
+        for flag in ([], ["--event-snapshot"]):
+            with self.subTest(flag=flag), patch.object(cli, "collect", return_value=bundle()) as collect_mock, \
+                    redirect_stdout(io.StringIO()):
+                self.assertEqual(cli.main(["collect", "--event", str(captured),
+                                           "--out", str(output)] + flag), 0)
+                self.assertEqual(collect_mock.call_args.kwargs["event_snapshot"], bool(flag))
+
+
+class AdmissionTests(ScratchTest):
+    def setUp(self):
+        super().setUp()
+        self.event = event(False)
+        self.event.update(action="opened", repository={"full_name": "owner/project", "default_branch": "master"})
+        self.event["pull_request"].update(state="open", draft=False)
+        self.event["pull_request"]["base"]["ref"] = "master"
+        self.comments, self.writes = [], []
+        test = self
+        class API:
+            def pages(self, path):
+                test.assertEqual(path, "repos/owner/project/issues/7/comments")
+                return test.comments
+            def request(self, path, data):
+                test.assertEqual(path, "repos/owner/project/issues/7/comments")
+                test.writes.append(data)
+                comment = {**data, "id": 123, "user": {"login": "github-actions[bot]"}}
+                test.comments.append(comment)
+                return comment
+        self.api = API()
+
+    def test_first_ready_attempt_is_reserved_and_later_events_do_not_retry_failures(self):
+        self.assertTrue(admission.admit(self.event, self.api, "42"))
+        self.event["action"] = "ready_for_review"
+        self.event["pull_request"]["head"]["sha"] = "d" * 40
+        self.assertFalse(admission.admit(self.event, self.api, "43"))
+        self.assertFalse(admission.admit(self.event, self.api, "43", 2))
+        self.assertEqual(len(self.writes), 1)
+        self.assertIn("<!-- nfv-pr-attempt:owner/project:7:42 -->", self.writes[0]["body"])
+        self.assertIn("a" * 40, self.writes[0]["body"])
+
+    def test_explicit_rerun_reuses_reservation_without_another_start_comment(self):
+        self.assertTrue(admission.admit(self.event, self.api, "42"))
+        self.assertTrue(admission.admit(self.event, self.api, "42", 2))
+        self.assertEqual(len(self.writes), 1)
+
+    def test_existing_completed_report_blocks_new_attempts_and_explicit_duplicate_publication(self):
+        report = {"body": marker(identity(self.event)) + "\n<!-- gh-aw-workflow-id: nfv-pr-review -->",
+                  "user": {"login": "github-actions[bot]"}}
+        self.assertTrue(admission.admit(self.event, self.api, "42"))
+        self.comments.append(report)
+        self.assertFalse(admission.admit(self.event, self.api, "42", 2))
+        self.assertFalse(admission.admit(self.event, self.api, "43"))
+        self.assertEqual(len(self.writes), 1)
+
+    def test_untrusted_marker_does_not_suppress_review(self):
+        self.comments.append({"body": "<!-- nfv-pr-attempt:owner/project:7:41 -->",
+                              "user": {"login": "contributor"}})
+        original = self.api.request
+        def request(path, data=None):
+            return {"permission": "read"} if path.endswith("/permission") else original(path, data)
+        with patch.object(self.api, "request", side_effect=request):
+            self.assertTrue(admission.admit(self.event, self.api, "42"))
+
+    def test_write_authorized_legacy_attempt_reservation_prevents_automatic_reanalysis(self):
+        self.comments.append({"body": "<!-- nfv-pr-attempt:owner/project:7:41 -->\nLegacy audit failed.",
+                              "user": {"login": "maintainer"}})
+        with patch.object(self.api, "request", return_value={"permission": "write"}) as request:
+            self.assertFalse(admission.admit(self.event, self.api, "42"))
+        request.assert_called_once_with("repos/owner/project/collaborators/maintainer/permission")
+        self.assertEqual(self.writes, [])
+
+    def test_ineligible_events_do_not_reserve_or_run(self):
+        for field, value in (("draft", True), ("action", "synchronize"), ("base", "release")):
+            with self.subTest(field=field):
+                captured = copy.deepcopy(self.event)
+                if field == "action":
+                    captured[field] = value
+                elif field == "base":
+                    captured["pull_request"]["base"]["ref"] = value
+                else:
+                    captured["pull_request"][field] = value
+                self.assertFalse(admission.admit(captured, self.api, "42"))
+        self.assertEqual(self.writes, [])
+
+    def test_history_or_reservation_failures_never_admit_inference(self):
+        with patch.object(self.api, "pages", side_effect=OSError("unavailable")), self.assertRaises(OSError):
+            admission.admit(self.event, self.api, "42")
+        with patch.object(self.api, "request", return_value={}), self.assertRaises(Abstain):
+            admission.admit(self.event, self.api, "42")
+        self.assertEqual(self.writes, [])
+
+    def test_staged_admission_does_not_reserve_or_start_inference(self):
+        captured, output = self.directory / "event.json", self.directory / "outputs"
+        cli.save(captured, self.event)
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "pull_request_target",
+                                    "GITHUB_EVENT_PATH": str(captured), "GITHUB_OUTPUT": str(output)}), \
+                patch.object(admission, "publication_allowed", return_value=False), \
+                patch.object(admission, "admit") as admit_mock:
+            self.assertEqual(admission.main(), 0)
+        admit_mock.assert_not_called()
+        self.assertEqual(output.read_text(), "admitted=false\n")
+
 
 class TemplateTests(unittest.TestCase):
     template = Path(__file__).parents[2] / ".github" / "workflows"
@@ -903,14 +1058,14 @@ class TemplateTests(unittest.TestCase):
 
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
-        self.assertIn("types: [opened, synchronize, ready_for_review]", source)
+        self.assertIn("types: [opened, ready_for_review]", source)
         gate = ("vars.NFV_RELEASE_SHA != '' && "
                 "github.event.pull_request.base.ref == github.event.repository.default_branch && "
                 "github.event.pull_request.draft == false && "
                 "(github.event.action == 'opened' || github.event.action == 'ready_for_review')")
-        self.assertEqual(source.count("if: " + gate), 2)
+        self.assertEqual(source.count("if: " + gate), 3)
         self.assertIn("github.event.action == 'ready_for_review'", lock)
-        self.assertIn("cancel-in-progress: true", source)
+        self.assertIn("cancel-in-progress: false", source)
         self.assertIn("noop:\n    report-as-issue: false", source)
         self.assertNotIn("slash_command", source)
         self.assertIn("  pull_request_target:\n", source)
@@ -919,6 +1074,21 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("github.event.pull_request.head.repo.id == github.repository_id", lock)
         self.assertIn("github.event.pull_request.base.ref == github.event.repository.default_branch", lock)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
+
+    def test_admission_precedes_both_sessions_and_has_only_scoped_reservation_writes(self):
+        source, lock = self.source(), self.lock()
+        self.assertIn("needs: [admission]\n", source)
+        self.assertIn("&& needs.admission.outputs.admitted == 'true'", source)
+        self.assertIn("needs: [admission, repository_context]", source)
+        self.assertIn("run: python -m nfv_workflow.admission", source)
+        gate = lock.split("\n  admission:", 1)[1].split("\n  agent:", 1)[0]
+        self.assertIn("issues: write", gate)
+        self.assertNotIn("pull-requests: write", gate)
+        self.assertIn("needs.admission.outputs.admitted == 'true'", lock)
+        self.assertNotIn("  synchronize", lock)
+        for name in ("nfv-pr-review", "nfv-source-context"):
+            template = (self.template / f"{name}.md").read_text(encoding="utf-8")
+            self.assertIn('--event "$GITHUB_EVENT_PATH" --event-snapshot', template)
 
     def test_default_branch_activation_accepts_forks_without_auditing_pushes(self):
         gate = re.search(r"\n  activation:\n    if: >\n(.*?)\n    runs-on:",
@@ -1133,7 +1303,7 @@ class TemplateTests(unittest.TestCase):
         source, lock = self.source(), self.lock()
         worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
         self.assertIn("uses: ./.github/workflows/nfv-source-context.lock.yml", source)
-        self.assertIn("needs: [repository_context]", source)
+        self.assertIn("needs: [admission, repository_context]", source)
         self.assertIn("repository_context", lock.split("  agent:", 1)[1].split("steps:", 1)[0])
         self.assertIn("name: nfv-source-context", source)
         self.assertIn("nfv-workflow enrich", source)

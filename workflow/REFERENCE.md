@@ -41,14 +41,20 @@ and return types while preserving the original source line numbers.
   The `pull_request_target` workflow runs trusted base-branch code; PR-head code
   is captured only as immutable data, never executed. External contributors can
   trigger billable inference under the repository's configured limits.
-  Each draft-to-ready transition
-  explicitly requests an audit of the latest head. Reopening does not.
+  The first eligible event reserves one automatic attempt per PR, including
+  failures, before either inference session starts. A small admission comment
+  records the run; existing completed NFV report comments also prevent reanalysis.
+  Preserve these records. Duplicate detection checks all comment pages, not an
+  expiring Actions cache. It is not an exactly-once computation guarantee if
+  records are deleted or independent installations use different concurrency.
+  Reopening does not start an audit.
   Drafts and documentation/configuration/submodule-only PRs are skipped before
   either inference session starts. Keep NFV advisory, not a required merge check.
-  `synchronize` events participate only in per-PR workflow concurrency: a push
-  cancels an older attempt but starts neither inference session nor a new audit.
-  These cancellation-only Actions runs may appear skipped. Later changes are not
-  automatically re-audited; toggle draft to ready to request another audit.
+  Pushes do not trigger the workflow; per-PR concurrency never cancels a running
+  audit. Repeated draft-to-ready events skip the reservation and both inference
+  sessions. A maintainer can explicitly rerun the original failed workflow;
+  its run ID reuses the reservation. A completed report prevents a duplicate
+  full-workflow rerun.
   Both inference sessions require a nonempty `NFV_RELEASE_SHA`. First installs
   leave it unset through the installation merge, then configure it only during
   verified post-merge activation. GitHub's workflow state can be `active` while
@@ -128,15 +134,20 @@ provenance, not authentication or source/model semantic correspondence.
 
 The source identity is the event's **immutable PR head SHA**, with the base SHA
 recorded and changed files obtained from the immutable `base...head` comparison.
-A PR whose head or base moves during collection is marked superseded, without
-an audit verdict or report. Pushes request cancellation of older workflow runs,
-not an audit of the new head. Cancellation and collection checks are not a
-race-free guarantee of detecting every change after collection.
+Both workflow collectors use `collect --event-snapshot`: later pushes, base
+movement, closure or merge do not invalidate the admitted source snapshot.
+The description comes from the event and commit intent from the immutable
+comparison, not the mutable PR commit list. Conversation comments are read at
+collection time as untrusted context. Incomplete source/commit inventories fail
+closed. The default collector CLI remains strict and still rejects superseded
+snapshots unless `--event-snapshot` is explicitly supplied.
 
-The agent posts **one PR comment** (never a
+After the admission comment, the driver posts **one report comment** (never a
 review approval or change request). It opens with a one-line description of NFV
 linking the [paper](https://arxiv.org/abs/2608.21516), before the issue count,
-the analyzed head and base, and the run link. Property sections use short
+the analyzed head and base, and the run link. Publication is not gated on the
+PR remaining open: a completed analysis still comments after merge or closure,
+and does not claim to cover later commits or the merge result. Property sections use short
 headers (`P1`, `P2`, ...) with the full intended or inferred property statement
 in normal-sized text below the header, or the shorter separately checked
 statement for an enriched refutation. Refutations appear first; property labels

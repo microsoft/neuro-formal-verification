@@ -245,6 +245,8 @@ def main(argv=None):
     commands = parser.add_subparsers(dest="command", required=True)
     p = commands.add_parser("collect", help="Capture merged-PR event source and commentary using read-only API")
     p.add_argument("--event", required=True)
+    p.add_argument("--event-snapshot", action="store_true",
+                   help="Keep the event's immutable source and commit intent after PR updates or merge")
     p.add_argument("--out", required=True)
     p.add_argument("--side", choices=("head", "base"), default="head",
                    help="base: pre-merge snapshot anchored on removed lines (before/after analysis; not publishable)")
@@ -322,7 +324,8 @@ def main(argv=None):
     try:
         if args.command == "collect":
             try:
-                bundle = collect(load(args.event), GitHub(), side=args.side)
+                bundle = collect(load(args.event), GitHub(), side=args.side,
+                                 event_snapshot=args.event_snapshot)
             except Superseded as exc:
                 if not args.status_out:
                     raise

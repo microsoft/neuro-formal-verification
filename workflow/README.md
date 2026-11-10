@@ -11,9 +11,11 @@ behavioral properties, and translates relevant source into Dafny. It attempts
 verification and refutation, then posts one evidence-linked PR comment.
 PR code is inspected as data, never executed.
 
-Audits start when a PR opens non-draft or is marked ready. Later pushes cancel
-older attempts without starting another audit; toggle draft to ready to rerun.
-Both inference sessions remain gated off until `NFV_RELEASE_SHA` is configured.
+Each PR gets one automatic attempt when opened non-draft or marked ready.
+An admission comment records the attempt, including failures. Pushes and repeated
+ready transitions neither cancel nor repeat it. The saved source snapshot is
+reviewed even if the PR merges before publication. Retries require an explicit
+workflow rerun. Both sessions require `NFV_RELEASE_SHA`.
 
 Results concern translated models under stated assumptions. Findings are
 **conditional MODEL refutations, not confirmed source bugs**; failure to refute

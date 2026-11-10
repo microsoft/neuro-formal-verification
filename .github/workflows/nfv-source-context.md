@@ -94,7 +94,7 @@ steps:
       set -euo pipefail
       bundle="$RUNNER_TEMP/gh-aw/nfv-context/bundle.json"
       collection="$RUNNER_TEMP/gh-aw/nfv-context/collection-status.json"
-      nfv-workflow collect --event "$GITHUB_EVENT_PATH" --out "$bundle" --sources-dir nfv-src --status-out "$collection"
+      nfv-workflow collect --event "$GITHUB_EVENT_PATH" --event-snapshot --out "$bundle" --sources-dir nfv-src --status-out "$collection"
       python - "$bundle" "$collection" <<'PY'
       import json
       import sys

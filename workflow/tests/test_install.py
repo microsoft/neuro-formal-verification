@@ -384,6 +384,18 @@ class InstallerTests(unittest.TestCase):
                 self.assertIn(reason, error)
                 self.assertFalse(any(call[:3] == ["gh", "workflow", "enable"] for call in calls))
 
+    def test_admission_is_covered_by_source_and_compiled_bootstrap_gates(self):
+        installer = INSTALL.Installer(INSTALL.options(["--repository", "owner/project"]))
+        for path in (".github/workflows/nfv-pr-review.md",
+                     ".github/workflows/nfv-pr-review.lock.yml"):
+            with self.subTest(path=path):
+                source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
+                installer.check_activation_gate(source, path)
+                before, admission = source.split("\n  admission:\n", 1)
+                unsafe = before + "\n  admission:\n" + admission.replace(INSTALL.ACTIVATION_GATE, "true", 1)
+                with self.assertRaisesRegex(INSTALL.InstallError, "activation gate"):
+                    installer.check_activation_gate(unsafe, path)
+
     def test_missing_or_invalid_compiled_action_lock_is_not_committed(self):
         for existing in (False, True):
             for case, reason in (({"missing_action_lock": True}, "did not produce the shared"),

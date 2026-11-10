@@ -141,14 +141,20 @@ class Installer:
         if path.endswith(".md"):
             frontmatter = source.split("\n---\n", 1)[0].split("\nsteps:", 1)[0]
             conditions = re.findall(r"(?m)^(?:    )?if: (.*)$", frontmatter)
-            expected = 2 if path.endswith("nfv-pr-review.md") else 1
+            expected = 1
+            if path.endswith("nfv-pr-review.md"):
+                expected = 3 if "\n  admission:\n" in frontmatter else 2
             if len(conditions) != expected or any(
                     condition != ACTIVATION_GATE and not condition.startswith(ACTIVATION_GATE + " && ")
                     for condition in conditions):
                 raise InstallError(f"Workflow lacks the first-install activation gate: {path}")
         else:
             activation = "pre_activation" if "\n  pre_activation:\n" in source else "activation"
-            jobs = (activation, "repository_context") if path.endswith(WORKFLOW) else (activation,)
+            jobs = [activation]
+            if path.endswith(WORKFLOW):
+                if "\n  admission:\n" in source:
+                    jobs.append("admission")
+                jobs.append("repository_context")
             for job in jobs:
                 block = re.search(rf"(?ms)^  {job}:\n(.*?)(?=^  \S|\Z)", source)
                 condition = re.search(r"(?m)^    if: ([^\n]*(?:\n      [^\n]*)*)", block[1]) if block else None

@@ -8,7 +8,7 @@ not the first-installation script.
 
 NFV audits non-draft, supported-source PRs into the onboarded repository's default
 branch, including forks and external contributors. Audits start on opening or
-draft-to-ready transitions, not later pushes. External contributors can trigger
+draft-to-ready transitions, once automatically per PR, not later pushes. External contributors can trigger
 billable inference under the configured limits. The `pull_request_target`
 workflow runs trusted base-branch code and never executes inspected PR code.
 
@@ -88,8 +88,11 @@ inference or enabling the workflows.
 
 7. **Approve a separate, billable pilot:** Use a small code-change PR based on
    the installed branch, opened non-draft or transitioned from draft to ready.
-   Later pushes do not start another audit; toggle draft to ready for an explicit
-   rerun. Documentation, configuration and submodule-only PRs
+   The admission comment reserves the PR's single automatic attempt, even if it
+   fails. Later pushes and repeated readiness transitions do not cancel or
+   restart it. Retry a failed attempt only through an explicit workflow rerun.
+   The completed report is posted even if the PR has merged. Documentation,
+   configuration and submodule-only PRs
    without a supported source-suffix change do not start NFV.
    Copilot-authored PRs may require a maintainer to **Approve and run workflows**
    after reviewing the change, even on same-repository branches. Approval-expired
@@ -102,8 +105,8 @@ inference or enabling the workflows.
    The separate `review-status.json` records driver completion/submission or an
    infrastructure failure; it is not a property verdict. Infrastructure failures
    can still fail Actions checks. Keep NFV advisory, not required for merging.
-   An outdated snapshot records `status: superseded` with `completed: false`,
-   not an audit verdict or a successful pilot; it posts no report.
+   Both collectors analyze the admitted event's immutable source snapshot;
+   later PR state or source changes do not silently discard the attempt.
 
 NFV is a prototype. Findings are **conditional MODEL refutations, never confirmed
 source bugs**; failure to refute is not evidence of correctness. Never check out
@@ -119,13 +122,29 @@ Ask the agent to upgrade; do not rerun the first-installation script against an
 existing installation. Keep the approved model, secrets and budgets. Disable
 new audits and wait for all active/queued runs to finish before changing shared
 configuration. Preserve the selected billing mode unless a change is approved.
+Disabling a workflow does not cancel its runs; let them finish rather than
+cancelling an audit that has started.
 
 Resolve the trusted NFV release once, replace the package with
 `gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
 both workflows and open an upgrade PR. Reapply the approved billing permissions
 after package replacement, and retain intentional local customizations.
+The admission job needs only `contents: read` and `issues: write`; keep its
+reservation writes separate from both inference jobs. Preserve the existing
+organization billing permissions in the reviewer, reusable caller and worker.
 Recheck [repository permission policies](REFERENCE.md#repository-permission-policies)
 against the regenerated jobs.
+
+Existing completed NFV bot reports prevent another automatic audit. For a
+legacy failed attempt without a report or admission record, a maintainer with
+repository write access can record it before enabling the upgraded workflow.
+Post a PR comment with this exact first-line format, substituting the repository,
+PR number and verified historical Actions run ID:
+`<!-- nfv-pr-attempt:OWNER/repo:PR_NUMBER:RUN_ID -->`.
+Include a run link and the reason below it. The admission gate verifies a
+non-bot record author's current write permission. Do not seed records for runs
+that never started an audit merely because GitHub created a skipped run.
+
 After the approved merge, update `NFV_RELEASE_SHA` and read it back. Replace
 `OWNER/repo` with the target repository and `<SHA>` with the same full trusted
 40-character SHA used by both merged workflow package pins:

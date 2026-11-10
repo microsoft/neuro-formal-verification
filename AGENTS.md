@@ -177,11 +177,15 @@ under `workflow/tests/.general-scratch/`; never commit them.
   onboarded repository's default branch, including forks
   and external contributors. Execute only trusted-base `pull_request_target`
   workflow code; PR-head code remains inspection-only data.
-  Each ready transition explicitly requests a rerun. `synchronize` only cancels an older
-  per-PR workflow attempt; it starts no inference or audit. Reopening does not
-  audit. Typed collection supersession records an incomplete operational skip
-  and a no-op, never a proof outcome or empty successful report; other failures
-  stay failures. Preserve the strict default collector CLI.
+  Reserve one automatic attempt per PR in a trusted admission comment before
+  either inference session; failures consume it too. Existing NFV reports also
+  suppress reanalysis. Keep the durable records and serialize without cancelling
+  running audits. Pushes and repeated readiness events never restart them;
+  an explicit rerun of the original failed workflow may reuse its reservation.
+  Both workflow collectors use `--event-snapshot`: immutable event head/base,
+  event description and comparison commits survive later pushes, closure and
+  merge. Completed reports still post after merge and identify the saved source,
+  not later revisions. Preserve the strict default collector CLI.
 - Flow: the reusable source-context AW session completes first. Trusted
   pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
   the immutable PR bundle. A deterministic custom SDK driver then runs

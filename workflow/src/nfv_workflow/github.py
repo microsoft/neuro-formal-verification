@@ -193,12 +193,13 @@ def reanchor(properties, base_bundle):
     return {"properties": moved, "dropped": dropped}
 
 
-def collect(event, api, side="head"):
+def collect(event, api, side="head", *, event_snapshot=False):
     if side not in ("head", "base"):
         raise Abstain("Collection side must be head or base")
     # Base snapshots reuse the head snapshot's context order so before/after runs see the
     # same surrounding files and differ only in the changed code.
-    preferred = {p: i for i, p in enumerate(collect(event, api)["sources"])} if side == "base" else {}
+    preferred = {p: i for i, p in enumerate(
+        collect(event, api, event_snapshot=event_snapshot)["sources"])} if side == "base" else {}
     ident = identity(event)
     if side == "base":
         # Pre-merge snapshot of the same PR, anchored on removed lines; never publishable.
@@ -206,26 +207,38 @@ def collect(event, api, side="head"):
     repo, number = ident["repository"], ident["number"]
     prefix = f"repos/{repo}"
     latest = api.request(f"{prefix}/pulls/{number}")
-    if not unchanged(latest, ident):
+    current = unchanged(latest, ident)
+    if not current and not event_snapshot:
         raise Superseded("PR identity changed since event; refusing mutable snapshot", ident)
     comparison = api.request(
         f"{prefix}/compare/{ident['base_sha']}...{ident['head_sha']}")
     files = comparison.get("files", [])
-    if len(files) != latest["changed_files"] or len(files) > 300:
+    expected_files = event["pull_request"].get("changed_files") if event_snapshot else latest["changed_files"]
+    if (len(files) > 300 or (expected_files is not None and len(files) != expected_files)
+            or (expected_files is None and len(files) >= 300)):
         raise Abstain("Changed-file inventory incomplete or exceeds 300-file budget")
+    if event_snapshot:
+        commits = comparison.get("commits", [])
+        if comparison.get("total_commits") != len(commits):
+            raise Abstain("Immutable comparison commit inventory is incomplete")
+    else:
+        commits = api.pages(f"{prefix}/pulls/{number}/commits")
     signals, signal_bytes = [], 0
     # Intent comes from the PR description, conversation (issue) comments, and
     # commit messages; review comments and reviews are not collected.
-    description = {"id": number, "body": latest.get("body"), "html_url": latest.get("html_url", "")}
+    description_pr = event["pull_request"] if event_snapshot else latest
+    description = {"id": number, "body": description_pr.get("body"),
+                   "html_url": description_pr.get("html_url", "")}
     for kind, items in (("description", [description]),
                         ("comment", api.pages(f"{prefix}/issues/{number}/comments")),
-                        ("commit", api.pages(f"{prefix}/pulls/{number}/commits"))):
+                        ("commit", commits)):
         for item in items:
             body = item.get("body") or (item.get("commit") or {}).get("message", "")
             if (kind == "comment" and (item.get("user") or {}).get("login") == "github-actions[bot]"
                     and any(marker in body for marker in (
                         "<!-- gh-aw-workflow-id: nfv-pr-review -->",
-                        "<!-- gh-aw-agentic-workflow: NFV PR reviewer,"))):
+                        "<!-- gh-aw-agentic-workflow: NFV PR reviewer,",
+                        "<!-- nfv-pr-attempt:"))):
                 continue
             if body.strip():
                 signal_bytes += len(body[:12000].encode("utf-8"))
@@ -390,7 +403,7 @@ def collect(event, api, side="head"):
                 declarations.append({"path": path, "line": line, "text": text[:500]})
             calls.update(re.findall(r"\b([A-Za-z_]\w*)\s*\(", text))
     latest = api.request(f"{prefix}/pulls/{number}")
-    if not unchanged(latest, ident):
+    if not unchanged(latest, ident) and not event_snapshot:
         raise Superseded("PR changed during collection", ident)
     bundle = {"schema": 1, "identity": ident, "signals": signals, "changed": changed,
               "sources": sources, "declarations_and_preconditions": declarations[:500],
