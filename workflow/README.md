@@ -21,6 +21,24 @@ Results concern translated models under stated assumptions. Findings are
 **conditional MODEL refutations, not confirmed source bugs**; failure to refute
 does not establish correctness.
 
+## Paper algorithm vs. workflow
+
+The [paper's evaluated algorithm](https://arxiv.org/html/2608.21516#S3) starts
+with a supplied source-level assertion. It formalizes library contracts and
+documented preconditions without seeing that assertion, then freezes them.
+Translation repairs use only syntax/type feedback; subsequent proof search
+cannot change frozen computation or contracts. The paper evaluates Dafny proofs
+and CBMC bounded refutation.
+
+The workflow instead selects whole properties from PR intent and code. It
+jointly formalizes each property with scoped code, input conditions and helper
+contracts, allowing bounded draft repairs before freezing. It then tries Dafny
+verification first, followed, if needed, by witnessed refutation on the same
+frozen model.
+
+This is an adaptation, not the paper's evaluated pipeline; the paper's
+experimental results do not measure workflow accuracy.
+
 ## From a PR to an evidence-linked report
 
 ```mermaid
@@ -77,3 +95,4 @@ GitHub message and available rate-limit headers. Admission failures block infere
 **More:** [Configuration](REFERENCE.md#configure-github-agentic-workflows),
 [upgrades](ONBOARDING.md#upgrade-an-existing-installation), and
 [technical reference](REFERENCE.md).
+For expired tokens and other common problems, see the [FAQ](FAQ.md).

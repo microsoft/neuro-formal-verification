@@ -1089,6 +1089,8 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("https://arxiv.org/abs/2608.21516", source)
         self.assertIn("](ONBOARDING.md)", source)
         self.assertIn("](REFERENCE.md)", source)
+        self.assertIn("](FAQ.md)", source)
+        self.assertTrue((self.package / "FAQ.md").is_file())
         self.assertIn("](ONBOARDING.md#upgrade-an-existing-installation)", source)
         self.assertIn('<a id="upgrade-an-existing-installation"></a>', source)
         for image in ("nfv-report-refutation.png", "nfv-report-verification.png"):
@@ -1098,6 +1100,7 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("### Repository permission policies", reference)
         self.assertNotIn("### Upgrade an existing installation", reference)
         onboarding = (self.package / "ONBOARDING.md").read_text(encoding="utf-8")
+        self.assertIn("](FAQ.md)", onboarding)
         self.assertNotIn("README.md#", onboarding)
         self.assertIn("REFERENCE.md#repository-permission-policies", onboarding)
         self.assertIn("## Upgrade an existing installation", onboarding)

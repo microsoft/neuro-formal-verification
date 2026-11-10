@@ -180,50 +180,16 @@ demographics or characteristics. HumanEval task IDs, entry IDs and response numb
 technical records, not study participants. Names or domain words in synthetic programming examples
 should not be interpreted as observations about real people.
 
-The dataset is not intended to contain data about children and was not constructed through
-recruitment of children or other human subjects. The released materials do not provide a systematic
-age-related content annotation or a categorical guarantee that no example could refer to a child.
-
-The documented upstream selection concerns code, specifications and technical identifiers. The
-acquisition records do not establish a comprehensive historical inventory of personal identifiers in
-every upstream input. Upstream attribution and license notices are retained and are separate from
-benchmark task labels.
-
 Recorded privacy-oriented processing anonymized host-specific paths in selected diagnostic metadata,
 as documented in paper/manifest.json and paper/provenance/redactions.json. This did not change
-program/model code, inputs, labels or verifier verdicts. The separate code/docstring sanitization
-described below was designed to reduce benchmark leakage, not to certify de-identification.
+program/model code, inputs, labels or verifier verdicts.
 
-The main dataset is not designed to include personal records or identify people. That design intent
-and the diagnostic-path redactions are not a comprehensive privacy guarantee for all source
-material, retained artifacts or new tool outputs. Users should review the particular material they
-redistribute or submit to a model.
+#### Potentially harmful content
 
-#### Sensitive or harmful content
-
-The source artifacts are programming benchmarks rather than collections of health, financial,
-biometric, political, religious or other sensitive personal records. The retained provenance does
-not document a comprehensive sensitive-category annotation of the original upstream corpus.
-
-The benchmark was not assembled to study offensive or harmful content. The retained records do not
-establish a systematic audit of upstream examples for sexual content, violence, hate, self-harm or
-other potentially distressing material.
-
-Apart from the documented diagnostic-path anonymization, no category-specific sensitive-content
-removal process is established by the retained materials. Benchmark sanitization is not a privacy or
-content-safety certification.
-
-The main dataset is not intended to contain sensitive personal information; a comprehensive absence
-claim has not been established. The same caution applies to newly generated model responses,
-diagnostics and workflow artifacts.
-
-Comment, docstring, doctest and assertion-message removal addressed label leakage and evaluation
-design. It was not a harmful-content filtering procedure, and no dedicated harmful-content removal
-is documented.
-
-The dataset has not been systematically certified free of potentially offensive or harmful content.
-Inspect examples for the intended audience and application, and use the project's reporting channels
-for concerns without reposting sensitive material publicly.
+The retained records do not document a systematic audit or dedicated filtering for potentially
+offensive or harmful content. Benchmark sanitization targets label leakage, not content-safety
+certification. Inspect examples for the intended audience and application, and use the project's
+reporting channels for concerns without reposting sensitive material publicly.
 
 #### Other processing
 
@@ -446,22 +412,7 @@ for the main benchmark, retain abstentions and failures, and report any subset o
 explicitly.
 
 Use an approved Copilot/model configuration and review provider-specific Responsible AI guidance and
-data policies. The following Azure/OpenAI resources are general background; they do not imply that
-NFV has a direct Azure OpenAI integration or that those services' mitigations make its outputs safe:
-
-- What is Azure AI Content Safety?
-  https://learn.microsoft.com/en-us/azure/ai-services/content-safety/overview
-
-- Responsible AI practices for Azure OpenAI models:
-  https://learn.microsoft.com/en-us/legal/cognitive-services/openai/overview
-
-- Azure OpenAI Transparency Note:
-  https://learn.microsoft.com/en-us/legal/cognitive-services/openai/transparency-note
-
-- OpenAI usage policies: https://openai.com/policies/usage-policies
-
-- Azure OpenAI Code of Conduct:
-  https://learn.microsoft.com/en-us/legal/cognitive-services/openai/code-of-conduct
+data policies.
 
 Use only source and datasets you are authorized to analyze and share. Preserve upstream notices and
 attribution; public availability does not remove licensing or privacy obligations. Review
@@ -504,21 +455,6 @@ Microsoft trademarks or logos is subject to and must follow Microsoft's Trademar
 Guidelines. Use of Microsoft trademarks or logos in modified versions of this project must not cause
 confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to
 those third-party's policies.
-
-## Ethics
-
-The release reuses technical programming benchmarks and applies automated selection, screening and
-sanitization. No new human-participant study or participant recruitment is documented in the
-retained dataset-creation materials. No Institutional Review Board approval is asserted by this
-note.
-
-The retained materials do not document a new participant-consent process for NFV's dataset
-derivation. Public availability of upstream artifacts does not establish informed consent for
-arbitrary downstream uses or remove the need to comply with applicable rights and obligations.
-
-No paid human annotation or participant-compensation process is documented for NFV's retained
-automated derivation. This does not establish how all upstream contributors were recruited,
-compensated or governed.
 
 ## Contact
 

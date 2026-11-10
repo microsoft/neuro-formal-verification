@@ -6,6 +6,8 @@ Licensed under the MIT License. -->
 Already installed? Use the [upgrade procedure](#upgrade-an-existing-installation),
 not the first-installation script.
 
+For expired tokens and other common problems, see the [FAQ](FAQ.md).
+
 NFV audits non-draft, supported-source PRs into the onboarded repository's default
 branch, including forks and external contributors. Audits start on opening or
 draft-to-ready transitions, once automatically per PR, not later pushes. External contributors can trigger
