@@ -3,7 +3,7 @@
 
 import base64
 import copy
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import fnmatch
 import hashlib
 import io
@@ -20,6 +20,7 @@ from types import SimpleNamespace
 import unittest
 import uuid
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from nfv_workflow.check import Dafny, accepted, check
 from nfv_workflow import cli
@@ -94,6 +95,42 @@ class ScratchTest(unittest.TestCase):
             self.directory.parent.rmdir()
         except OSError:
             pass
+
+
+class GitHubRequestTests(unittest.TestCase):
+    def test_denied_comment_identifies_request_and_rate_limit_without_credentials_or_body(self):
+        token = "diagnostic-test-token"
+        error = HTTPError("https://api.github.com/repos/owner/project/issues/7/comments", 403,
+                          "Forbidden", {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "123"},
+                          io.BytesIO(json.dumps({"message": "Denied\nBearer " + token}).encode()))
+        with patch("nfv_workflow.github.urllib.request.urlopen", side_effect=error), \
+                self.assertRaises(Abstain) as raised:
+            GitHub(token=token).request("repos/owner/project/issues/7/comments?access_token=query-secret",
+                                       {"body": "private-request-body"})
+        diagnostic = str(raised.exception)
+        self.assertIn("POST /repos/owner/project/issues/7/comments: HTTP 403", diagnostic)
+        self.assertIn("Denied Bearer [REDACTED]", diagnostic)
+        self.assertIn("X-RateLimit-Remaining=0", diagnostic)
+        self.assertIn("X-RateLimit-Reset=123", diagnostic)
+        for secret in (token, "query-secret", "private-request-body"):
+            self.assertNotIn(secret, diagnostic)
+        self.assertNotIn("\n", diagnostic)
+
+    def test_denied_read_handles_invalid_or_unexpected_response_bodies_and_bounds_diagnostics(self):
+        for body in (b"<html>private-server-body</html>", b"[]",
+                     json.dumps({"message": "x" * 2000}).encode()):
+            with self.subTest(body=body[:20]):
+                error = HTTPError("https://api.github.com/repos/owner/project/contents/workflow", 403,
+                                  "Forbidden", {"Retry-After": "60"}, io.BytesIO(body))
+                with patch("nfv_workflow.github.urllib.request.urlopen", side_effect=error), \
+                        self.assertRaises(Abstain) as raised:
+                    GitHub(token="").request("repos/owner/project/contents/workflow?ref=saved")
+                diagnostic = str(raised.exception)
+                self.assertIn("GET /repos/owner/project/contents/workflow: HTTP 403", diagnostic)
+                self.assertLessEqual(len(diagnostic), 1200)
+                self.assertNotIn("private-server-body", diagnostic)
+                self.assertNotIn("?ref=", diagnostic)
+                self.assertIn("Retry-After=60", diagnostic)
 
 
 class SourceFilesTests(ScratchTest):
@@ -1008,6 +1045,25 @@ class AdmissionTests(ScratchTest):
         admit_mock.assert_not_called()
         self.assertEqual(output.read_text(), "admitted=false\n")
 
+    def test_api_denial_is_actionable_and_does_not_admit_inference(self):
+        captured, output = self.directory / "event.json", self.directory / "outputs"
+        cli.save(captured, self.event)
+        api, stderr = GitHub(token="test-token"), io.StringIO()
+        error = HTTPError("https://api.github.com/repos/owner/project/issues/7/comments", 403,
+                          "Forbidden", {}, io.BytesIO(b'{"message":"Resource not accessible by integration"}'))
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "pull_request_target",
+                                    "GITHUB_EVENT_PATH": str(captured), "GITHUB_OUTPUT": str(output),
+                                    "GITHUB_RUN_ID": "42", "GITHUB_RUN_ATTEMPT": "1"}), \
+                patch.object(admission, "publication_allowed", return_value=True), \
+                patch.object(admission, "GitHub", return_value=api), \
+                patch.object(api, "pages", return_value=[]), \
+                patch("nfv_workflow.github.urllib.request.urlopen", side_effect=error), \
+                redirect_stderr(stderr):
+            self.assertEqual(admission.main(), 1)
+        self.assertIn("POST /repos/owner/project/issues/7/comments: HTTP 403", stderr.getvalue())
+        self.assertIn("Resource not accessible by integration", stderr.getvalue())
+        self.assertFalse(output.exists())
+
 
 class TemplateTests(unittest.TestCase):
     template = Path(__file__).parents[2] / ".github" / "workflows"
@@ -1082,8 +1138,11 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("needs: [admission, repository_context]", source)
         self.assertIn("run: python -m nfv_workflow.admission", source)
         gate = lock.split("\n  admission:", 1)[1].split("\n  agent:", 1)[0]
-        self.assertIn("issues: write", gate)
-        self.assertNotIn("pull-requests: write", gate)
+        self.assertIn("pull-requests: write", gate)
+        self.assertNotIn("issues: write", gate)
+        source_gate = source.split("\n  admission:", 1)[1].split("\n  repository_context:", 1)[0]
+        self.assertIn("pull-requests: write", source_gate)
+        self.assertNotIn("issues: write", source_gate)
         self.assertIn("needs.admission.outputs.admitted == 'true'", lock)
         self.assertNotIn("  synchronize", lock)
         for name in ("nfv-pr-review", "nfv-source-context"):

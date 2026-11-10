@@ -129,7 +129,7 @@ Resolve the trusted NFV release once, replace the package with
 `gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
 both workflows and open an upgrade PR. Reapply the approved billing permissions
 after package replacement, and retain intentional local customizations.
-The admission job needs only `contents: read` and `issues: write`; keep its
+The admission job needs only `contents: read` and `pull-requests: write`; keep its
 reservation writes separate from both inference jobs. Preserve the existing
 organization billing permissions in the reviewer, reusable caller and worker.
 Recheck [repository permission policies](REFERENCE.md#repository-permission-policies)

@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
+      pull-requests: write
     outputs:
       admitted: ${{ steps.admit.outputs.admitted }}
     steps:

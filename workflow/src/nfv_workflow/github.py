@@ -11,6 +11,7 @@ import json
 import os
 import posixpath
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -61,8 +62,30 @@ class GitHub:
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
         req = urllib.request.Request(url, data=body, headers=headers)
-        with urllib.request.urlopen(req, timeout=60) as response:
-            return json.load(response)
+        try:
+            with urllib.request.urlopen(req, timeout=60) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            details = [f"GitHub API {req.get_method()} {urllib.parse.urlsplit(url).path}: HTTP {error.code}"]
+            try:
+                with error:
+                    payload = json.loads(error.read(65536))
+            except (OSError, ValueError):
+                payload = None
+            if isinstance(payload, dict) and isinstance(payload.get("message"), str):
+                message = payload["message"]
+                if self.token:
+                    message = message.replace(self.token, "[REDACTED]")
+                details.append(message[:600])
+            for name in ("X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset", "Retry-After"):
+                value = (error.headers or {}).get(name)
+                if value is not None:
+                    details.append(f"{name}={value}")
+            diagnostic = "; ".join(details)
+            if self.token:
+                diagnostic = diagnostic.replace(self.token, "[REDACTED]")
+            diagnostic = re.sub(r"[\x00-\x1f\x7f]", " ", diagnostic)
+            raise Abstain(" ".join(diagnostic.split())[:1200]) from None
 
     def pages(self, path, max_pages=100):
         rows = []

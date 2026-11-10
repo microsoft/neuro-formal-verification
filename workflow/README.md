@@ -64,6 +64,12 @@ in the run artifact when details are compacted.
 
 ![NFV report showing model verification with expanded assumptions and checked property](images/nfv-report-verification.png)
 
+## Operational failures
+
+The trusted admission job writes PR comments separately from read-only inference.
+API failures report the method, endpoint, status, a bounded credential-redacted
+GitHub message and available rate-limit headers. Admission failures block inference.
+
 **Installation:** [Onboarding](ONBOARDING.md).
 
 <a id="upgrade-an-existing-installation"></a>
