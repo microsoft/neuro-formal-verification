@@ -36,8 +36,17 @@ contracts, allowing bounded draft repairs before freezing. It then tries Dafny
 verification first, followed, if needed, by witnessed refutation on the same
 frozen model.
 
-This is an adaptation, not the paper's evaluated pipeline; the paper's
-experimental results do not measure workflow accuracy.
+For refutations, it tries to **minimize the failure condition** by removing
+dispensable assumptions with rechecks and seeking a shorter, separately proved
+statement that still fails on the accepted counterexample. Independently, it
+searches for a **model-checked candidate fix** that proves the complete original
+property without weakening retained assumptions or helper contracts. These
+bounded searches do not change the whole property's refuted outcome or guarantee
+global minimality or a source-verified repair.
+
+These adaptations aim to improve **review efficiency and strengthen model-level
+evidence**. They are not the paper's evaluated pipeline; its experimental results
+do not measure workflow accuracy or efficiency.
 
 ## From a PR to an evidence-linked report
 
@@ -49,7 +58,8 @@ flowchart LR
     Checks --> Refuted["refuted<br/>Model counterexample accepted"]
     Checks --> Unresolved["resources exhausted<br/>or type-check/audit failure"]
     Verified --> Report["One PR comment<br/>+ retained evidence"]
-    Refuted --> Report
+    Refuted --> Followups["Optional checked simplification<br/>+ model-checked candidate fix"]
+    Followups --> Report
     Unresolved --> Report
     classDef proved fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
     classDef refuted fill:#fff3e0,stroke:#e65100,color:#843600
