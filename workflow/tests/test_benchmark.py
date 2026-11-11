@@ -404,6 +404,42 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("Provider access denied", result["errors"][0])
         submit.assert_not_called()
 
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_worker_malformed_proof_repair_abstains_and_runs_next_case(self):
+        case, native, _ = self.native_report()
+        translation = copy.deepcopy(native["findings"][0]["translation"])
+        translation["model"] = translation["model"].replace(
+            "// synth: modeled contract or structural syntax\n    invariant r == i\n", "")
+        later = {**case, "id": case["id"][:-1] + ("0" if case["id"][-1] != "0" else "1")}
+        limits = Limits(proof_rounds=1, minimize_assumptions=False)
+        payload = self.directory / "two-cases.json"
+        cli.save(payload, {"run": {**self.run_info, "limits": asdict(limits)},
+                           "shard": 0, "cases": [case, later]})
+        def malformed(prompt):
+            request = json.loads(prompt)
+            after = next(int(line.split(":")[0]) for line in request["frozen_model_lines"]
+                         if "while i < n" in line)
+            return {"annotations": [{"after": after, "text": "invariant i == 0 ? r == 0 : r == i"}]}
+        chat = Chat([translation, malformed, {"abstain": "next benchmark case reached translation"}])
+        async def offline_provider(bundle, proposals, directory, model, actual_limits, **kwargs):
+            return await run(bundle, proposals, directory, chat, actual_limits)
+        environment = {**self.environment, **{key: os.environ[key] for key in (
+            "PATH", "SYSTEMROOT", "USERPROFILE", "NFV_DAFNY_PATH", "NFV_Z3_PATH") if key in os.environ}}
+        output = self.directory / "worker"
+        with patch.dict(os.environ, environment, clear=True), \
+                patch.object(cli, "run_general", side_effect=offline_provider) as provider, \
+                patch.object(sandbox, "submit") as submit, redirect_stdout(io.StringIO()):
+            result = benchmark.worker(payload, output)
+        self.assertTrue(result["completed"], result)
+        self.assertEqual(result["errors"], [])
+        self.assertEqual(provider.call_count, 2)
+        self.assertEqual([row["prediction"] for row in result["rows"]], ["abstain", "abstain"])
+        self.assertIn("Refutation model did not type-check",
+                      cli.load(output / case["id"] / "report.json")["failures"][0]["diagnostic"])
+        self.assertIn("next benchmark case reached translation",
+                      cli.load(output / later["id"] / "report.json")["failures"][0]["diagnostic"])
+        submit.assert_called_once()
+
     def test_worker_rejects_raw_platform_credentials(self):
         with patch.dict(os.environ, {**self.environment, "GH_TOKEN": "not-a-real-credential"}, clear=True), \
                 patch.object(benchmark, "audit") as audit, self.assertRaises(Abstain):

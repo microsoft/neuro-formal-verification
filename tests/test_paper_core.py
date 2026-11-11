@@ -40,6 +40,21 @@ def candidate(witness="n == 0"):
 
 
 class CoreTests(unittest.TestCase):
+    def test_dafny_parse_summary_is_a_type_error_not_a_tool_failure(self):
+        for summary in ("1 parse error detected", "2 parse errors detected in model.dfy"):
+            output = "./model.dfy(36,19): Error: missing semicolon at end of statement\n\n" + summary + "\n"
+            with self.subTest(summary=summary):
+                self.assertIs(dafny._classify(2, output), dafny.Outcome.TYPE_ERROR)
+
+    def test_dafny_invocation_and_internal_errors_remain_tool_failures(self):
+        for code, output in (
+                (2, "Unrecognized command or argument '--invalid'"),
+                (-6, "Unhandled exception. System.ArgumentException"),
+                (-6, "2 parse errors detected in model.dfy\n"),
+                (2, "0 parse errors detected in model.dfy\n")):
+            with self.subTest(code=code, output=output):
+                self.assertIs(dafny._classify(code, output), dafny.Outcome.TOOL_ERROR)
+
     def test_ubuntu_dafny_and_z3_lookup(self):
         from nfv.shared import config
 

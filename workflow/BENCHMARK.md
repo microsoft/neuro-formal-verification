@@ -14,6 +14,10 @@ For each supplied complete postcondition, an accepted verification proof predict
 repair, frozen-model, audit and input-domain checks remain mandatory. Benchmark
 source is parsed as text, never executed.
 
+Malformed generated Dafny annotations use the bounded proof-repair budget.
+Exhausting that budget abstains on the entry and allows the shard to continue;
+provider failures and verifier infrastructure errors still stop the worker.
+
 The runner calls the same `nfv-workflow audit` engine as PR review, without report
 presentation inference. Repository-context collection, optional-assumption
 minimization, shorter-property generation and model-checked fix generation are

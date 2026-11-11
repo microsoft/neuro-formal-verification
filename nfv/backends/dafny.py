@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -143,7 +144,9 @@ def _parse_errors(output: str) -> list[str]:
 def _classify(exit_code: int, output: str) -> Outcome:
     # Resolution/type failures are reported distinctly and must not be confused
     # with a verification failure: only the latter can ever be a counterexample.
-    if "resolution/type errors" in output or "Parse Error" in output:
+    if ("resolution/type errors" in output or "Parse Error" in output
+            or (exit_code == 2 and re.search(
+                r"(?m)^[1-9]\d* parse errors? detected(?: in [^\r\n]+)?\s*$", output))):
         return Outcome.TYPE_ERROR
     if exit_code == DAFNY_EXIT_VERIFIED:
         if "verifier finished with" in output and " 0 errors" in output:

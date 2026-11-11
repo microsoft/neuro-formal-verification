@@ -274,6 +274,21 @@ class GeneralTests(unittest.TestCase):
         self.assertFalse(report["findings"])
         self.assertEqual(len(chat.prompts), 1)
 
+    def test_proof_verifier_infrastructure_error_remains_fatal(self):
+        bundle, claim, translation = fixture(invariant=False)
+        class BrokenProof(FailingVerifier):
+            def __call__(self, source, directory):
+                if directory.name.startswith("proof-"):
+                    return {"outcome": "tool_error", "exit_code": 2,
+                            "stdout": "Unrecognized command or argument '--invalid'", "stderr": ""}
+                return super().__call__(source, directory)
+        chat = Chat([translation])
+        report = self.execute(bundle, claim, chat, verifier=BrokenProof())
+        self.assertFalse(report["completed"])
+        self.assertFalse(report["findings"])
+        self.assertIn("Unrecognized command or argument", report["errors"][0])
+        self.assertEqual(len(chat.prompts), 1)
+
     def test_proof_repair_cannot_replace_computation(self):
         bundle, claim, translation = fixture(invariant=False)
         chat = Chat([translation, {"model": translation["model"].replace("r := r + 1;", "r := n;")}])
@@ -746,6 +761,46 @@ class GeneralTests(unittest.TestCase):
         report = self.execute(bundle, claim, Chat([translation, repair]), limits=Limits(proof_rounds=1))
         self.assertEqual(len(report["findings"]), 1, report)
         self.assertEqual(report["findings"][0]["counters"]["proof_repairs"], 1)
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_malformed_annotation_can_be_repaired_without_changing_computation(self):
+        bundle, claim, translation = fixture(invariant=False)
+        def annotation(text):
+            def response(prompt):
+                request = json.loads(prompt)
+                after = next(int(line.split(":")[0]) for line in request["frozen_model_lines"]
+                             if "while i < n" in line)
+                return {"annotations": [{"after": after, "text": text}]}
+            return response
+        chat = Chat([translation, annotation("invariant i == 0 ? r == 0 : r == i"),
+                     annotation("invariant r == i")])
+        report = self.execute(bundle, claim, chat, limits=Limits(proof_rounds=2))
+        self.assertTrue(report["completed"], report)
+        self.assertFalse(report["errors"], report)
+        self.assertEqual(len(report["findings"]), 1, report)
+        finding = report["findings"][0]
+        self.assertEqual(finding["counters"]["proof_repairs"], 2)
+        self.assertEqual(finding["proof_log"][1]["outcome"], "type_error")
+        self.assertIn("parse errors detected", finding["proof_log"][1]["stdout"])
+        self.assertIn('"negative_check":', chat.prompts[-1])
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_exhausted_malformed_annotation_abstains_and_continues_to_next_property(self):
+        bundle, claim, translation = fixture(invariant=False)
+        def malformed(prompt):
+            request = json.loads(prompt)
+            after = next(int(line.split(":")[0]) for line in request["frozen_model_lines"]
+                         if "while i < n" in line)
+            return {"annotations": [{"after": after, "text": "invariant i == 0 ? r == 0 : r == i"}]}
+        next_claim = {**claim, "property": "The result is the iteration count."}
+        chat = Chat([translation, malformed, {"abstain": "next property reached translation"}])
+        report = self.execute_many(bundle, [claim, next_claim], chat, limits=Limits(proof_rounds=1))
+        self.assertTrue(report["completed"], report)
+        self.assertFalse(report["errors"], report)
+        self.assertFalse(report["findings"], report)
+        self.assertEqual(len(chat.prompts), 3)
+        self.assertIn("Refutation model did not type-check", report["failures"][0]["diagnostic"])
+        self.assertIn("next property reached translation", report["failures"][1]["diagnostic"])
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_unrelated_type_repair_cannot_replace_a_valid_goal(self):
