@@ -11,16 +11,15 @@ This repository contains two components:
 - **Paper artifact:** nfv-micro-bench dataset, retained results, experiment scripts, and Dafny/CBMC backends.
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
-- **GitHub Agentic Workflow integration (prototype implementation):** a PR
-  reviewer that selects nontrivial properties, tries verification first, then
+- **Formal Code Audit (prototype implementation):** a PR
+  reviewer based on GitHub Agentic Workflow that selects nontrivial properties, tries verification first, then
   refutation with Dafny, and
   comments the result. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
-To try the reviewer in another repository, follow the
+To try the formal code audit reviewer in your repository, follow the
 [onboarding guide](workflow/ONBOARDING.md) for installing the
-AW template, selecting inference billing and setting its required secrets, with
-an optional fork first. The helper skill is optional.
+AW template, selecting inference billing and setting its required secrets. 
 
 The code and artifacts are intended for research reproduction, authorized
 experimentation, and feedback on neuro-formal reasoning. The prototype reviewer
