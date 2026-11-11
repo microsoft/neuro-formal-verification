@@ -306,7 +306,7 @@ def account(summary_path, usage, output):
     return updated
 
 
-def summarize(prepared, evidence, output, workers_succeeded=True, usage_directory=None):
+def summarize(prepared, evidence, output, workers_succeeded=True, usage_directory=None, *, fallback=None):
     manifest, inputs = prepared_cases(prepared)
     run = manifest["run"]
     total, shards = run["total"], run["shards"]
@@ -317,13 +317,37 @@ def summarize(prepared, evidence, output, workers_succeeded=True, usage_director
     usage = {field: 0 for field in USAGE_FIELDS}
     observed_usage = Counter()
     responses = 0
-    for path in sorted(Path(evidence).rglob("results.json")):
+    paths = sorted(Path(evidence).rglob("results.json"))
+    primary_count = len(paths)
+    if fallback is not None:
+        paths.extend(sorted(Path(fallback).glob("*-agent/sandbox/agent/logs/nfv-bench/results.json")))
+    checkpoints, seen_backups, recovered = {}, set(), []
+    for index, path in enumerate(paths):
         result = load(path)
         shard = result["shard"]
         if (result.get("schema") != 1 or result["run"] != run
-                or type(shard) is not int or not 0 <= shard < shards or shard in seen_shards):
+                or type(shard) is not int or not 0 <= shard < shards):
             raise Abstain("Foreign or duplicate benchmark shard evidence")
+        backup = index >= primary_count
+        if backup:
+            if shard in seen_backups:
+                raise Abstain("Duplicate backup benchmark shard evidence")
+            seen_backups.add(shard)
+        if shard in seen_shards:
+            if not backup:
+                raise Abstain("Foreign or duplicate benchmark shard evidence")
+            original_path, original = checkpoints[shard]
+            if result != original:
+                raise Abstain("Conflicting primary and backup benchmark checkpoints")
+            for row in result["rows"]:
+                for name in ("input.json", "report.json"):
+                    if load(path.parent / row["id"] / name) != load(original_path.parent / row["id"] / name):
+                        raise Abstain("Conflicting primary and backup benchmark audit evidence")
+            continue
         seen_shards.add(shard)
+        checkpoints[shard] = (path, result)
+        if backup:
+            recovered.append(shard)
         errors.extend(str(error)[:1000] for error in result["errors"])
         shard_ids = set()
         for row in result["rows"]:
@@ -380,6 +404,8 @@ def summarize(prepared, evidence, output, workers_succeeded=True, usage_director
                                   for field, value in usage.items()} if responses else None,
                "recorded_responses": responses,
                "errors": errors, "rows": list(rows.values())}
+    if recovered:
+        summary["recovered_shards"] = sorted(recovered)
     if usage_directory is not None:
         summary["ai_credits"] = credit_usage(usage_directory, run["shards"])
     output = Path(output)
@@ -417,6 +443,9 @@ def render(summary):
               "Ground-truth labels are the original benchmark labels; disagreements require triage.", ""]
     if total == 5:
         lines += ["Five-entry pilot only; this is not a full-dataset accuracy estimate.", ""]
+    if summary.get("recovered_shards"):
+        lines += [f"Recovered **{len(summary['recovered_shards'])} shard checkpoints** from backup agent artifacts "
+                  "without rerunning inference; the same native evidence checks apply.", ""]
     credits = summary.get("ai_credits")
     if credits is not None:
         def amount(value):
@@ -520,6 +549,7 @@ def main(argv=None):
         p.add_argument("--" + flag, required=True)
     p.add_argument("--workers-succeeded", choices=("true", "false"), default="true")
     p.add_argument("--usage")
+    p.add_argument("--fallback", help="Directory containing backup gh-aw agent artifacts")
     p = commands.add_parser("account")
     for flag in ("summary", "usage", "out"):
         p.add_argument("--" + flag, required=True)
@@ -546,7 +576,7 @@ def main(argv=None):
             worker(args.payload, args.out)
         elif args.command == "summarize":
             summary = summarize(args.prepared, args.evidence, args.out,
-                                args.workers_succeeded == "true", args.usage)
+                                args.workers_succeeded == "true", args.usage, fallback=args.fallback)
             print(json.dumps({key: value for key, value in summary.items() if key != "rows"}))
         elif args.command == "account":
             summary = account(args.summary, args.usage, args.out)

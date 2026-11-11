@@ -62,6 +62,10 @@ uses the PR reviewer's existing budgets. Preparation rejects budgets that cannot
 fit the worker deadline. Calls and repairs are bounded, but a full sweep may
 consume substantial personal credits; there is no monetary-credit cap.
 
+Preparation requires GitHub Actions to be reported operational by GitHub Status
+before starting inference. This avoids starting during a known outage, but
+cannot prevent a service failure later in the run.
+
 ## Results and publication
 
 Preparation shuffles the frozen reference/mutant ordering, assigns opaque random
@@ -79,6 +83,15 @@ inputs and run identity before calculating:
 - Coverage: decisive predictions divided by **206**.
 - Accuracy among decisive predictions, or **N/A** when none are decisive.
 - Label-by-prediction counts, abstention reasons, timestamps and recorded usage.
+
+Dedicated evidence uploads have two attempts of at most five minutes each.
+The read-only checkpoint handoff and trusted publisher can also use the native
+checkpoint retained in the main agent artifact. Primary and backup copies
+must agree; recovered evidence passes the same input, budget and proof checks
+and is never counted twice. Reports identify recovered shards. Missing copies
+remain explicit failures; upload retries never rerun model inference.
+Statistics uploads also have one bounded retry. Missing usage artifacts leave
+AIC unavailable rather than blocking publication; malformed usage still fails.
 
 Reports include **AI credits (AIC)**, separating benchmark inference from the
 workflow's threat detection and showing their combined total. Accounting sums

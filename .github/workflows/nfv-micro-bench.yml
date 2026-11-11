@@ -65,6 +65,15 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install "./nfv-plugin[inference]" ./nfv-plugin/workflow
+      - name: Require healthy GitHub Actions before spending inference credits
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 2 --max-time 30 \
+            https://www.githubstatus.com/api/v2/summary.json \
+            --output "$RUNNER_TEMP/nfv-github-status.json"
+          jq -e '[.components[] | select(.name == "Actions") | .status] == ["operational"]' \
+            "$RUNNER_TEMP/nfv-github-status.json" ||
+            { echo "::error::GitHub Actions health is unavailable or not operational; no inference started"; exit 1; }
       - name: Validate Discussion publication before any inference
         env:
           GH_TOKEN: ${{ github.token }}
@@ -138,17 +147,25 @@ jobs:
           name: nfv-bench-inputs-${{ needs.prepare.outputs.sweep_id }}
           path: prepared
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
         with:
           pattern: nfv-bench-evidence-${{ needs.prepare.outputs.sweep_id }}-*
           path: evidence
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: "*-agent"
+          path: agent-backups
+          merge-multiple: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
         with:
           pattern: "*-usage"
           path: usage
       - name: Revalidate proof evidence and score against the hidden labels
         env:
           WORKERS_SUCCEEDED: ${{ needs.evaluate.result == 'success' }}
-        run: python -m nfv_workflow.benchmark summarize --prepared prepared --evidence evidence --out statistics --workers-succeeded "$WORKERS_SUCCEEDED" --usage usage
+        run: python -m nfv_workflow.benchmark summarize --prepared prepared --evidence evidence --fallback agent-backups --out statistics --workers-succeeded "$WORKERS_SUCCEEDED" --usage usage
       - name: Publish one deterministic statistics Discussion per run
         env:
           GH_TOKEN: ${{ github.token }}
@@ -157,10 +174,23 @@ jobs:
       - name: Keep partial sweeps visibly unsuccessful
         run: python -c "import json; from pathlib import Path; s=json.loads(Path('statistics/summary.json').read_text()); raise SystemExit(0 if s['completed'] else 'Partial benchmark sweep; inspect saved statistics and worker failures')"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: retain_statistics
         if: always()
+        continue-on-error: true
+        timeout-minutes: 5
         with:
           name: nfv-bench-statistics-${{ needs.prepare.outputs.sweep_id }}
           path: statistics
           overwrite: true
           retention-days: 30
           if-no-files-found: warn
+      - name: Retry statistics upload without rerunning inference
+        if: always() && steps.retain_statistics.outcome == 'failure'
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nfv-bench-statistics-${{ needs.prepare.outputs.sweep_id }}
+          path: statistics
+          overwrite: true
+          retention-days: 30
+          if-no-files-found: error

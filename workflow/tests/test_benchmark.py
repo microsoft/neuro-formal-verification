@@ -155,6 +155,14 @@ class BenchmarkTests(unittest.TestCase):
                                      verifier))
         return case, report, verifier
 
+    def backup_shard(self, shard, keep_primary=False):
+        primary = self.write_shard(shard)
+        backup = self.directory / "agent-backups" / f"{shard:08x}-agent" / "sandbox/agent/logs/nfv-bench"
+        shutil.copytree(primary, backup)
+        if not keep_primary:
+            shutil.rmtree(primary)
+        return backup
+
     def test_all_206_inputs_are_blinded_and_bound_to_whole_assertions(self):
         self.assertEqual(len(self.inputs), 206)
         self.assertEqual(self.run_info["limits"], asdict(replace(Limits(), minimize_assumptions=False)))
@@ -507,6 +515,131 @@ class BenchmarkTests(unittest.TestCase):
             with self.subTest(mutate=mutate), self.assertRaises(Abstain):
                 benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
 
+    def test_backup_checkpoints_recover_all_206_without_inference(self):
+        for shard in range(26):
+            self.backup_shard(shard)
+        with patch.object(benchmark, "audit") as audit:
+            summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                          fallback=self.directory / "agent-backups")
+        audit.assert_not_called()
+        self.assertTrue(summary["completed"])
+        self.assertEqual(summary["evaluated"], 206)
+        self.assertEqual(summary["not_evaluated"], 0)
+        self.assertEqual(summary["recovered_shards"], list(range(26)))
+        self.assertIn("26 shard checkpoints", benchmark.render(summary))
+        interrupted = benchmark.summarize(self.prepared, self.evidence, self.directory / "interrupted",
+                                         workers_succeeded=False, fallback=self.directory / "agent-backups")
+        self.assertFalse(interrupted["completed"])
+        self.assertEqual(interrupted["evaluated"], 206)
+        self.assertIn("handoff", interrupted["errors"][0])
+
+    def test_identical_primary_and_backup_are_not_counted_twice(self):
+        backup = self.backup_shard(0, keep_primary=True)
+        primary = self.evidence / "shard-0"
+        key = cli.load(primary / "results.json")["rows"][0]["id"]
+        for directory in (primary, backup):
+            cli.save(directory / key / "model-transcript.json", [{"api_calls": 2}])
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                      fallback=self.directory / "agent-backups")
+        self.assertEqual(summary["evaluated"], 8)
+        self.assertEqual(summary["recorded_responses"], 1)
+        self.assertEqual(summary["recorded_usage"]["api_calls"], 2)
+        self.assertNotIn("recovered_shards", summary)
+
+    def test_conflicting_primary_and_backup_fail_scoring(self):
+        backup = self.backup_shard(0, keep_primary=True)
+        path = backup / "results.json"
+        result = cli.load(path)
+        result["rows"][0]["elapsed_seconds"] = 2
+        cli.save(path, result)
+        with self.assertRaisesRegex(Abstain, "Conflicting"):
+            benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                fallback=self.directory / "agent-backups")
+
+    def test_matching_checkpoints_do_not_hide_changed_backup_audit(self):
+        backup = self.backup_shard(0, keep_primary=True)
+        key = cli.load(backup / "results.json")["rows"][0]["id"]
+        path = backup / key / "report.json"
+        report = cli.load(path)
+        report["failures"][0]["diagnostic"] = "changed"
+        cli.save(path, report)
+        with self.assertRaisesRegex(Abstain, "Conflicting"):
+            benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                fallback=self.directory / "agent-backups")
+
+    def test_foreign_backup_is_rejected_even_with_a_valid_primary(self):
+        backup = self.backup_shard(0, keep_primary=True)
+        path = backup / "results.json"
+        result = cli.load(path)
+        result["run"]["model"] = "foreign-model"
+        cli.save(path, result)
+        with self.assertRaisesRegex(Abstain, "Foreign"):
+            benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                fallback=self.directory / "agent-backups")
+
+    def test_backup_inputs_budgets_and_proofs_still_require_native_acceptance(self):
+        backup = self.backup_shard(0)
+        result_path = backup / "results.json"
+        result = cli.load(result_path)
+        key = result["rows"][0]["id"]
+        input_path, report_path = backup / key / "input.json", backup / key / "report.json"
+        original_input, original_report = cli.load(input_path), cli.load(report_path)
+        for field in ("input", "budget", "proof"):
+            value, report = copy.deepcopy(original_input), copy.deepcopy(original_report)
+            changed_result = copy.deepcopy(result)
+            if field == "input":
+                value["properties"][0]["property"] = "assert True"
+            elif field == "budget":
+                report["limits"]["proof_rounds"] = 0
+            else:
+                report["properties"][0]["status"] = VERIFIED
+                changed_result["rows"][0].update(status=VERIFIED, prediction="correct")
+            cli.save(input_path, value)
+            cli.save(report_path, report)
+            cli.save(result_path, changed_result)
+            with self.subTest(field=field), self.assertRaises(Abstain):
+                benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                    fallback=self.directory / "agent-backups")
+
+    def test_incomplete_backup_stays_partial_and_missing_entries_are_not_invented(self):
+        backup = self.backup_shard(0)
+        result = cli.load(backup / "results.json")
+        result["completed"] = False
+        result["rows"].pop()
+        cli.save(backup / "results.json", result)
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                      fallback=self.directory / "agent-backups")
+        self.assertFalse(summary["completed"])
+        self.assertEqual(summary["evaluated"], 7)
+        self.assertEqual(summary["not_evaluated"], 199)
+        self.assertIn("Shard 0 is incomplete", summary["errors"])
+
+    def test_duplicate_backups_and_primary_checkpoints_are_rejected(self):
+        backup = self.backup_shard(0)
+        duplicate = self.directory / "agent-backups" / "duplicate-agent" / "sandbox/agent/logs/nfv-bench"
+        shutil.copytree(backup, duplicate)
+        with self.assertRaisesRegex(Abstain, "Duplicate"):
+            benchmark.summarize(self.prepared, self.evidence, self.directory / "stats",
+                                fallback=self.directory / "agent-backups")
+        primary = self.write_shard(0)
+        shutil.copytree(primary, self.evidence / "duplicate")
+        with self.assertRaisesRegex(Abstain, "duplicate"):
+            benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+
+    def test_missing_backups_stay_partial_and_cli_wires_fallback(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "empty",
+                                      fallback=self.directory / "absent")
+        self.assertFalse(summary["completed"])
+        self.assertEqual(summary["evaluated"], 0)
+        self.backup_shard(0)
+        with redirect_stdout(io.StringIO()):
+            status = benchmark.main(["summarize", "--prepared", str(self.prepared),
+                                     "--evidence", str(self.evidence), "--fallback",
+                                     str(self.directory / "agent-backups"), "--out",
+                                     str(self.directory / "cli")])
+        self.assertEqual(status, 0)
+        self.assertEqual(cli.load(self.directory / "cli/summary.json")["evaluated"], 8)
+
     def test_unreported_usage_is_unavailable_not_zero(self):
         directory = self.write_shard(0)
         key = cli.load(directory / "results.json")["rows"][0]["id"]
@@ -663,6 +796,14 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn('--entries "$NFV_BENCH_ENTRIES"', coordinator)
         self.assertIn('pattern: "*-usage"', coordinator)
         self.assertIn("--usage usage", coordinator)
+        self.assertIn('--fallback agent-backups', coordinator)
+        self.assertIn('pattern: "*-agent"', coordinator)
+        self.assertIn("merge-multiple: false", coordinator)
+        self.assertIn('https://www.githubstatus.com/api/v2/summary.json', coordinator)
+        self.assertIn('[.components[] | select(.name == "Actions") | .status] == ["operational"]', coordinator)
+        self.assertLess(coordinator.index("Require healthy GitHub Actions"),
+                        coordinator.index("Prepare label-blinded cases"))
+        self.assertIn("steps.retain_statistics.outcome == 'failure'", coordinator)
         self.assertNotIn("pull_request", coordinator)
         self.assertIn("copilot-requests: none", coordinator)
         self.assertIn("discussions: write", coordinator)
@@ -674,7 +815,14 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("copilot-requests: none", worker)
         self.assertNotIn("discussions: write", worker)
         self.assertIn("benchmark-checkpoint:", worker)
+        self.assertIn("continue-on-error: true", worker)
+        self.assertEqual(worker.count("timeout-minutes: 5"), 2)
+        self.assertIn("steps.retain_benchmark_evidence.outcome == 'failure'", worker)
+        self.assertIn('$(dirname "$GH_AW_AGENT_OUTPUT")/sandbox/agent/logs/nfv-bench/results.json', worker)
+        self.assertIn(".run.sweep_id == $sweep and .shard == $shard", worker)
         compiled = (ROOT / ".github/workflows/nfv-micro-bench-worker.lock.yml").read_text(encoding="utf-8")
+        self.assertIn("Retry benchmark evidence upload without rerunning inference", compiled)
+        self.assertIn("id: retain_benchmark_evidence", compiled)
         agent = compiled.split("\n  agent:", 1)[1]
         group = next(line.strip() for line in agent.splitlines() if line.strip().startswith("group:"))
         self.assertEqual(group, 'group: "nfv-bench-inference-${{ inputs.sweep_id }}-${{ inputs.shard }}"')
