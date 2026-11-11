@@ -12,8 +12,7 @@ This repository contains two components:
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
 - **Formal Code Audit (prototype implementation):** a PR
-  reviewer based on GitHub Agentic Workflow that selects nontrivial properties, tries verification first, then
-  refutation with Dafny, and
+  reviewer based on GitHub Agentic Workflow that applies NFV on nontrivial properties and
   comments the result. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
