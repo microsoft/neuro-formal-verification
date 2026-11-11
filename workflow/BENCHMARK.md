@@ -53,7 +53,7 @@ estimate. Scheduled runs always evaluate all 206 entries.
 Adding these files does not enable the flag, change secrets or start inference.
 
 The coordinator uses 26 reusable agentic-worker shards of at most eight entries,
-with at most eight active workers. Each worker has a six-hour job timeout and
+with at most ten active workers. Each worker has a six-hour job timeout and
 uses the PR reviewer's existing budgets. Preparation rejects budgets that cannot
 fit the worker deadline. Calls and repairs are bounded, but a full sweep may
 consume substantial personal credits; there is no monetary-credit cap.

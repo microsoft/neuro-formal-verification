@@ -525,7 +525,7 @@ class BenchmarkTests(unittest.TestCase):
         documentation = (ROOT / "workflow/BENCHMARK.md").read_text(encoding="utf-8")
         self.assertIn(f"**{int(cron[2]):02}:{int(cron[1]):02} UTC daily**", documentation)
         self.assertIn("vars.NFV_BENCH_ENABLED == 'true'", coordinator)
-        self.assertIn("max-parallel: 8", coordinator)
+        self.assertIn("max-parallel: 10", coordinator)
         self.assertIn("fail-fast: false", coordinator)
         self.assertIn("fromJSON(needs.prepare.outputs.matrix)", coordinator)
         self.assertIn('commits/dev', coordinator)
