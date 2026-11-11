@@ -68,7 +68,7 @@ class PublicationAPI:
         self.mutations.append((query, variables))
         if "createDiscussion" in query:
             self.discussions.append({"id": "discussion-id", "body": variables["body"],
-                                     "author": {"login": "github-actions[bot]"}})
+                                     "author": {"login": "github-actions[bot]", "__typename": "Bot"}})
             return {"createDiscussion": {"discussion": {"url": "https://github.com/owner/nfv/discussions/1"}}}
         return {"updateDiscussion": {"discussion": {"url": "https://github.com/owner/nfv/discussions/1"}}}
 
@@ -519,6 +519,18 @@ class BenchmarkTests(unittest.TestCase):
         credits = benchmark.credit_usage(self.directory / "absent", 26)
         self.assertIsNone(credits["total"])
 
+    def test_existing_empty_ledger_records_no_requests_but_missing_file_is_unknown(self):
+        directory = self.write_credit_usage(detection=())
+        credits = benchmark.credit_usage(self.directory / "usage", 1)
+        self.assertTrue(credits["complete"])
+        self.assertEqual(credits["threat_detection"], 0)
+        self.assertEqual(credits["total"], 3.75)
+        (directory / "detection" / "token_usage.jsonl").unlink()
+        credits = benchmark.credit_usage(self.directory / "usage", 1)
+        self.assertFalse(credits["complete"])
+        self.assertIsNone(credits["threat_detection"])
+        self.assertIsNone(credits["total"])
+
     def test_duplicate_and_invalid_credit_records_fail_explicitly(self):
         for value in (-1, True, "2", float("nan"), float("inf")):
             self.write_credit_usage(inference=(value,))
@@ -558,6 +570,7 @@ class BenchmarkTests(unittest.TestCase):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
         api = PublicationAPI()
         first = benchmark.publish(summary, api, REPO, "General")
+        api.discussions[0]["author"]["login"] = "github-actions"
         second = benchmark.publish(summary, api, REPO, "General")
         self.assertEqual(first, second)
         self.assertEqual(len(api.discussions), 1)
@@ -579,6 +592,10 @@ class BenchmarkTests(unittest.TestCase):
         api = PublicationAPI()
         api.discussions = [{"id": "human-id", "body": benchmark.render(summary),
                             "author": {"login": "human"}}]
+        with self.assertRaises(Abstain):
+            benchmark.publish(summary, api, REPO, "General")
+        self.assertFalse(api.mutations)
+        api.discussions[0]["author"] = {"login": "github-actions", "__typename": "User"}
         with self.assertRaises(Abstain):
             benchmark.publish(summary, api, REPO, "General")
         self.assertFalse(api.mutations)

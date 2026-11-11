@@ -274,8 +274,6 @@ def credit_usage(directory, shards):
             if path.stat().st_size > 12_000_000:
                 raise Abstain("Credit-accounting ledger exceeds 12 MB")
             lines = path.read_text(encoding="utf-8").splitlines()
-            if not lines:
-                complete[kind] = False
             for line in lines:
                 record = json.loads(line)
                 key = record.get("request_id")
@@ -474,7 +472,7 @@ def publish(summary, api, repo, category):
           query($owner:String!,$name:String!,$cursor:String){
             repository(owner:$owner,name:$name){
               discussions(first:100,after:$cursor,orderBy:{field:UPDATED_AT,direction:DESC}){
-                nodes{id body author{login} }
+                nodes{id body author{login __typename} }
                 pageInfo{hasNextPage endCursor}
               }
             }
@@ -489,7 +487,9 @@ def publish(summary, api, repo, category):
     title = ("[PARTIAL] " if not summary["completed"] else "") + (
         f"NFV {kind}: {summary['run']['started_at'][:10]} (run {summary['run']['run_id']})")
     if existing:
-        if (existing.get("author") or {}).get("login") != "github-actions[bot]":
+        author = existing.get("author") or {}
+        if (author.get("__typename") != "Bot"
+                or author.get("login") not in ("github-actions", "github-actions[bot]")):
             raise Abstain("Benchmark marker belongs to a non-Actions author; refusing to overwrite")
         return api.graphql("""
           mutation($id:ID!,$title:String!,$body:String!){
