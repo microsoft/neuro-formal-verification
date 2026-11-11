@@ -84,8 +84,11 @@ class Limits:
     verifier_timeout: int = 60
     model_timeout: int = 240
     entry_seconds: int = 1800
+    minimize_assumptions: bool = True
 
     def __post_init__(self):
+        if type(self.minimize_assumptions) is not bool:
+            raise ValueError("Assumption minimization must be a boolean")
         if not 0 <= self.syntax_rounds <= 20 or not 0 <= self.proof_rounds <= 30:
             raise ValueError("Repair limits must be syntax 0..20 and proof 0..30")
         if min(self.verifier_timeout, self.model_timeout, self.entry_seconds) <= 0:
@@ -410,7 +413,7 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
         raise Abstain("No feasible returning input was established for the counterexample")
     minimization = []
     for index, condition in enumerate(translation["assumptions"]):
-        if not condition["optional"]:
+        if not limits.minimize_assumptions or not condition["optional"]:
             continue
         budget()
         trial = remove_requirement(current, translation["entry_point"], condition["clause"])
