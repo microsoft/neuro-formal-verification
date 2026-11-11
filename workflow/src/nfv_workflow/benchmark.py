@@ -257,7 +257,58 @@ def worker(payload_path, output):
     return result
 
 
-def summarize(prepared, evidence, output, workers_succeeded=True):
+def credit_usage(directory, shards):
+    """Sum per-response proxy credits, never cumulative counters or cache snapshots."""
+    artifacts = sorted(path for path in Path(directory).glob("*-usage") if path.is_dir())
+    if len(artifacts) > shards:
+        raise Abstain("Too many benchmark credit-accounting artifacts")
+    values = {"inference": [], "threat_detection": []}
+    complete = dict.fromkeys(values, len(artifacts) == shards)
+    seen = set()
+    for artifact in artifacts:
+        for kind, stage in (("inference", "agent"), ("threat_detection", "detection")):
+            path = artifact / stage / "token_usage.jsonl"
+            if not path.is_file():
+                complete[kind] = False
+                continue
+            if path.stat().st_size > 12_000_000:
+                raise Abstain("Credit-accounting ledger exceeds 12 MB")
+            lines = path.read_text(encoding="utf-8").splitlines()
+            if not lines:
+                complete[kind] = False
+            for line in lines:
+                record = json.loads(line)
+                key = record.get("request_id")
+                if record.get("event") != "token_usage" or not isinstance(key, str) or not key or key in seen:
+                    raise Abstain("Unknown or duplicate credit-accounting request")
+                seen.add(key)
+                value = record.get("ai_credits_this_response")
+                if value is None:
+                    complete[kind] = False
+                elif type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                    raise Abstain("Invalid recorded AI-credit value")
+                else:
+                    values[kind].append(value)
+    subtotals = {kind: math.fsum(amounts) for kind, amounts in values.items()}
+    return {"source": "gh-aw per-response proxy usage ledgers",
+            "shards_observed": len(artifacts), "shards_expected": shards,
+            "complete": all(complete.values()),
+            **{kind: subtotals[kind] if complete[kind] else None for kind in values},
+            "total": math.fsum(subtotals.values()) if all(complete.values()) else None,
+            "recorded_subtotal": math.fsum(subtotals.values())}
+
+
+def account(summary_path, usage, output):
+    summary = load(summary_path)
+    updated = {**summary, "ai_credits": credit_usage(usage, summary["run"]["shards"])}
+    save(Path(output) / "summary.json", updated)
+    save(Path(output) / "accounting-source.json",
+         {"run": summary["run"], "summary_sha256": hashlib.sha256(Path(summary_path).read_bytes()).hexdigest()})
+    (Path(output) / "report.md").write_text(render(updated), encoding="utf-8", newline="\n")
+    return updated
+
+
+def summarize(prepared, evidence, output, workers_succeeded=True, usage_directory=None):
     manifest, inputs = prepared_cases(prepared)
     run = manifest["run"]
     total, shards = run["total"], run["shards"]
@@ -331,6 +382,8 @@ def summarize(prepared, evidence, output, workers_succeeded=True):
                                   for field, value in usage.items()} if responses else None,
                "recorded_responses": responses,
                "errors": errors, "rows": list(rows.values())}
+    if usage_directory is not None:
+        summary["ai_credits"] = credit_usage(usage_directory, run["shards"])
     output = Path(output)
     save(output / "summary.json", summary)
     (output / "report.md").write_text(render(summary), encoding="utf-8", newline="\n")
@@ -366,6 +419,20 @@ def render(summary):
               "Ground-truth labels are the original benchmark labels; disagreements require triage.", ""]
     if total == 5:
         lines += ["Five-entry pilot only; this is not a full-dataset accuracy estimate.", ""]
+    credits = summary.get("ai_credits")
+    if credits is not None:
+        def amount(value):
+            return "unavailable" if value is None else f"{value:.5f}"
+
+        lines += ["**Recorded AI credits (AIC; not an invoice):** "
+                  f"total={amount(credits['total'])}; "
+                  f"benchmark inference={amount(credits['inference'])}; "
+                  f"threat detection={amount(credits['threat_detection'])}.",
+                  "Source: gh-aw per-response proxy usage ledgers; cumulative counters and usage-cache snapshots are not summed.", ""]
+        if not credits["complete"]:
+            lines += [f"**Incomplete credit accounting:** {credits['shards_observed']}/{credits['shards_expected']} "
+                      f"shard artifacts; recorded subtotal={amount(credits['recorded_subtotal'])} AIC. "
+                      "Missing credits are unavailable, not zero.", ""]
     if summary["abstention_reasons"]:
         lines += ["| Abstention reason | Entries |", "|---|---:|"]
         lines += [f"| {text(reason)} | {count} |" for reason, count in sorted(summary["abstention_reasons"].items())]
@@ -452,6 +519,10 @@ def main(argv=None):
     for flag in ("prepared", "evidence", "out"):
         p.add_argument("--" + flag, required=True)
     p.add_argument("--workers-succeeded", choices=("true", "false"), default="true")
+    p.add_argument("--usage")
+    p = commands.add_parser("account")
+    for flag in ("summary", "usage", "out"):
+        p.add_argument("--" + flag, required=True)
     for name in ("check-publication", "publish"):
         p = commands.add_parser(name)
         p.add_argument("--repository", required=True)
@@ -474,8 +545,12 @@ def main(argv=None):
         elif args.command == "worker":
             worker(args.payload, args.out)
         elif args.command == "summarize":
-            summary = summarize(args.prepared, args.evidence, args.out, args.workers_succeeded == "true")
+            summary = summarize(args.prepared, args.evidence, args.out,
+                                args.workers_succeeded == "true", args.usage)
             print(json.dumps({key: value for key, value in summary.items() if key != "rows"}))
+        elif args.command == "account":
+            summary = account(args.summary, args.usage, args.out)
+            print(json.dumps(summary["ai_credits"]))
         elif args.command == "check-publication":
             publication_target(GitHub(), args.repository, args.category)
         elif args.command == "publish":

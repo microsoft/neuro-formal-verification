@@ -76,6 +76,20 @@ inputs and run identity before calculating:
 - Accuracy among decisive predictions, or **N/A** when none are decisive.
 - Label-by-prediction counts, abstention reasons, timestamps and recorded usage.
 
+Reports include **AI credits (AIC)**, separating benchmark inference from the
+workflow's threat detection and showing their combined total. Accounting sums
+`ai_credits_this_response` from each shard's gh-aw proxy usage ledgers, including
+failed attempts; it never sums cumulative counters or usage-cache snapshots.
+Missing ledgers or credit fields are explicitly unavailable, not zero. These
+are recorded workflow credits, not an invoice.
+
+For a completed run already published by an older revision, the maintainer-only
+`python -m nfv_workflow.benchmark account --summary <saved-summary.json>
+--usage <downloaded-usage-artifacts> --out <accounting-directory>` command
+regenerates its report with AIC, without inference or changing its saved
+predictions, acceptance or completion status. It also retains the original
+summary's hash for provenance; this is not semantic proof or authentication.
+
 Unevaluated entries remain visible in the denominator, separately identified as
 not evaluated. Interrupted sweeps publish explicitly **PARTIAL** statistics and
 remain unsuccessful in Actions. Malformed or mismatched evidence fails scoring

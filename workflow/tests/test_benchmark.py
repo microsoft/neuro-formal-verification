@@ -480,6 +480,80 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIsNone(summary["recorded_usage"]["nano_aiu"])
         self.assertIn("nano_aiu=unavailable", benchmark.render(summary))
 
+    def write_credit_usage(self, shard=0, inference=(1.25, 2.5), detection=(0.5,)):
+        directory = self.directory / "usage" / f"{shard:08x}-usage"
+        for stage, values in (("agent", inference), ("detection", detection)):
+            path = directory / stage / "token_usage.jsonl"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("".join(json.dumps({
+                "event": "token_usage", "request_id": f"{shard}-{stage}-{index}",
+                "ai_credits_this_response": value, "ai_credits_total": 999999,
+            }) + "\n" for index, value in enumerate(values)), encoding="utf-8")
+        return directory
+
+    def test_credit_accounting_sums_unique_responses_not_cumulative_or_cache_values(self):
+        self.write_credit_usage()
+        cli.save(self.directory / "usage" / "aic-usage-cache" / "cache.json", {"aic": 999999})
+        credits = benchmark.credit_usage(self.directory / "usage", 1)
+        self.assertTrue(credits["complete"])
+        self.assertEqual(credits["inference"], 3.75)
+        self.assertEqual(credits["threat_detection"], 0.5)
+        self.assertEqual(credits["total"], 4.25)
+        self.write_credit_usage(1, (10,), (2,))
+        self.assertEqual(benchmark.credit_usage(self.directory / "usage", 2)["total"], 16.25)
+        with self.assertRaises(Abstain):
+            benchmark.credit_usage(self.directory / "usage", 1)
+
+    def test_missing_credit_fields_and_shards_are_unavailable_not_zero(self):
+        self.write_credit_usage(inference=(None,))
+        credits = benchmark.credit_usage(self.directory / "usage", 1)
+        self.assertFalse(credits["complete"])
+        self.assertIsNone(credits["inference"])
+        self.assertIsNone(credits["total"])
+        self.assertEqual(credits["threat_detection"], 0.5)
+        self.assertEqual(credits["recorded_subtotal"], 0.5)
+        credits = benchmark.credit_usage(self.directory / "usage", 26)
+        self.assertFalse(credits["complete"])
+        self.assertIsNone(credits["threat_detection"])
+        self.assertEqual(credits["shards_observed"], 1)
+        credits = benchmark.credit_usage(self.directory / "absent", 26)
+        self.assertIsNone(credits["total"])
+
+    def test_duplicate_and_invalid_credit_records_fail_explicitly(self):
+        for value in (-1, True, "2", float("nan"), float("inf")):
+            self.write_credit_usage(inference=(value,))
+            with self.subTest(value=value), self.assertRaises(Abstain):
+                benchmark.credit_usage(self.directory / "usage", 1)
+        directory = self.write_credit_usage()
+        shutil.copytree(directory, directory.with_name("ffffffff-usage"))
+        with self.assertRaisesRegex(Abstain, "duplicate"):
+            benchmark.credit_usage(self.directory / "usage", 2)
+
+    def test_accounting_refresh_preserves_partial_verdicts_and_original_summary(self):
+        original = benchmark.summarize(self.prepared, self.evidence, self.directory / "original")
+        path = self.directory / "original" / "summary.json"
+        original_bytes = path.read_bytes()
+        for shard in range(26):
+            self.write_credit_usage(shard)
+        with redirect_stdout(io.StringIO()):
+            status = benchmark.main(["account", "--summary", str(path),
+                                     "--usage", str(self.directory / "usage"),
+                                     "--out", str(self.directory / "accounted")])
+        self.assertEqual(status, 0)
+        updated = cli.load(self.directory / "accounted" / "summary.json")
+        self.assertEqual({key: value for key, value in updated.items() if key != "ai_credits"}, original)
+        self.assertEqual(path.read_bytes(), original_bytes)
+        self.assertEqual(updated["ai_credits"]["total"], 110.5)
+        rendered = (self.directory / "accounted" / "report.md").read_text(encoding="utf-8")
+        self.assertIn("PARTIAL sweep", rendered)
+        self.assertIn("Recorded AI credits (AIC; not an invoice)", rendered)
+        self.assertIn("total=110.50000", rendered)
+        provenance = cli.load(self.directory / "accounted" / "accounting-source.json")
+        self.assertEqual(provenance["summary_sha256"], hashlib.sha256(original_bytes).hexdigest())
+        updated["ai_credits"]["complete"] = False
+        updated["ai_credits"]["total"] = None
+        self.assertIn("Missing credits are unavailable, not zero", benchmark.render(updated))
+
     def test_publication_retry_updates_one_run_discussion(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
         api = PublicationAPI()
@@ -534,6 +608,8 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("options: [\"206\", \"5\"]", coordinator)
         self.assertIn("inputs.entries || '206'", coordinator)
         self.assertIn('--entries "$NFV_BENCH_ENTRIES"', coordinator)
+        self.assertIn('pattern: "*-usage"', coordinator)
+        self.assertIn("--usage usage", coordinator)
         self.assertNotIn("pull_request", coordinator)
         self.assertIn("copilot-requests: none", coordinator)
         self.assertIn("discussions: write", coordinator)
