@@ -24,9 +24,11 @@ extraction; it does not reproduce the paper pipeline.
 
 The workflows belong in this NFV repository or its maintained NFV fork, **not in
 client repositories**. They must be merged to the host's actual default branch
-for cron to run. The coordinator resolves trusted `dev` once per sweep and records
-that immutable SHA, the existing PR-review `NFV_MODEL`, repair/time budgets and
-dataset checksum. There is no separate benchmark model or billing fallback.
+for cron to run. Scheduled runs resolve trusted `dev` once per sweep. Manual runs
+use the selected workflow revision, allowing reviewed maintainer branches to be
+tested before merge. Each run records that immutable SHA, the existing PR-review
+`NFV_MODEL`, repair/time budgets and dataset checksum. There is no separate
+benchmark model or billing fallback.
 
 Use the existing `COPILOT_GITHUB_TOKEN` personal-credit PAT and
 `NFV_RELEASE_TOKEN` with read access to the private NFV source. Enable Discussions
@@ -37,7 +39,17 @@ Discussion category or oversized time limits fail preflight before model calls.
 
 Set **`NFV_BENCH_ENABLED=true`** to opt in after review and configuration.
 Without that flag, scheduled and manual coordinator runs do not start a sweep.
-The schedule is **08:17 UTC daily**; manual dispatch runs the same full dataset.
+The schedule is **08:17 UTC daily**. Manual dispatch defaults to the full dataset,
+or accepts `entries=5` for a single-shard, five-entry pilot:
+
+```
+gh workflow run nfv-micro-bench.yml --ref dev -f entries=5 --repo OWNER/REPO
+```
+
+The pilot randomly samples five blinded entries from the same frozen dataset,
+uses the same model and budgets, and publishes explicitly labeled pilot
+statistics with a denominator of five. It is not a full-dataset accuracy
+estimate. Scheduled runs always evaluate all 206 entries.
 Adding these files does not enable the flag, change secrets or start inference.
 
 The coordinator uses 26 reusable agentic-worker shards of at most eight entries,

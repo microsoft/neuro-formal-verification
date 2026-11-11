@@ -10,6 +10,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import unittest
 import uuid
@@ -179,6 +180,101 @@ class BenchmarkTests(unittest.TestCase):
             benchmark.prepare(self.dataset, self.directory / "fresh", RELEASE, "test-model", REPO, 1, 1)
         shuffle.assert_called_once()
         self.assertEqual(len(shuffle.call_args.args[0]), 206)
+
+    def test_five_entry_pilot_runs_exactly_five_cases_in_one_shard(self):
+        self.prepared = self.directory / "pilot"
+        self.run_info = benchmark.prepare(
+            self.dataset, self.prepared, RELEASE, "test-model", REPO, 123, 1, count=5)
+        manifest, inputs = benchmark.prepared_cases(self.prepared)
+        self.assertEqual((self.run_info["total"], self.run_info["shards"]), (5, 1))
+        self.assertEqual(len(manifest["cases"]), 5)
+        self.assertEqual(len(inputs), 5)
+        self.assertEqual(len(list((self.prepared / "shards").glob("*.json"))), 1)
+        self.assertNotIn('"label"', json.dumps(list(inputs.values())))
+        self.assertEqual(hashlib.sha256(self.dataset.read_bytes()).hexdigest(), self.dataset_hash)
+        payload = self.prepared / "shards/0.json"
+        output = self.evidence / "shard-0"
+
+        def fake_audit(path, limits, options, *, render_report):
+            case = cli.load(Path(path).parent / "input.json")
+            cli.save(Path(path).parent / "report.json", self.abstention_report(case))
+
+        with patch.dict(os.environ, self.environment, clear=True), \
+                patch.object(benchmark, "audit", side_effect=fake_audit) as audit, \
+                patch.object(sandbox, "submit"), redirect_stdout(io.StringIO()):
+            result = benchmark.worker(payload, output)
+        self.assertEqual(audit.call_count, 5)
+        self.assertTrue(result["completed"])
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        self.assertTrue(summary["completed"])
+        self.assertEqual((summary["evaluated"], summary["not_evaluated"]), (5, 0))
+        rendered = benchmark.render(summary)
+        self.assertIn("Complete five-entry pilot", rendered)
+        self.assertIn("Evaluated **5/5**", rendered)
+        self.assertNotIn("/206", rendered)
+        self.assertIn("not a full-dataset accuracy estimate", rendered)
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        self.assertIn("five-entry pilot", api.mutations[0][1]["title"])
+        with self.assertRaises(Abstain):
+            benchmark.select(self.prepared, 1, self.directory / "invalid.json",
+                             RELEASE, "test-model", "123-1")
+
+    def test_pilot_accuracy_and_missing_results_use_five_as_denominator(self):
+        self.prepared = self.directory / "pilot"
+        self.run_info = benchmark.prepare(
+            self.dataset, self.prepared, RELEASE, "test-model", REPO, 123, 1, count=5)
+        manifest, _ = benchmark.prepared_cases(self.prepared)
+        missing = benchmark.summarize(self.prepared, self.evidence, self.directory / "missing")
+        self.assertFalse(missing["completed"])
+        self.assertEqual(missing["not_evaluated"], 5)
+        self.assertEqual(len(missing["errors"]), 1)
+        predictions = {case["id"]: case["label"] if index < 3 else "abstain"
+                       for index, case in enumerate(manifest["cases"])}
+        self.write_shard(0, predictions)
+        with patch.object(benchmark, "prediction", side_effect=lambda report, case: predictions[case["id"]]):
+            summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        self.assertTrue(summary["completed"])
+        self.assertEqual(summary["accuracy"], 3 / 5)
+        self.assertEqual(summary["coverage"], 3 / 5)
+        self.assertEqual(summary["answered_accuracy"], 1)
+        self.assertIn("(3/5)", benchmark.render(summary))
+
+    def test_cli_preparation_defaults_to_full_sweep_and_emits_pilot_matrix(self):
+        for entries, total, shards in ((None, 206, 26), ("5", 5, 1)):
+            with self.subTest(entries=entries):
+                prepared = self.directory / f"prepared-{total}"
+                outputs = self.directory / f"outputs-{total}"
+                args = ["prepare", "--dataset", str(self.dataset), "--out", str(prepared),
+                        "--release-sha", RELEASE, "--model", "test-model", "--repository", REPO,
+                        "--run-id", "123", "--attempt", "1"]
+                if entries is not None:
+                    args += ["--entries", entries]
+                with patch.dict(os.environ, {"GITHUB_OUTPUT": str(outputs)}), \
+                        redirect_stdout(io.StringIO()):
+                    self.assertEqual(benchmark.main(args), 0)
+                manifest, _ = benchmark.prepared_cases(prepared)
+                self.assertEqual(manifest["run"]["total"], total)
+                emitted = dict(line.split("=", 1) for line in outputs.read_text().splitlines())
+                self.assertEqual(json.loads(emitted["matrix"]), {"shard": list(range(shards))})
+
+    def test_invalid_pilot_sizes_and_tampered_dimensions_are_rejected(self):
+        for count in (0, 1, 6, 205, 207, True, "5"):
+            with self.subTest(count=count), self.assertRaises(Abstain):
+                benchmark.prepare(self.dataset, self.directory / "invalid", RELEASE,
+                                  "test-model", REPO, 1, 1, count=count)
+        prepared = self.directory / "pilot"
+        benchmark.prepare(self.dataset, prepared, RELEASE, "test-model", REPO, 1, 1, count=5)
+        original = cli.load(prepared / "manifest.json")
+        for mutate in (lambda item: item["run"].update(shards=26),
+                       lambda item: item["run"].update(total=6),
+                       lambda item: item["cases"][0].update(label="unknown"),
+                       lambda item: item["cases"].append(copy.deepcopy(item["cases"][0]))):
+            manifest = copy.deepcopy(original)
+            mutate(manifest)
+            cli.save(prepared / "manifest.json", manifest)
+            with self.subTest(mutate=mutate), self.assertRaises(Abstain):
+                benchmark.prepared_cases(prepared)
 
     def test_invalid_configuration_fails_before_preparing_cases(self):
         for limits, model, release in ((Limits(entry_seconds=3600), "test-model", RELEASE),
@@ -424,12 +520,20 @@ class BenchmarkTests(unittest.TestCase):
     def test_standalone_templates_preserve_personal_billing_and_bound_shard_concurrency(self):
         coordinator = (ROOT / ".github/workflows/nfv-micro-bench.yml").read_text(encoding="utf-8")
         worker = (ROOT / ".github/workflows/nfv-micro-bench-worker.md").read_text(encoding="utf-8")
-        self.assertIn('cron: "17 8 * * *"', coordinator)
+        cron = re.search(r'cron: "(\d+) (\d+) \* \* \*"', coordinator)
+        self.assertIsNotNone(cron)
+        documentation = (ROOT / "workflow/BENCHMARK.md").read_text(encoding="utf-8")
+        self.assertIn(f"**{int(cron[2]):02}:{int(cron[1]):02} UTC daily**", documentation)
         self.assertIn("vars.NFV_BENCH_ENABLED == 'true'", coordinator)
         self.assertIn("max-parallel: 8", coordinator)
         self.assertIn("fail-fast: false", coordinator)
         self.assertIn("fromJSON(needs.prepare.outputs.matrix)", coordinator)
         self.assertIn('commits/dev', coordinator)
+        self.assertIn('release_sha="$WORKFLOW_SHA"', coordinator)
+        self.assertIn("WORKFLOW_SHA: ${{ github.sha }}", coordinator)
+        self.assertIn("options: [\"206\", \"5\"]", coordinator)
+        self.assertIn("inputs.entries || '206'", coordinator)
+        self.assertIn('--entries "$NFV_BENCH_ENTRIES"', coordinator)
         self.assertNotIn("pull_request", coordinator)
         self.assertIn("copilot-requests: none", coordinator)
         self.assertIn("discussions: write", coordinator)
