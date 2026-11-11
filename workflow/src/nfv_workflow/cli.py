@@ -190,7 +190,7 @@ def audit_limits(env=None):
         raise Abstain(str(exc)) from exc
 
 
-def audit(proposals_path, limits, followup_options=None):
+def audit(proposals_path, limits, followup_options=None, *, render_report=True):
     """Audit entry point: all inputs are fixed by trusted collection/extraction steps."""
     from .general import Limits
     from .publish import comment
@@ -212,6 +212,12 @@ def audit(proposals_path, limits, followup_options=None):
     report = asyncio.run(run_general(bundle, proposals, output, model, limits, **extra))
     if report["errors"] or report.get("completed") is not True:
         raise Abstain("NFV audit incomplete: " + "; ".join(report["errors"] or ["analysis interrupted"]))
+    summary = {"findings": len(report["findings"]), "verified": len(report.get("verified", [])),
+               "outcomes": {status: sum(item["status"] == status for item in report.get("properties", []))
+                            for status in ("refuted", "verified", "resources exhausted", "type-check/audit failure")},
+               "errors": report["errors"]}
+    if not render_report:
+        return summary
     presentation = None
     if report["findings"]:
         from .presentation import validate, validate_report
@@ -229,10 +235,6 @@ def audit(proposals_path, limits, followup_options=None):
             save(output / "presentation.json", presentation)
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
-    summary = {"findings": len(report["findings"]), "verified": len(report.get("verified", [])),
-               "outcomes": {status: sum(item["status"] == status for item in report.get("properties", []))
-                            for status in ("refuted", "verified", "resources exhausted", "type-check/audit failure")},
-               "errors": report["errors"]}
     (output / "comment.md").write_text(
         comment(report, bundle, evidence, len(proposals), presentation=presentation,
                 followups=optional_artifact(output / "report.json", "followups.json")), encoding="utf-8")
