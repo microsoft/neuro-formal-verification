@@ -11,7 +11,7 @@ This repository contains two components:
 - **Paper artifact:** nfv-micro-bench dataset, retained results, experiment scripts, and Dafny/CBMC backends.
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
-- **Formal Code Audit (prototype implementation):** a PR
+- **Formal Code Audit (research prototype):** a PR
   reviewer based on GitHub Agentic Workflow that applies NFV on nontrivial properties and
   comments the result. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
