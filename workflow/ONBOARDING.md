@@ -118,6 +118,29 @@ or execute inspected PR code, edit generated reports or expose secrets through
 See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
 for permissions, optional settings and installer options.
 
+## Optional public dashboard
+
+After installing a summary-capable release, a repository administrator can open
+a [Discussion](https://github.com/microsoft/neuro-formal-verification/discussions)
+with this exact title:
+
+```text
+NFV PR Audit onboarded on OWNER/repo
+```
+
+Only validated public repositories are listed on the
+[existing dashboard](https://shuvendu-lahiri.github.io/nfv_dashboard/registered/).
+While NFV is private, creating this Discussion requires access to NFV.
+Registration does not install or activate NFV, start an audit, or change billing.
+Organization registrations require a verifiable repository-admin permission;
+unverifiable requests remain unlisted until collector access is resolved.
+Close all matching registration Discussions to withdraw.
+
+The dashboard's [README](https://github.com/shuvendu-lahiri/nfv_dashboard#optional-public-repository-registration)
+describes nightly activation and collector-owned read access. No reporting secret
+or cross-repository write permission is needed in the audited repository.
+See [PRIVACY](../PRIVACY#optional-public-dashboard) before opting in.
+
 ## Upgrade an existing installation
 
 Ask the agent to upgrade; do not rerun the first-installation script against an
