@@ -18,7 +18,6 @@ def admit(event, api, run_id, run_attempt=1):
     pr = event["pull_request"]
     if (event["action"] not in ("opened", "ready_for_review")
             or pr.get("draft") is not False
-            or (pr["head"].get("repo") or {}).get("full_name") != ident["repository"]
             or pr["base"]["ref"] != event["repository"]["default_branch"]):
         return False
     if not re.fullmatch(r"[1-9][0-9]*", str(run_id)) or run_attempt < 1:

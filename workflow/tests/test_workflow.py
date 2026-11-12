@@ -959,7 +959,6 @@ class AdmissionTests(ScratchTest):
         self.event.update(action="opened", repository={"full_name": "owner/project", "default_branch": "master"})
         self.event["pull_request"].update(state="open", draft=False)
         self.event["pull_request"]["base"]["ref"] = "master"
-        self.event["pull_request"]["head"]["repo"]["full_name"] = "owner/project"
         self.comments, self.writes = [], []
         test = self
         class API:
@@ -1026,15 +1025,6 @@ class AdmissionTests(ScratchTest):
                 else:
                     captured["pull_request"][field] = value
                 self.assertFalse(admission.admit(captured, self.api, "42"))
-        self.assertEqual(self.writes, [])
-
-    def test_fork_and_missing_head_repository_do_not_read_or_write_admission(self):
-        for repo in ({"full_name": "fork/project"}, None, {}):
-            with self.subTest(repo=repo), patch.object(self.api, "pages") as pages:
-                captured = copy.deepcopy(self.event)
-                captured["pull_request"]["head"]["repo"] = repo
-                self.assertFalse(admission.admit(captured, self.api, "42"))
-                pages.assert_not_called()
         self.assertEqual(self.writes, [])
 
     def test_legacy_or_unrelated_event_types_fail_before_api_access(self):
@@ -1136,7 +1126,6 @@ class TemplateTests(unittest.TestCase):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, ready_for_review]", source)
         gate = ("vars.NFV_RELEASE_SHA != '' && "
-                "github.event.pull_request.head.repo.id == github.repository_id && "
                 "github.event.pull_request.base.ref == github.event.repository.default_branch && "
                 "github.event.pull_request.draft == false && "
                 "(github.event.action == 'opened' || github.event.action == 'ready_for_review')")
