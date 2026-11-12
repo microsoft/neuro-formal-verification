@@ -6,6 +6,12 @@ on:
   schedule:
     - cron: "17 8 * * *"
   workflow_dispatch:
+    inputs:
+      entries:
+        description: Entries to evaluate (5 is a pilot; scheduled runs always use 206)
+        type: choice
+        options: ["206", "5"]
+        default: "206"
 
 permissions:
   contents: read
@@ -35,12 +41,18 @@ jobs:
           GH_TOKEN: ${{ secrets.NFV_RELEASE_TOKEN }}
           HAS_INFERENCE_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN != '' }}
           NFV_MODEL: ${{ vars.NFV_MODEL }}
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN" || { echo "::error::NFV_RELEASE_TOKEN is required"; exit 1; }
           test "$HAS_INFERENCE_TOKEN" = true || { echo "::error::COPILOT_GITHUB_TOKEN is required; no organization-billing fallback"; exit 1; }
           test -n "$NFV_MODEL" || { echo "::error::Configure the PR-review NFV_MODEL"; exit 1; }
-          release_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/dev" --jq .sha)"
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            release_sha="$WORKFLOW_SHA"
+          else
+            release_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/dev" --jq .sha)"
+          fi
           [[ "$release_sha" =~ ^[0-9a-f]{40}$ ]]
           echo "release_sha=$release_sha" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,12 +65,21 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install "./nfv-plugin[inference]" ./nfv-plugin/workflow
+      - name: Require healthy GitHub Actions before spending inference credits
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 2 --max-time 30 \
+            https://www.githubstatus.com/api/v2/summary.json \
+            --output "$RUNNER_TEMP/nfv-github-status.json"
+          jq -e '[.components[] | select(.name == "Actions") | .status] == ["operational"]' \
+            "$RUNNER_TEMP/nfv-github-status.json" ||
+            { echo "::error::GitHub Actions health is unavailable or not operational; no inference started"; exit 1; }
       - name: Validate Discussion publication before any inference
         env:
           GH_TOKEN: ${{ github.token }}
           CATEGORY: ${{ vars.NFV_DISCUSSION_CATEGORY || 'General' }}
         run: python -m nfv_workflow.benchmark check-publication --repository "$GITHUB_REPOSITORY" --category "$CATEGORY"
-      - name: Prepare all 206 label-blinded cases and freeze run configuration
+      - name: Prepare label-blinded cases and freeze run configuration
         id: prepare
         env:
           NFV_RELEASE_SHA: ${{ steps.source.outputs.release_sha }}
@@ -67,11 +88,13 @@ jobs:
           NFV_PROOF_ROUNDS: ${{ vars.NFV_PROOF_ROUNDS }}
           NFV_VERIFIER_TIMEOUT: ${{ vars.NFV_VERIFIER_TIMEOUT }}
           NFV_PROPERTY_SECONDS: ${{ vars.NFV_PROPERTY_SECONDS }}
+          NFV_BENCH_ENTRIES: ${{ github.event_name == 'workflow_dispatch' && inputs.entries || '206' }}
         run: |
           python -m nfv_workflow.benchmark prepare \
             --dataset nfv-plugin/paper/data/nl2post_safe.json --out prepared \
             --release-sha "$NFV_RELEASE_SHA" --model "$NFV_MODEL" \
-            --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT"
+            --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --entries "$NFV_BENCH_ENTRIES"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nfv-bench-inputs-${{ steps.prepare.outputs.sweep_id }}
@@ -89,7 +112,7 @@ jobs:
       copilot-requests: none
     strategy:
       fail-fast: false
-      max-parallel: 8
+      max-parallel: 10
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     uses: ./.github/workflows/nfv-micro-bench-worker.lock.yml
     with:
@@ -124,13 +147,25 @@ jobs:
           name: nfv-bench-inputs-${{ needs.prepare.outputs.sweep_id }}
           path: prepared
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
         with:
           pattern: nfv-bench-evidence-${{ needs.prepare.outputs.sweep_id }}-*
           path: evidence
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: "*-agent"
+          path: agent-backups
+          merge-multiple: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        continue-on-error: true
+        with:
+          pattern: "*-usage"
+          path: usage
       - name: Revalidate proof evidence and score against the hidden labels
         env:
           WORKERS_SUCCEEDED: ${{ needs.evaluate.result == 'success' }}
-        run: python -m nfv_workflow.benchmark summarize --prepared prepared --evidence evidence --out statistics --workers-succeeded "$WORKERS_SUCCEEDED"
+        run: python -m nfv_workflow.benchmark summarize --prepared prepared --evidence evidence --fallback agent-backups --out statistics --workers-succeeded "$WORKERS_SUCCEEDED" --usage usage
       - name: Publish one deterministic statistics Discussion per run
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,10 +174,23 @@ jobs:
       - name: Keep partial sweeps visibly unsuccessful
         run: python -c "import json; from pathlib import Path; s=json.loads(Path('statistics/summary.json').read_text()); raise SystemExit(0 if s['completed'] else 'Partial benchmark sweep; inspect saved statistics and worker failures')"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: retain_statistics
         if: always()
+        continue-on-error: true
+        timeout-minutes: 5
         with:
           name: nfv-bench-statistics-${{ needs.prepare.outputs.sweep_id }}
           path: statistics
           overwrite: true
           retention-days: 30
           if-no-files-found: warn
+      - name: Retry statistics upload without rerunning inference
+        if: always() && steps.retain_statistics.outcome == 'failure'
+        timeout-minutes: 5
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nfv-bench-statistics-${{ needs.prepare.outputs.sweep_id }}
+          path: statistics
+          overwrite: true
+          retention-days: 30
+          if-no-files-found: error

@@ -14,6 +14,10 @@ For each supplied complete postcondition, an accepted verification proof predict
 repair, frozen-model, audit and input-domain checks remain mandatory. Benchmark
 source is parsed as text, never executed.
 
+Malformed generated Dafny annotations use the bounded proof-repair budget.
+Exhausting that budget abstains on the entry and allows the shard to continue;
+provider failures and verifier infrastructure errors still stop the worker.
+
 The runner calls the same `nfv-workflow audit` engine as PR review, without report
 presentation inference. Repository-context collection, optional-assumption
 minimization, shorter-property generation and model-checked fix generation are
@@ -24,9 +28,11 @@ extraction; it does not reproduce the paper pipeline.
 
 The workflows belong in this NFV repository or its maintained NFV fork, **not in
 client repositories**. They must be merged to the host's actual default branch
-for cron to run. The coordinator resolves trusted `dev` once per sweep and records
-that immutable SHA, the existing PR-review `NFV_MODEL`, repair/time budgets and
-dataset checksum. There is no separate benchmark model or billing fallback.
+for cron to run. Scheduled runs resolve trusted `dev` once per sweep. Manual runs
+use the selected workflow revision, allowing reviewed maintainer branches to be
+tested before merge. Each run records that immutable SHA, the existing PR-review
+`NFV_MODEL`, repair/time budgets and dataset checksum. There is no separate
+benchmark model or billing fallback.
 
 Use the existing `COPILOT_GITHUB_TOKEN` personal-credit PAT and
 `NFV_RELEASE_TOKEN` with read access to the private NFV source. Enable Discussions
@@ -37,14 +43,28 @@ Discussion category or oversized time limits fail preflight before model calls.
 
 Set **`NFV_BENCH_ENABLED=true`** to opt in after review and configuration.
 Without that flag, scheduled and manual coordinator runs do not start a sweep.
-The schedule is **08:17 UTC daily**; manual dispatch runs the same full dataset.
+The schedule is **08:17 UTC daily**. Manual dispatch defaults to the full dataset,
+or accepts `entries=5` for a single-shard, five-entry pilot:
+
+```
+gh workflow run nfv-micro-bench.yml --ref dev -f entries=5 --repo OWNER/REPO
+```
+
+The pilot randomly samples five blinded entries from the same frozen dataset,
+uses the same model and budgets, and publishes explicitly labeled pilot
+statistics with a denominator of five. It is not a full-dataset accuracy
+estimate. Scheduled runs always evaluate all 206 entries.
 Adding these files does not enable the flag, change secrets or start inference.
 
 The coordinator uses 26 reusable agentic-worker shards of at most eight entries,
-with at most eight active workers. Each worker has a six-hour job timeout and
+with at most ten active workers. Each worker has a six-hour job timeout and
 uses the PR reviewer's existing budgets. Preparation rejects budgets that cannot
 fit the worker deadline. Calls and repairs are bounded, but a full sweep may
 consume substantial personal credits; there is no monetary-credit cap.
+
+Preparation requires GitHub Actions to be reported operational by GitHub Status
+before starting inference. This avoids starting during a known outage, but
+cannot prevent a service failure later in the run.
 
 ## Results and publication
 
@@ -63,6 +83,29 @@ inputs and run identity before calculating:
 - Coverage: decisive predictions divided by **206**.
 - Accuracy among decisive predictions, or **N/A** when none are decisive.
 - Label-by-prediction counts, abstention reasons, timestamps and recorded usage.
+
+Dedicated evidence uploads have two attempts of at most five minutes each.
+The read-only checkpoint handoff and trusted publisher can also use the native
+checkpoint retained in the main agent artifact. Primary and backup copies
+must agree; recovered evidence passes the same input, budget and proof checks
+and is never counted twice. Reports identify recovered shards. Missing copies
+remain explicit failures; upload retries never rerun model inference.
+Statistics uploads also have one bounded retry. Missing usage artifacts leave
+AIC unavailable rather than blocking publication; malformed usage still fails.
+
+Reports include **AI credits (AIC)**, separating benchmark inference from the
+workflow's threat detection and showing their combined total. Accounting sums
+`ai_credits_this_response` from each shard's gh-aw proxy usage ledgers, including
+failed attempts; it never sums cumulative counters or usage-cache snapshots.
+Missing ledgers or credit fields are explicitly unavailable, not zero. These
+are recorded workflow credits, not an invoice.
+
+For a completed run already published by an older revision, the maintainer-only
+`python -m nfv_workflow.benchmark account --summary <saved-summary.json>
+--usage <downloaded-usage-artifacts> --out <accounting-directory>` command
+regenerates its report with AIC, without inference or changing its saved
+predictions, acceptance or completion status. It also retains the original
+summary's hash for provenance; this is not semantic proof or authentication.
 
 Unevaluated entries remain visible in the denominator, separately identified as
 not evaluated. Interrupted sweeps publish explicitly **PARTIAL** statistics and

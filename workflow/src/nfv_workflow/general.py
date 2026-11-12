@@ -74,7 +74,8 @@ class ToolFailure(RuntimeError):
 
 def require_tool(result):
     if result.get("outcome") == "tool_error":
-        raise ToolFailure("Dafny execution failed: " + str(result.get("stderr", ""))[:2000])
+        detail = result.get("stderr") or result.get("stdout") or f"exit code {result.get('exit_code')}"
+        raise ToolFailure("Dafny execution failed: " + str(detail)[:2000])
 
 
 @dataclass(frozen=True)

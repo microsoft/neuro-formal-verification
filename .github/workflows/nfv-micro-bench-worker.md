@@ -60,12 +60,28 @@ safe-outputs:
       permissions:
         actions: read
       steps:
-        - uses: actions/download-artifact@v8.0.1
+        - name: Download dedicated shard checkpoint
+          continue-on-error: true
+          uses: actions/download-artifact@v8.0.1
           with:
             name: nfv-bench-evidence-${{ inputs.sweep_id }}-${{ inputs.shard }}
             path: nfv-bench-checkpoint
         - name: Validate completed shard checkpoint
-          run: jq -e '.completed == true and (.errors | length) == 0 and (.rows | length) > 0' nfv-bench-checkpoint/results.json
+          env:
+            SWEEP: ${{ inputs.sweep_id }}
+            SHARD: ${{ inputs.shard }}
+          run: |
+            set -euo pipefail
+            checkpoint=nfv-bench-checkpoint/results.json
+            backup="$(dirname "$GH_AW_AGENT_OUTPUT")/sandbox/agent/logs/nfv-bench/results.json"
+            if [[ ! -f "$checkpoint" ]]; then
+              [[ -f "$backup" ]] || { echo "::error::Neither checkpoint copy is available"; exit 1; }
+              echo "::warning::Using the native checkpoint from the backup agent artifact"
+              checkpoint="$backup"
+            fi
+            jq -e --arg sweep "$SWEEP" --argjson shard "$SHARD" \
+              '.schema == 1 and .run.sweep_id == $sweep and .shard == $shard and
+               .completed == true and .errors == [] and (.rows | length) > 0' "$checkpoint"
 steps:
   - name: Validate frozen benchmark source pin
     env:
@@ -132,14 +148,28 @@ steps:
       } >> "$GITHUB_ENV"
 post-steps:
   - name: Retain completed or interrupted benchmark evidence
+    id: retain_benchmark_evidence
     if: always()
+    continue-on-error: true
+    timeout-minutes: 5
     uses: actions/upload-artifact@v7.0.1
     with:
       name: nfv-bench-evidence-${{ inputs.sweep_id }}-${{ inputs.shard }}
       path: /tmp/gh-aw/sandbox/agent/logs/nfv-bench
       overwrite: true
       retention-days: 7
-      if-no-files-found: warn
+      if-no-files-found: error
+  - name: Retry benchmark evidence upload without rerunning inference
+    if: always() && steps.retain_benchmark_evidence.outcome == 'failure'
+    continue-on-error: true
+    timeout-minutes: 5
+    uses: actions/upload-artifact@v7.0.1
+    with:
+      name: nfv-bench-evidence-${{ inputs.sweep_id }}-${{ inputs.shard }}
+      path: /tmp/gh-aw/sandbox/agent/logs/nfv-bench
+      overwrite: true
+      retention-days: 7
+      if-no-files-found: error
 ---
 
 # nfv-micro-bench worker
@@ -157,3 +187,7 @@ fixes. The driver fixes these options and checkpoints native evidence after
 each entry. It requests only the read-only checkpoint handoff after completion. The separate trusted
 Actions publisher revalidates the evidence, scores all 206 entries and publishes
 the generated run statistics without model arithmetic.
+
+Dedicated evidence uploads have two bounded attempts; the checkpoint handoff
+can also use the identical native evidence already retained in the agent
+artifact. Neither path retries inference. Missing checkpoints remain failures.

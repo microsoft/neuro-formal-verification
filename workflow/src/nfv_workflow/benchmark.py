@@ -31,8 +31,8 @@ from .source_context import function_catalog
 
 
 TOTAL = 206
+ENTRY_COUNTS = (5, TOTAL)
 SHARD_SIZE = 8
-SHARDS = math.ceil(TOTAL / SHARD_SIZE)
 LABELS = ("correct", "incorrect")
 PREDICTIONS = (*LABELS, "abstain")
 CASE_ID = re.compile(r"case-[a-f0-9]{32}")
@@ -81,8 +81,10 @@ def make_case(entry, release, repo):
     return {"id": "case-" + uuid.uuid4().hex, "bundle": bundle, "properties": [proposal]}
 
 
-def prepare(dataset, output, release, model, repo, run_id, attempt, limits=None):
+def prepare(dataset, output, release, model, repo, run_id, attempt, limits=None, *, count=TOTAL):
     release, repo = sha(release), repository(repo)
+    if type(count) is not int or count not in ENTRY_COUNTS:
+        raise Abstain("Choose a five-entry pilot or the complete 206-entry benchmark")
     if (not isinstance(model, str) or not model.strip() or model != model.strip()
             or len(model) > 200 or any(ord(char) < 32 for char in model)):
         raise Abstain("Use the explicitly configured PR-review NFV_MODEL")
@@ -97,18 +99,20 @@ def prepare(dataset, output, release, model, repo, run_id, attempt, limits=None)
             or len({entry["entry_id"] for entry in entries}) != TOTAL
             or Counter(entry["label"] for entry in entries) != {"correct": 103, "incorrect": 103}):
         raise Abstain("Expected the frozen 206-entry, 103/103 nfv-micro-bench dataset")
+    shards = math.ceil(count / SHARD_SIZE)
     run = {"repository": repo, "run_id": str(run_id), "sweep_id": f"{run_id}-{attempt}",
            "release_sha": release, "model": model, "limits": asdict(limits),
            "dataset_sha256": hashlib.sha256(Path(dataset).read_bytes()).hexdigest(),
-           "started_at": now(), "total": TOTAL, "shards": SHARDS, "billing": "personal-pat"}
+           "started_at": now(), "total": count, "shards": shards, "billing": "personal-pat"}
     # Frozen dataset order alternates reference/mutant; do not expose that order.
     entries = list(entries)
     random.SystemRandom().shuffle(entries)
+    entries = entries[:count]
     output = Path(output)
     if output.exists():
         raise Abstain("Use a fresh benchmark preparation directory")
     manifest = {"schema": 1, "run": run, "cases": []}
-    for shard in range(SHARDS):
+    for shard in range(shards):
         cases = []
         for entry in entries[shard * SHARD_SIZE:(shard + 1) * SHARD_SIZE]:
             case = make_case(entry, release, repo)
@@ -130,18 +134,24 @@ def prepared_cases(directory):
     repository(run["repository"])
     limits = Limits(**run["limits"])
     cases = manifest["cases"]
-    if (manifest.get("schema") != 1 or run["total"] != TOTAL or run["shards"] != SHARDS
-            or limits.minimize_assumptions is not False or len(cases) != TOTAL
-            or len({case["id"] for case in cases}) != TOTAL
-            or len({case["entry_id"] for case in cases}) != TOTAL
-            or Counter(case["label"] for case in cases) != {"correct": 103, "incorrect": 103}):
+    total = run["total"]
+    if type(total) is not int or total not in ENTRY_COUNTS:
+        raise Abstain("Invalid benchmark entry count")
+    shards = math.ceil(total / SHARD_SIZE)
+    if (manifest.get("schema") != 1 or run["shards"] != shards
+            or limits.minimize_assumptions is not False or len(cases) != total
+            or len({case["id"] for case in cases}) != total
+            or len({case["entry_id"] for case in cases}) != total
+            or any(case["label"] not in LABELS for case in cases)
+            or (total == TOTAL
+                and Counter(case["label"] for case in cases) != {"correct": 103, "incorrect": 103})):
         raise Abstain("Invalid benchmark manifest")
     expected = {case["id"]: case for case in cases}
     inputs = {}
-    for shard in range(SHARDS):
+    for shard in range(shards):
         payload = load(directory / "shards" / f"{shard}.json")
         if (payload.get("schema") != 1 or payload["run"] != run or payload["shard"] != shard
-                or len(payload["cases"]) != min(SHARD_SIZE, TOTAL - shard * SHARD_SIZE)):
+                or len(payload["cases"]) != min(SHARD_SIZE, total - shard * SHARD_SIZE)):
             raise Abstain("Benchmark shard disagrees with its frozen run")
         for case in payload["cases"]:
             key = case["id"]
@@ -160,7 +170,7 @@ def select(directory, shard, output, release, model, sweep):
     run = manifest["run"]
     if (run["release_sha"], run["model"], run["sweep_id"]) != (release, model, sweep):
         raise Abstain("Benchmark source/model/sweep changed after preparation")
-    if not 0 <= shard < SHARDS:
+    if type(shard) is not int or not 0 <= shard < run["shards"]:
         raise Abstain("Invalid benchmark shard")
     save(output, load(Path(directory) / "shards" / f"{shard}.json"))
 
@@ -247,9 +257,59 @@ def worker(payload_path, output):
     return result
 
 
-def summarize(prepared, evidence, output, workers_succeeded=True):
+def credit_usage(directory, shards):
+    """Sum per-response proxy credits, never cumulative counters or cache snapshots."""
+    artifacts = sorted(path for path in Path(directory).glob("*-usage") if path.is_dir())
+    if len(artifacts) > shards:
+        raise Abstain("Too many benchmark credit-accounting artifacts")
+    values = {"inference": [], "threat_detection": []}
+    complete = dict.fromkeys(values, len(artifacts) == shards)
+    seen = set()
+    for artifact in artifacts:
+        for kind, stage in (("inference", "agent"), ("threat_detection", "detection")):
+            path = artifact / stage / "token_usage.jsonl"
+            if not path.is_file():
+                complete[kind] = False
+                continue
+            if path.stat().st_size > 12_000_000:
+                raise Abstain("Credit-accounting ledger exceeds 12 MB")
+            lines = path.read_text(encoding="utf-8").splitlines()
+            for line in lines:
+                record = json.loads(line)
+                key = record.get("request_id")
+                if record.get("event") != "token_usage" or not isinstance(key, str) or not key or key in seen:
+                    raise Abstain("Unknown or duplicate credit-accounting request")
+                seen.add(key)
+                value = record.get("ai_credits_this_response")
+                if value is None:
+                    complete[kind] = False
+                elif type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                    raise Abstain("Invalid recorded AI-credit value")
+                else:
+                    values[kind].append(value)
+    subtotals = {kind: math.fsum(amounts) for kind, amounts in values.items()}
+    return {"source": "gh-aw per-response proxy usage ledgers",
+            "shards_observed": len(artifacts), "shards_expected": shards,
+            "complete": all(complete.values()),
+            **{kind: subtotals[kind] if complete[kind] else None for kind in values},
+            "total": math.fsum(subtotals.values()) if all(complete.values()) else None,
+            "recorded_subtotal": math.fsum(subtotals.values())}
+
+
+def account(summary_path, usage, output):
+    summary = load(summary_path)
+    updated = {**summary, "ai_credits": credit_usage(usage, summary["run"]["shards"])}
+    save(Path(output) / "summary.json", updated)
+    save(Path(output) / "accounting-source.json",
+         {"run": summary["run"], "summary_sha256": hashlib.sha256(Path(summary_path).read_bytes()).hexdigest()})
+    (Path(output) / "report.md").write_text(render(updated), encoding="utf-8", newline="\n")
+    return updated
+
+
+def summarize(prepared, evidence, output, workers_succeeded=True, usage_directory=None, *, fallback=None):
     manifest, inputs = prepared_cases(prepared)
     run = manifest["run"]
+    total, shards = run["total"], run["shards"]
     expected = {case["id"]: case for case in manifest["cases"]}
     rows, seen_shards, errors = {}, set(), []
     if not workers_succeeded:
@@ -257,13 +317,37 @@ def summarize(prepared, evidence, output, workers_succeeded=True):
     usage = {field: 0 for field in USAGE_FIELDS}
     observed_usage = Counter()
     responses = 0
-    for path in sorted(Path(evidence).rglob("results.json")):
+    paths = sorted(Path(evidence).rglob("results.json"))
+    primary_count = len(paths)
+    if fallback is not None:
+        paths.extend(sorted(Path(fallback).glob("*-agent/sandbox/agent/logs/nfv-bench/results.json")))
+    checkpoints, seen_backups, recovered = {}, set(), []
+    for index, path in enumerate(paths):
         result = load(path)
         shard = result["shard"]
         if (result.get("schema") != 1 or result["run"] != run
-                or type(shard) is not int or not 0 <= shard < SHARDS or shard in seen_shards):
+                or type(shard) is not int or not 0 <= shard < shards):
             raise Abstain("Foreign or duplicate benchmark shard evidence")
+        backup = index >= primary_count
+        if backup:
+            if shard in seen_backups:
+                raise Abstain("Duplicate backup benchmark shard evidence")
+            seen_backups.add(shard)
+        if shard in seen_shards:
+            if not backup:
+                raise Abstain("Foreign or duplicate benchmark shard evidence")
+            original_path, original = checkpoints[shard]
+            if result != original:
+                raise Abstain("Conflicting primary and backup benchmark checkpoints")
+            for row in result["rows"]:
+                for name in ("input.json", "report.json"):
+                    if load(path.parent / row["id"] / name) != load(original_path.parent / row["id"] / name):
+                        raise Abstain("Conflicting primary and backup benchmark audit evidence")
+            continue
         seen_shards.add(shard)
+        checkpoints[shard] = (path, result)
+        if backup:
+            recovered.append(shard)
         errors.extend(str(error)[:1000] for error in result["errors"])
         shard_ids = set()
         for row in result["rows"]:
@@ -295,7 +379,7 @@ def summarize(prepared, evidence, output, workers_succeeded=True):
     for key, case in expected.items():
         if key not in rows:
             rows[key] = {**case, "prediction": "abstain", "status": "not evaluated"}
-    for shard in sorted(set(range(SHARDS)) - seen_shards):
+    for shard in sorted(set(range(shards)) - seen_shards):
         errors.append(f"Shard {shard} has no result checkpoint")
     matrix = {label: dict.fromkeys(PREDICTIONS, 0) for label in LABELS}
     for row in rows.values():
@@ -303,16 +387,16 @@ def summarize(prepared, evidence, output, workers_succeeded=True):
     decisive = sum(row["prediction"] != "abstain" for row in rows.values())
     matched = sum(row["prediction"] == row["label"] for row in rows.values())
     evaluated = sum(row["status"] != "not evaluated" for row in rows.values())
-    completed = evaluated == TOTAL and len(seen_shards) == SHARDS and not errors
+    completed = evaluated == total and len(seen_shards) == shards and not errors
     finished = now()
     elapsed = (datetime.fromisoformat(finished) - datetime.fromisoformat(run["started_at"])).total_seconds()
     summary = {"schema": 1, "run": run, "completed": completed, "finished_at": finished,
                "elapsed_seconds": elapsed,
-               "evaluated": evaluated, "not_evaluated": TOTAL - evaluated,
+               "evaluated": evaluated, "not_evaluated": total - evaluated,
                "predictions": {label: sum(row["prediction"] == label for row in rows.values())
                                for label in PREDICTIONS},
                "matrix": matrix, "matched": matched, "decisive": decisive,
-               "accuracy": matched / TOTAL, "coverage": decisive / TOTAL,
+               "accuracy": matched / total, "coverage": decisive / total,
                "answered_accuracy": matched / decisive if decisive else None,
                "abstention_reasons": dict(Counter(row["status"] for row in rows.values()
                                                    if row["prediction"] == "abstain")),
@@ -320,6 +404,10 @@ def summarize(prepared, evidence, output, workers_succeeded=True):
                                   for field, value in usage.items()} if responses else None,
                "recorded_responses": responses,
                "errors": errors, "rows": list(rows.values())}
+    if recovered:
+        summary["recovered_shards"] = sorted(recovered)
+    if usage_directory is not None:
+        summary["ai_credits"] = credit_usage(usage_directory, run["shards"])
     output = Path(output)
     save(output / "summary.json", summary)
     (output / "report.md").write_text(render(summary), encoding="utf-8", newline="\n")
@@ -328,12 +416,14 @@ def summarize(prepared, evidence, output, workers_succeeded=True):
 
 def render(summary):
     run = summary["run"]
+    total = run["total"]
+    kind = "five-entry pilot" if total == 5 else "sweep"
     url = f"https://github.com/{run['repository']}/actions/runs/{run['run_id']}"
     answered = summary["answered_accuracy"]
     lines = [f"<!-- nfv-micro-bench:{run['repository']}:{run['run_id']} -->",
-             "# nfv-micro-bench nightly statistics", "",
-             "**Complete sweep.**" if summary["completed"] else "**PARTIAL sweep; operational failures or unevaluated entries remain.**",
-             f"Evaluated **{summary['evaluated']}/{TOTAL}** entries. [Run and evidence artifacts]({url}).", "",
+             "# nfv-micro-bench " + ("five-entry pilot" if total == 5 else "nightly") + " statistics", "",
+             f"**Complete {kind}.**" if summary["completed"] else f"**PARTIAL {kind}; operational failures or unevaluated entries remain.**",
+             f"Evaluated **{summary['evaluated']}/{total}** entries. [Run and evidence artifacts]({url}).", "",
              f"NFV `{text(run['release_sha'])}`; model `{text(run['model'])}`; personal PAT billing.",
              f"Dataset SHA-256: `{text(run['dataset_sha256'])}`.",
              f"Started: {text(run['started_at'])}; finished: {text(summary['finished_at'])}.", "",
@@ -343,14 +433,33 @@ def render(summary):
     for label in LABELS:
         cells = summary["matrix"][label]
         lines.append(f"| {label} | {cells['correct']} | {cells['incorrect']} | {cells['abstain']} |")
-    lines += ["", f"**Overall accuracy:** {summary['accuracy']:.2%} ({summary['matched']}/{TOTAL}).",
-              f"**Coverage:** {summary['coverage']:.2%} ({summary['decisive']}/{TOTAL}).",
+    lines += ["", f"**Overall accuracy:** {summary['accuracy']:.2%} ({summary['matched']}/{total}).",
+              f"**Coverage:** {summary['coverage']:.2%} ({summary['decisive']}/{total}).",
               "**Accuracy among decisive results:** " + ("N/A." if answered is None else f"{answered:.2%}."),
               "", "Verification proof -> correct; otherwise witnessed refutation proof -> incorrect; otherwise abstain.",
               "Repository-context collection, assumption/failure minimization, shorter-property generation and candidate-fix generation are disabled.",
               "This evaluates the shared PR classifier with supplied specifications, not PR intent extraction or the paper pipeline.",
               "Results concern translated models under stated assumptions, not confirmed source bugs or source-correctness proofs. "
               "Ground-truth labels are the original benchmark labels; disagreements require triage.", ""]
+    if total == 5:
+        lines += ["Five-entry pilot only; this is not a full-dataset accuracy estimate.", ""]
+    if summary.get("recovered_shards"):
+        lines += [f"Recovered **{len(summary['recovered_shards'])} shard checkpoints** from backup agent artifacts "
+                  "without rerunning inference; the same native evidence checks apply.", ""]
+    credits = summary.get("ai_credits")
+    if credits is not None:
+        def amount(value):
+            return "unavailable" if value is None else f"{value:.5f}"
+
+        lines += ["**Recorded AI credits (AIC; not an invoice):** "
+                  f"total={amount(credits['total'])}; "
+                  f"benchmark inference={amount(credits['inference'])}; "
+                  f"threat detection={amount(credits['threat_detection'])}.",
+                  "Source: gh-aw per-response proxy usage ledgers; cumulative counters and usage-cache snapshots are not summed.", ""]
+        if not credits["complete"]:
+            lines += [f"**Incomplete credit accounting:** {credits['shards_observed']}/{credits['shards_expected']} "
+                      f"shard artifacts; recorded subtotal={amount(credits['recorded_subtotal'])} AIC. "
+                      "Missing credits are unavailable, not zero.", ""]
     if summary["abstention_reasons"]:
         lines += ["| Abstention reason | Entries |", "|---|---:|"]
         lines += [f"| {text(reason)} | {count} |" for reason, count in sorted(summary["abstention_reasons"].items())]
@@ -358,7 +467,7 @@ def render(summary):
         ", ".join(f"{key}={value if value is not None else 'unavailable'}"
                   for key, value in summary["recorded_usage"].items())
         if summary["recorded_usage"] is not None else "unavailable."),
-        "Missing entries remain in the denominator of 206. Runtime and usage may be incomplete after interruption."]
+        f"Missing entries remain in the denominator of {total}. Runtime and usage may be incomplete after interruption."]
     return "\n".join(lines) + "\n"
 
 
@@ -392,7 +501,7 @@ def publish(summary, api, repo, category):
           query($owner:String!,$name:String!,$cursor:String){
             repository(owner:$owner,name:$name){
               discussions(first:100,after:$cursor,orderBy:{field:UPDATED_AT,direction:DESC}){
-                nodes{id body author{login} }
+                nodes{id body author{login __typename} }
                 pageInfo{hasNextPage endCursor}
               }
             }
@@ -403,10 +512,13 @@ def publish(summary, api, repo, category):
         cursor = page["pageInfo"]["endCursor"]
     else:
         raise Abstain("Discussion pagination exhausted; refusing duplicate publication")
+    kind = "five-entry pilot" if summary["run"]["total"] == 5 else "nightly benchmark"
     title = ("[PARTIAL] " if not summary["completed"] else "") + (
-        f"NFV nightly benchmark: {summary['run']['started_at'][:10]} (run {summary['run']['run_id']})")
+        f"NFV {kind}: {summary['run']['started_at'][:10]} (run {summary['run']['run_id']})")
     if existing:
-        if (existing.get("author") or {}).get("login") != "github-actions[bot]":
+        author = existing.get("author") or {}
+        if (author.get("__typename") != "Bot"
+                or author.get("login") not in ("github-actions", "github-actions[bot]")):
             raise Abstain("Benchmark marker belongs to a non-Actions author; refusing to overwrite")
         return api.graphql("""
           mutation($id:ID!,$title:String!,$body:String!){
@@ -424,6 +536,7 @@ def main(argv=None):
     p = commands.add_parser("prepare")
     for flag in ("dataset", "out", "release-sha", "model", "repository", "run-id", "attempt"):
         p.add_argument("--" + flag, required=True)
+    p.add_argument("--entries", type=int, choices=ENTRY_COUNTS, default=TOTAL)
     p = commands.add_parser("select")
     for flag in ("prepared", "out", "release-sha", "model", "sweep"):
         p.add_argument("--" + flag, required=True)
@@ -435,6 +548,11 @@ def main(argv=None):
     for flag in ("prepared", "evidence", "out"):
         p.add_argument("--" + flag, required=True)
     p.add_argument("--workers-succeeded", choices=("true", "false"), default="true")
+    p.add_argument("--usage")
+    p.add_argument("--fallback", help="Directory containing backup gh-aw agent artifacts")
+    p = commands.add_parser("account")
+    for flag in ("summary", "usage", "out"):
+        p.add_argument("--" + flag, required=True)
     for name in ("check-publication", "publish"):
         p = commands.add_parser(name)
         p.add_argument("--repository", required=True)
@@ -445,20 +563,24 @@ def main(argv=None):
     try:
         if args.command == "prepare":
             run = prepare(args.dataset, args.out, args.release_sha, args.model,
-                          args.repository, args.run_id, args.attempt)
+                          args.repository, args.run_id, args.attempt, count=args.entries)
             if os.environ.get("GITHUB_OUTPUT"):
                 with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8", newline="\n") as stream:
                     for field in ("release_sha", "model", "sweep_id"):
                         stream.write(f"{field}={run[field]}\n")
-                    stream.write("matrix=" + json.dumps({"shard": list(range(SHARDS))}) + "\n")
+                    stream.write("matrix=" + json.dumps({"shard": list(range(run["shards"]))}) + "\n")
             print(json.dumps(run))
         elif args.command == "select":
             select(args.prepared, args.shard, args.out, args.release_sha, args.model, args.sweep)
         elif args.command == "worker":
             worker(args.payload, args.out)
         elif args.command == "summarize":
-            summary = summarize(args.prepared, args.evidence, args.out, args.workers_succeeded == "true")
+            summary = summarize(args.prepared, args.evidence, args.out,
+                                args.workers_succeeded == "true", args.usage, fallback=args.fallback)
             print(json.dumps({key: value for key, value in summary.items() if key != "rows"}))
+        elif args.command == "account":
+            summary = account(args.summary, args.usage, args.out)
+            print(json.dumps(summary["ai_credits"]))
         elif args.command == "check-publication":
             publication_target(GitHub(), args.repository, args.category)
         elif args.command == "publish":
