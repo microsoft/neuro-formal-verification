@@ -19,6 +19,7 @@ from nfv_workflow import sandbox
 from nfv_workflow.cli import save
 from nfv_workflow.github import Abstain
 from nfv_workflow.outcomes import InferenceFailure, OUTCOMES
+from nfv_workflow.summary import review_summary
 
 
 class SandboxTests(unittest.TestCase):
@@ -102,6 +103,49 @@ class SandboxTests(unittest.TestCase):
                 self.assertNotIn("diagnostic", status)
                 shutil.rmtree(self.output)
                 self.calls.clear()
+
+    def summary_environment(self):
+        return {
+            "GITHUB_REPOSITORY": "owner/project", "NFV_SUMMARY_REPOSITORY_ID": "7",
+            "NFV_SUMMARY_RUN_ID": "42", "NFV_SUMMARY_RUN_ATTEMPT": "2",
+            "NFV_SUMMARY_PR_NUMBER": "3", "NFV_SUMMARY_HEAD_SHA": "a" * 40,
+            "NFV_SUMMARY_BASE_SHA": "b" * 40, "NFV_SUMMARY_RELEASE_SHA": "c" * 40,
+        }
+
+    def test_dashboard_summary_is_compact_and_does_not_confirm_publication(self):
+        self.environment.update(self.summary_environment())
+        self.assertEqual(self.execute(main=True), 0)
+        summary = json.loads((self.output / "summary.json").read_text())
+        self.assertEqual(summary["schema_version"], 1)
+        self.assertEqual(summary["repository_id"], 7)
+        self.assertEqual((summary["run_id"], summary["run_attempt"], summary["number"]), (42, 2, 3))
+        self.assertTrue(summary["analysis_completed"])
+        self.assertEqual(summary["counts"], dict.fromkeys(OUTCOMES, 0))
+        self.assertEqual(summary["publication"], "submitted")
+        self.assertNotIn("diagnostic", summary)
+        self.assertNotIn("identity", summary)
+        self.assertNotIn(self.body, json.dumps(summary))
+
+    def test_failed_driver_summary_has_unknown_counts_without_diagnostic_text(self):
+        async def failure(*args, **kwargs):
+            raise InferenceFailure("Do not export this private diagnostic")
+        self.environment.update(self.summary_environment())
+        self.assertEqual(self.execute(extract=failure, main=True), 1)
+        summary = json.loads((self.output / "summary.json").read_text())
+        self.assertFalse(summary["analysis_completed"])
+        self.assertFalse(summary["completed"])
+        self.assertIsNone(summary["counts"])
+        self.assertEqual(summary["status"], "infrastructure_failure")
+        self.assertNotIn("private diagnostic", json.dumps(summary))
+
+    def test_invalid_summary_bindings_and_counts_are_not_exported(self):
+        valid = {"status": "completed", "analysis_completed": True, "completed": True,
+                 "publication": "submitted", "outcomes": dict.fromkeys(OUTCOMES, 0)}
+        for value in (True, -1, 11):
+            invalid = {**valid, "outcomes": {**valid["outcomes"], "refuted": value}}
+            self.assertIsNone(review_summary(invalid, self.summary_environment()))
+        self.assertIsNone(review_summary(valid, {}))
+        self.assertIsNone(review_summary(valid, {**self.summary_environment(), "NFV_SUMMARY_RUN_ID": "0"}))
 
     def test_driver_infrastructure_failures_have_separate_stage_bound_evidence(self):
         async def provider_failure(*args, **kwargs):

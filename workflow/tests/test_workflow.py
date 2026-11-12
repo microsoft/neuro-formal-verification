@@ -1314,7 +1314,7 @@ class TemplateTests(unittest.TestCase):
     def test_driver_uses_writable_evidence_separate_from_read_only_inputs(self):
         source, lock = self.source(), self.lock()
         self.assertIn('Path("nfv-input.json").write_text', source)
-        self.assertIn(r'Path(\"nfv-input.json\").write_text', lock)
+        self.assertIn('Path("nfv-input.json").write_text', lock.replace(r'\"', '"'))
         self.assertNotIn("nfv-comment.md", source)
         self.assertIn('echo "NFV_OUT=/tmp/gh-aw/sandbox/agent/logs/nfv"', source)
         prompt = source.split("\n---\n", 1)[1]
@@ -1329,6 +1329,8 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("nfv-workflow", block)
         self.assertIn("if: always()\n    uses: actions/upload-artifact@", source)
         self.assertIn("name: nfv-evidence", source)
+        self.assertIn("name: nfv-summary-${{ github.run_attempt }}", block)
+        self.assertIn("path: /tmp/gh-aw/sandbox/agent/logs/nfv/summary.json", block)
         self.assertIn("path: /tmp/gh-aw/sandbox/agent/logs/nfv", block)
         prompt = source.split("\n---\n", 1)[1]
         self.assertIn("never fabricate a", prompt)

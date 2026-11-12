@@ -15,6 +15,7 @@ import sys
 from .cli import audit, audit_limits, awf_provider, collection_status, load, propose, save
 from .github import Abstain
 from .outcomes import InferenceFailure
+from .summary import review_summary
 
 
 def submit(output, command, payload):
@@ -99,6 +100,9 @@ def record_status(status):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("x", encoding="utf-8", newline="\n") as stream:
         json.dump(status, stream, indent=2)
+    summary = review_summary(status, os.environ)
+    if summary is not None:
+        save(path.parent / "summary.json", summary)
 
 
 def main():

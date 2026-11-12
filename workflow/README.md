@@ -98,6 +98,21 @@ The trusted admission job writes PR comments separately from read-only inference
 API failures report the method, endpoint, status, a bounded credential-redacted
 GitHub message and available rate-limit headers. Admission failures block inference.
 
+## Optional repository dashboards
+
+The driver writes a separate `nfv-summary-<run-attempt>` artifact with versioned
+repository/run/source identity, completion and the four outcome counts.
+It contains no source, formal models, property prose, counterexamples or
+diagnostics. An incomplete analysis has unknown counts, not zero findings.
+Early failures before the driver starts may have no summary. Safe-output
+submission is recorded as `submitted`, not confirmed publication.
+
+NFV users can self-report public repository onboarding for nightly summary collection through
+[onboarding](ONBOARDING.md#optional-public-dashboard). The existing dashboard
+keeps these registrations separate from historical replay campaigns. Older
+releases without summaries appear as coverage gaps; the collector never launches
+audits or derives proof counts from green jobs or comment prose.
+
 **Installation:** [Onboarding](ONBOARDING.md).
 
 <a id="upgrade-an-existing-installation"></a>

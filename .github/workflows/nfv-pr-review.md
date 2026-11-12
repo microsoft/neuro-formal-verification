@@ -206,8 +206,22 @@ steps:
         echo "NFV_CHECK_FIXES=$NFV_CHECK_FIXES"
         echo "NFV_OUT=/tmp/gh-aw/sandbox/agent/logs/nfv"
         echo "NFV_PYTHON=$(command -v python)"
+        echo "NFV_SUMMARY_REPOSITORY_ID=${{ github.repository_id }}"
+        echo "NFV_SUMMARY_RUN_ID=${{ github.run_id }}"
+        echo "NFV_SUMMARY_RUN_ATTEMPT=${{ github.run_attempt }}"
+        echo "NFV_SUMMARY_PR_NUMBER=${{ github.event.pull_request.number }}"
+        echo "NFV_SUMMARY_HEAD_SHA=${{ github.event.pull_request.head.sha }}"
+        echo "NFV_SUMMARY_BASE_SHA=${{ github.event.pull_request.base.sha }}"
+        echo "NFV_SUMMARY_RELEASE_SHA=${{ vars.NFV_RELEASE_SHA }}"
       } >> "$GITHUB_ENV"
 post-steps:
+  - name: Retain summaries-only dashboard metadata
+    if: always()
+    uses: actions/upload-artifact@v7.0.1
+    with:
+      name: nfv-summary-${{ github.run_attempt }}
+      path: /tmp/gh-aw/sandbox/agent/logs/nfv/summary.json
+      if-no-files-found: warn
   - name: Retain completed or interrupted NFV evidence
     if: always()
     uses: actions/upload-artifact@v7.0.1
