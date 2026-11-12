@@ -139,6 +139,9 @@ Close all matching registration Discussions to withdraw.
 The dashboard's [README](https://github.com/shuvendu-lahiri/nfv_dashboard#optional-public-repository-registration)
 describes nightly activation and collector-owned read access. No reporting secret
 or cross-repository write permission is needed in the audited repository.
+The dashboard repository can remain private; Pages publication is separately
+opt-in and is not required for collection or local viewing. A private source
+repository does not itself provide private Pages access.
 See [PRIVACY](../PRIVACY#optional-public-dashboard) before opting in.
 
 ## Upgrade an existing installation
