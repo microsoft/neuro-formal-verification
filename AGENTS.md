@@ -174,9 +174,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
 - Audits start on non-draft `opened` and `ready_for_review` events targeting the
-  onboarded repository's default branch, including forks
-  and external contributors. Execute only trusted-base `pull_request_target`
-  workflow code; PR-head code remains inspection-only data.
+  onboarded repository's default branch from same-repository branches only.
+  Fork PRs are skipped before admission or inference. The `pull_request`
+  workflow runs from the PR merge ref; branch contributors must be trusted
+  with workflow changes and repository secrets. Keep the NFV package pinned
+  and inspected PR source inspection-only data.
   Reserve one automatic attempt per PR in a trusted admission comment before
   either inference session; failures consume it too. Existing NFV reports also
   suppress reanalysis. Keep the durable records and serialize without cancelling

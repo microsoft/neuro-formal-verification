@@ -66,8 +66,8 @@ def admit(event, api, run_id, run_attempt=1):
 
 def main():
     try:
-        if os.environ.get("GITHUB_EVENT_NAME") != "pull_request_target":
-            raise Abstain("PR admission requires a trusted pull_request_target event")
+        if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
+            raise Abstain("PR admission requires a pull_request event")
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
         api = GitHub()
         admitted = publication_allowed(api) and admit(

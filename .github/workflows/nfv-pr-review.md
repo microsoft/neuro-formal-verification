@@ -3,8 +3,8 @@
 # Licensed under the MIT License.
 description: Prototype NFV PR reviewer — sandboxed foreground Dafny analysis, posted as a PR comment
 on:
-  # Run trusted base-branch workflow code; fork PR contents remain untrusted data.
-  pull_request_target:
+  # Same-repository PRs only; inspected PR source is never executed.
+  pull_request:
     types: [opened, ready_for_review]
     paths:
       - "**.[cC]"

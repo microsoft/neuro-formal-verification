@@ -1027,6 +1027,13 @@ class AdmissionTests(ScratchTest):
                 self.assertFalse(admission.admit(captured, self.api, "42"))
         self.assertEqual(self.writes, [])
 
+    def test_legacy_or_unrelated_event_types_fail_before_api_access(self):
+        for name in ("pull_request_target", "workflow_dispatch", "push"):
+            with self.subTest(name=name), patch.dict(os.environ, {"GITHUB_EVENT_NAME": name}), \
+                    patch.object(admission, "GitHub") as api, redirect_stderr(io.StringIO()):
+                self.assertEqual(admission.main(), 1)
+                api.assert_not_called()
+
     def test_history_or_reservation_failures_never_admit_inference(self):
         with patch.object(self.api, "pages", side_effect=OSError("unavailable")), self.assertRaises(OSError):
             admission.admit(self.event, self.api, "42")
@@ -1037,7 +1044,7 @@ class AdmissionTests(ScratchTest):
     def test_staged_admission_does_not_reserve_or_start_inference(self):
         captured, output = self.directory / "event.json", self.directory / "outputs"
         cli.save(captured, self.event)
-        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "pull_request_target",
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "pull_request",
                                     "GITHUB_EVENT_PATH": str(captured), "GITHUB_OUTPUT": str(output)}), \
                 patch.object(admission, "publication_allowed", return_value=False), \
                 patch.object(admission, "admit") as admit_mock:
@@ -1051,7 +1058,7 @@ class AdmissionTests(ScratchTest):
         api, stderr = GitHub(token="test-token"), io.StringIO()
         error = HTTPError("https://api.github.com/repos/owner/project/issues/7/comments", 403,
                           "Forbidden", {}, io.BytesIO(b'{"message":"Resource not accessible by integration"}'))
-        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "pull_request_target",
+        with patch.dict(os.environ, {"GITHUB_EVENT_NAME": "pull_request",
                                     "GITHUB_EVENT_PATH": str(captured), "GITHUB_OUTPUT": str(output),
                                     "GITHUB_RUN_ID": "42", "GITHUB_RUN_ATTEMPT": "1"}), \
                 patch.object(admission, "publication_allowed", return_value=True), \
@@ -1127,10 +1134,12 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("cancel-in-progress: false", source)
         self.assertIn("noop:\n    report-as-issue: false", source)
         self.assertNotIn("slash_command", source)
-        self.assertIn("  pull_request_target:\n", source)
-        self.assertIn("  pull_request_target:\n", lock)
+        self.assertIn("  pull_request:\n", source)
+        self.assertIn("  pull_request:\n", lock)
+        self.assertNotIn("pull_request_target", source)
+        self.assertNotIn('"has_pull_request_target":true', lock)
         self.assertIn("  roles: all\n", source)
-        self.assertNotIn("github.event.pull_request.head.repo.id == github.repository_id", lock)
+        self.assertIn("github.event.pull_request.head.repo.id == github.repository_id", lock)
         self.assertIn("github.event.pull_request.base.ref == github.event.repository.default_branch", lock)
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
@@ -1152,14 +1161,18 @@ class TemplateTests(unittest.TestCase):
             template = (self.template / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn('--event "$GITHUB_EVENT_PATH" --event-snapshot', template)
 
-    def test_default_branch_activation_accepts_forks_without_auditing_pushes(self):
+    def test_default_branch_activation_rejects_forks_without_auditing_pushes(self):
         gate = re.search(r"\n  activation:\n    if: >\n(.*?)\n    runs-on:",
                          self.lock(), re.DOTALL).group(1)
-        condition = " ".join(gate.split()).replace("&&", "and").replace("||", "or").replace("false", "False")
+        condition = (" ".join(gate.split()).replace("&&", "and").replace("||", "or")
+                     .replace("false", "False").replace("null", "None"))
         for base, default, draft, action, head_id, expected in (
-            ("master", "master", False, "opened", 2, True),
-            ("main", "main", False, "ready_for_review", 2, True),
+            ("master", "master", False, "opened", 1, True),
+            ("main", "main", False, "ready_for_review", 1, True),
             ("dev", "dev", False, "opened", 1, True),
+            ("main", "main", False, "opened", 2, False),
+            ("main", "main", False, "ready_for_review", 2, False),
+            ("main", "main", False, "opened", None, False),
             ("release", "main", False, "opened", 2, False),
             ("main", "main", True, "opened", 2, False),
             ("main", "main", False, "synchronize", 2, False),
@@ -1167,11 +1180,12 @@ class TemplateTests(unittest.TestCase):
         ):
             with self.subTest(base=base, default=default, draft=draft, action=action, head_id=head_id):
                 github = SimpleNamespace(
+                    event_name="pull_request",
                     repository_id=1,
                     event=SimpleNamespace(
                         action=action, repository=SimpleNamespace(default_branch=default),
                         pull_request=SimpleNamespace(
-                            draft=draft, base=SimpleNamespace(ref=base),
+                            draft=draft, stack=None, base=SimpleNamespace(ref=base),
                             head=SimpleNamespace(repo=SimpleNamespace(id=head_id)),
                         ),
                     ),

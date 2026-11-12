@@ -8,11 +8,12 @@ not the first-installation script.
 
 For expired tokens and other common problems, see the [FAQ](FAQ.md).
 
-NFV audits non-draft, supported-source PRs into the onboarded repository's default
-branch, including forks and external contributors. Audits start on opening or
-draft-to-ready transitions, once automatically per PR, not later pushes. External contributors can trigger
-billable inference under the configured limits. The `pull_request_target`
-workflow runs trusted base-branch code and never executes inspected PR code.
+NFV audits non-draft, supported-source PRs from branches in the onboarded
+repository into its default branch. Fork PRs are skipped. Audits start on opening
+or draft-to-ready transitions, once automatically per PR, not later pushes.
+The `pull_request` workflow runs from the PR merge ref, so contributors allowed
+to push repository branches must be trusted with workflow changes and repository
+secrets. NFV installs its pinned release and never executes inspected PR source.
 
 Review [data handling and telemetry opt-outs](../PRIVACY) before using hosted
 inference or enabling the workflows.
@@ -112,8 +113,7 @@ inference or enabling the workflows.
 
 NFV is a prototype. Findings are **conditional MODEL refutations, never confirmed
 source bugs**; failure to refute is not evidence of correctness. Never check out
-or execute inspected PR code, edit generated reports or expose secrets through
-`pull_request_target`.
+or execute inspected PR source, edit generated reports or expose secrets.
 
 See the [configuration reference](REFERENCE.md#configure-github-agentic-workflows)
 for permissions, optional settings and installer options.

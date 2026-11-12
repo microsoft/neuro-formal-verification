@@ -17,9 +17,11 @@ The source is `.github/workflows/nfv-pr-review.md` in
 User docs are in `workflow/README.md`.
 
 Audits start when a supported-source PR into the onboarded repository's default
-branch opens non-draft or transitions from draft to ready, including fork PRs
-and external contributors. Trusted-base `pull_request_target` execution keeps PR
-code inspection-only; external contributors can trigger billable inference.
+branch opens non-draft or transitions from draft to ready, from a branch in
+that same repository. Fork PRs are skipped. The `pull_request` workflow runs
+from the PR merge ref; branch contributors must be trusted with workflow
+changes and repository secrets. The NFV package stays pinned, and inspected
+PR source remains inspection-only data.
 Each PR gets one automatic attempt, reserved by a trusted admission comment
 before either inference session starts; failures consume that attempt too.
 Pushes and repeated readiness transitions never cancel or restart an audit.

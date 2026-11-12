@@ -36,11 +36,12 @@ and return types while preserving the original source line numbers.
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
 * Audits start on non-draft `opened` and `ready_for_review` events targeting the
-  onboarded repository's default branch, including fork PRs and external
-  contributors, whose changed paths include a supported source suffix.
-  The `pull_request_target` workflow runs trusted base-branch code; PR-head code
-  is captured only as immutable data, never executed. External contributors can
-  trigger billable inference under the repository's configured limits.
+  onboarded repository's default branch from a branch in that same repository,
+  whose changed paths include a supported source suffix. Fork PRs are skipped.
+  The `pull_request` workflow comes from the PR merge ref; repository-branch
+  contributors must be trusted with workflow changes and repository secrets.
+  The NFV package remains release-pinned, and inspected PR source is captured
+  only as immutable data, never executed.
   The first eligible event reserves one automatic attempt per PR, including
   failures, before either inference session starts. A small admission comment
   records the run; existing completed NFV report comments also prevent reanalysis.
