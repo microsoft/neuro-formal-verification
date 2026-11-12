@@ -107,7 +107,7 @@ diagnostics. An incomplete analysis has unknown counts, not zero findings.
 Early failures before the driver starts may have no summary. Safe-output
 submission is recorded as `submitted`, not confirmed publication.
 
-Public repository administrators can opt into nightly summary collection through
+NFV users can self-report public repository onboarding for nightly summary collection through
 [onboarding](ONBOARDING.md#optional-public-dashboard). The existing dashboard
 keeps these registrations separate from historical replay campaigns. Older
 releases without summaries appear as coverage gaps; the collector never launches

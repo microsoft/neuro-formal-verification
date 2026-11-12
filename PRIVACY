@@ -26,10 +26,11 @@ Optional public dashboard
 
 Dashboard registration is explicit opt-in for public repositories only. An open
 Discussion titled "NFV PR Audit onboarded on OWNER/repo" in the NFV repository
-requests registration; the collector checks current public visibility and the
-author's current repository-admin authority before listing it. Personal repository
-ownership establishes that authority; organization repositories require a
-successful permission lookup. Unverifiable requests are not exported. The NFV
+requests registration; the collector checks current public visibility before
+listing it. This is self-reported onboarding for usage and health tracking, not
+verified owner endorsement. No target-repository administrator permission or
+maintainer approval is required. The collector does not request author identity
+or collaborator permissions. The NFV
 repository's own visibility still controls who can read or create Discussions.
 
 The collector exports only allowlisted summary fields: public repository identity,
@@ -43,8 +44,8 @@ inference/release credentials or client-side reporting tokens.
 
 The existing public dashboard retains sanitized summaries in its own versioned
 state file; evidence remains subject to each audited repository's artifact
-retention. A successful nightly refresh rechecks registration, authority and
-visibility, removing withdrawn, unverifiable or no-longer-public repositories
+retention. A successful nightly refresh rechecks registration and public
+visibility, removing withdrawn or no-longer-public repositories
 from the current site/state. Close every matching registration Discussion to
 withdraw. Failed refreshes can leave the last published site stale. Withdrawal
 does not erase previously public Git history, cached pages or downloaded copies.

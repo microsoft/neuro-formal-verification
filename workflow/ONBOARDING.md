@@ -120,7 +120,7 @@ for permissions, optional settings and installer options.
 
 ## Optional public dashboard
 
-After installing a summary-capable release, a repository administrator can open
+Anyone using NFV can report their onboarded public repository by opening
 a [Discussion](https://github.com/microsoft/neuro-formal-verification/discussions)
 with this exact title:
 
@@ -132,8 +132,10 @@ Only validated public repositories are listed on the
 [existing dashboard](https://shuvendu-lahiri.github.io/nfv_dashboard/registered/).
 While NFV is private, creating this Discussion requires access to NFV.
 Registration does not install or activate NFV, start an audit, or change billing.
-Organization registrations require a verifiable repository-admin permission;
-unverifiable requests remain unlisted until collector access is resolved.
+No target-repository admin permission or maintainer approval is required.
+Registrations are self-reported, not verified owner endorsement or proof of a
+healthy installation. Describe problems or ask for help in the Discussion replies;
+the dashboard tracks observed workflow health and summary availability.
 Close all matching registration Discussions to withdraw.
 
 The dashboard's [README](https://github.com/shuvendu-lahiri/nfv_dashboard#optional-public-repository-registration)
