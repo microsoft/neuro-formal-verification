@@ -18,6 +18,7 @@ def admit(event, api, run_id, run_attempt=1):
     pr = event["pull_request"]
     if (event["action"] not in ("opened", "ready_for_review")
             or pr.get("draft") is not False
+            or (pr["head"].get("repo") or {}).get("full_name") != ident["repository"]
             or pr["base"]["ref"] != event["repository"]["default_branch"]):
         return False
     if not re.fullmatch(r"[1-9][0-9]*", str(run_id)) or run_attempt < 1:
@@ -66,8 +67,8 @@ def admit(event, api, run_id, run_attempt=1):
 
 def main():
     try:
-        if os.environ.get("GITHUB_EVENT_NAME") != "pull_request_target":
-            raise Abstain("PR admission requires a trusted pull_request_target event")
+        if os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
+            raise Abstain("PR admission requires a pull_request event")
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
         api = GitHub()
         admitted = publication_allowed(api) and admit(

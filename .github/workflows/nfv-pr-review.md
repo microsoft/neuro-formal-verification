@@ -3,8 +3,8 @@
 # Licensed under the MIT License.
 description: Prototype NFV PR reviewer — sandboxed foreground Dafny analysis, posted as a PR comment
 on:
-  # Run trusted base-branch workflow code; fork PR contents remain untrusted data.
-  pull_request_target:
+  # Same-repository PRs only; inspected PR source is never executed.
+  pull_request:
     types: [opened, ready_for_review]
     paths:
       - "**.[cC]"
@@ -24,7 +24,7 @@ on:
       - "**.[pP][yY]"
       - "**.[rR][sS]"
   roles: all
-if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
+if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.head.repo.id == github.repository_id && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
 permissions:
   contents: read
   pull-requests: read
@@ -48,7 +48,7 @@ concurrency:
 jobs:
   admission:
     needs: [activation]
-    if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
+    if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.head.repo.id == github.repository_id && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -74,7 +74,7 @@ jobs:
         run: python -m nfv_workflow.admission
   repository_context:
     needs: [admission]
-    if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review') && needs.admission.outputs.admitted == 'true'
+    if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.head.repo.id == github.repository_id && github.event.pull_request.base.ref == github.event.repository.default_branch && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review') && needs.admission.outputs.admitted == 'true'
     permissions:
       # gh-aw uses this only to mark an incomplete workflow run failed.
       actions: write
