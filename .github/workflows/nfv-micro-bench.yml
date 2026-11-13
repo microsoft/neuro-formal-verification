@@ -47,7 +47,7 @@ jobs:
           set -euo pipefail
           test -n "$GH_TOKEN" || { echo "::error::NFV_RELEASE_TOKEN is required"; exit 1; }
           test "$HAS_INFERENCE_TOKEN" = true || { echo "::error::COPILOT_GITHUB_TOKEN is required; no organization-billing fallback"; exit 1; }
-          test -n "$NFV_MODEL" || { echo "::error::Configure the PR-review NFV_MODEL"; exit 1; }
+          test -n "$NFV_MODEL" || { echo "::error::Configure NFV_MODEL"; exit 1; }
           if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
             release_sha="$WORKFLOW_SHA"
           else
