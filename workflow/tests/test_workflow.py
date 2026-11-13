@@ -1103,7 +1103,7 @@ class AdmissionTests(ScratchTest):
 
 
 class TemplateTests(unittest.TestCase):
-    template = Path(__file__).parents[1] / "templates"
+    template = Path(__file__).parents[2] / ".github" / "workflows"
     package = Path(__file__).parents[1]
 
     def source(self):
@@ -1148,27 +1148,9 @@ class TemplateTests(unittest.TestCase):
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
-        for name in ("nfv-pr-review", "nfv-source-context"):
-            self.assertIn(
-                f"  - source: templates/{name}.md\n"
-                f"    destination: .github/workflows/{name}.md\n",
-                manifest,
-            )
+        self.assertIn("  - .github/workflows/nfv-pr-review.md\n", manifest)
+        self.assertIn("  - .github/workflows/nfv-source-context.md\n", manifest)
         self.assertTrue((self.package / "README.md").exists())
-
-    def test_reviewer_is_distributed_without_installing_it_in_this_repository(self):
-        installed = self.package.parent / ".github" / "workflows"
-        for source in self.template.glob("*.md"):
-            with self.subTest(template=source.name):
-                self.assertFalse((installed / source.name).exists())
-                lock = source.with_suffix(".lock.yml")
-                self.assertTrue(lock.is_file())
-                self.assertFalse((installed / lock.name).exists())
-        self.assertEqual(
-            {path.name for path in installed.iterdir()},
-            {"ci.yml", "nfv-micro-bench.yml", "nfv-micro-bench-worker.md",
-             "nfv-micro-bench-worker.lock.yml", "nfv-micro-bench-worker.lock.yml.license"},
-        )
 
     def test_reviewer_triggers_on_ready_non_draft_prs_only(self):
         source, lock = self.source(), self.lock()
@@ -1697,13 +1679,13 @@ class AuditTests(ScratchTest):
                 audit_limits(bad)
 
     def test_workflow_exports_budget_variables(self):
-        text = (TemplateTests.template / "nfv-pr-review.md").read_text(encoding="utf-8")
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-review.md").read_text(encoding="utf-8")
         for name in ("NFV_SYNTAX_ROUNDS", "NFV_PROOF_ROUNDS", "NFV_VERIFIER_TIMEOUT", "NFV_PROPERTY_SECONDS"):
             self.assertIn(f"{name}: ${{{{ vars.{name} }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)
 
     def test_workflow_exports_independent_default_on_followup_flags(self):
-        text = (TemplateTests.template / "nfv-pr-review.md").read_text(encoding="utf-8")
+        text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-review.md").read_text(encoding="utf-8")
         for name in ("NFV_SIMPLIFY_REFUTATIONS", "NFV_CHECK_FIXES"):
             self.assertIn(f"{name}: ${{{{ vars.{name} || 'true' }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)

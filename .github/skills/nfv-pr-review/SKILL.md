@@ -15,11 +15,9 @@ Dafny and tries to refute each property. It then posts one PR comment: either
 conditional model refutations, or the formalized intents and why none was
 refuted. Findings are **conditional MODEL refutations, never confirmed bugs**.
 
-The reusable source is `workflow/templates/nfv-pr-review.md` in
+The source is `.github/workflows/nfv-pr-review.md` in
 `microsoft/neuro-formal-verification`. The gh-aw package is `workflow/aw.yml`.
-User docs are in `workflow/README.md`. Installation places the templates in the
-consumer repository's `.github/workflows/`; this repository does not install
-the reviewer on its own PRs.
+User docs are in `workflow/README.md`.
 
 Audits start when a supported-source PR targeting any branch in the onboarded
 repository opens non-draft or transitions from draft to ready, from a branch in

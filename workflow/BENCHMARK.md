@@ -6,6 +6,7 @@ Licensed under the MIT License. -->
 This maintainer-only prototype evaluates the current PR audit classifier on all
 206 frozen `nfv-micro-bench` entries. It is separate from the client installation
 package: client workflows, onboarding, READMEs and deployed settings are unchanged.
+The existing round-robin paper benchmark is also unchanged.
 
 For each supplied complete postcondition, an accepted verification proof predicts
 **correct**; otherwise an accepted witnessed-refutation proof predicts
@@ -29,7 +30,7 @@ The workflows belong in this NFV repository or its maintained NFV fork, **not in
 client repositories**. They must be merged to the host's actual default branch
 for cron to run. Scheduled runs resolve trusted `dev` once per sweep. Manual runs
 use the selected workflow revision, allowing reviewed maintainer branches to be
-tested before merge. Each run records that immutable SHA, the configured
+tested before merge. Each run records that immutable SHA, the existing PR-review
 `NFV_MODEL`, repair/time budgets and dataset checksum. There is no separate
 benchmark model or billing fallback.
 
@@ -57,7 +58,7 @@ Adding these files does not enable the flag, change secrets or start inference.
 
 The coordinator uses 26 reusable agentic-worker shards of at most eight entries,
 with at most ten active workers. Each worker has a six-hour job timeout and
-uses the reusable PR reviewer's audit budgets. Preparation rejects budgets that cannot
+uses the PR reviewer's existing budgets. Preparation rejects budgets that cannot
 fit the worker deadline. Calls and repairs are bounded, but a full sweep may
 consume substantial personal credits; there is no monetary-credit cap.
 

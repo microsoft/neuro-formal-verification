@@ -35,7 +35,7 @@ uses, dataset provenance, evaluation, and limitations.
 | `paper/` | Paper artifact: dataset, retained results, documentation and utilities |
 | `tests/` | Core and artifact tests |
 | `workflow/` | Prototype GitHub Agentic Workflow integration (`nfv-workflow` package and `aw.yml`) |
-| `workflow/templates/` | Reusable NFV PR reviewer workflow templates for consumer repositories |
+| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow |
 
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof

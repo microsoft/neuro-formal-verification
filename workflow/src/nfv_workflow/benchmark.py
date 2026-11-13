@@ -90,7 +90,7 @@ def prepare(dataset, output, release, model, repo, run_id, attempt, limits=None,
         raise Abstain("Choose a five-entry pilot or the complete 206-entry benchmark")
     if (not isinstance(model, str) or not model.strip() or model != model.strip()
             or len(model) > 200 or any(ord(char) < 32 for char in model)):
-        raise Abstain("Use the explicitly configured NFV_MODEL")
+        raise Abstain("Use the explicitly configured PR-review NFV_MODEL")
     if not all(re.fullmatch(r"[1-9]\d*", str(value)) for value in (run_id, attempt)):
         raise Abstain("Expected positive Actions run and attempt IDs")
     limits = replace(limits or audit_limits(), minimize_assumptions=False)

@@ -121,11 +121,6 @@ titles, including the pinned dashboard's title. It does not run in client reposi
 
 **Installation:** [Onboarding](ONBOARDING.md).
 
-Reusable sources and compiled locks live in [`templates/`](templates/).
-The package installs them into a consumer repository's `.github/workflows/`.
-This repository does not run the PR reviewer on its own pull requests; its
-nightly micro-benchmark is independent.
-
 The workflows must exist in the target branch/PR merge ref; installing NFV does
 not add them to older branches.
 
