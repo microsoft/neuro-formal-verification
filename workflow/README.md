@@ -3,7 +3,7 @@ Licensed under the MIT License. -->
 
 # NFV PR reviewer
 
-A prototype GitHub Agentic Workflow based on
+A prototype **formal code review** GitHub Agentic Workflow based on
 [*Neuro-Formal Verification: Agentic Language-Agnostic Formal Program Reasoning*](https://arxiv.org/abs/2608.21516).
 
 For each eligible PR, NFV reads the change and its stated intent, selects
