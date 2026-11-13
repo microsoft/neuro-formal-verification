@@ -434,10 +434,13 @@ hidden.
 ## License
 
 NFV code is released under the MIT License; see
-https://github.com/microsoft/neuro-formal-verification/blob/dev/LICENSE. The derived benchmark
-retains its upstream MIT and Apache-2.0 notices under paper/licenses. Dataset provenance does not
-create a replacement license, and the root code license does not grant blanket permission over all
-inputs, third-party material or provider services. The incorporated source artifacts retain the
+https://github.com/microsoft/neuro-formal-verification/blob/dev/LICENSE. The nfv-micro-bench
+dataset in paper/data is released under CDLA-Permissive-2.0; include
+[paper/DATA_LICENSE.md](paper/DATA_LICENSE.md) when sharing it. This covers Microsoft's
+dataset contributions and compilation; incorporated upstream material retains its MIT and
+Apache-2.0 terms and notices under paper/licenses. Reconstruction scripts remain MIT-licensed.
+The dataset license does not replace upstream terms, and the root code license does not grant
+blanket permission over all inputs, third-party material or provider services. The incorporated source artifacts retain the
 microsoft/intent-formalization MIT notice, its redistributed EvalPlus Apache-2.0 notice and the
 HumanEval MIT notice. Preserve applicable copyright, license and attribution text when
 redistributing derived content; see

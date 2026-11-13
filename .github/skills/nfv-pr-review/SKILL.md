@@ -3,6 +3,9 @@ name: nfv-pr-review
 description: Bootstrap, configure, test, upgrade or troubleshoot the NFV PR reviewer agentic workflow (neuro-formal verification of pull requests with Dafny) in a GitHub repository. Use when asked to install or set up NFV PR review, run NFV on a PR, or debug an NFV PR reviewer run.
 ---
 
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+
 # NFV PR reviewer
 
 The NFV PR reviewer is a prototype GitHub Agentic Workflow (gh-aw). For each

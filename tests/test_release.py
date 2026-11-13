@@ -76,7 +76,10 @@ class ReleaseTests(unittest.TestCase):
     def test_core_package_includes_release_notices(self):
         config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(config["project"]["license"], "MIT")
-        for name in ("LICENSE.TXT", "LICENSE", "NOTICE.txt", "PRIVACY"):
+        for name in (
+            "LICENSE.TXT", "LICENSE", "NOTICE.txt", "PRIVACY",
+            "paper/DATA_LICENSE.md", "paper/DATA_PROVENANCE.md",
+        ):
             self.assertIn(name, config["project"]["license-files"])
             self.assertTrue((ROOT / name).is_file())
         workflow_config = tomllib.loads(
@@ -94,6 +97,23 @@ class ReleaseTests(unittest.TestCase):
         ):
             self.assertIn(name, notice)
             self.assertTrue(ROOT.joinpath(*name.split("/")).is_file())
+
+    def test_dataset_license_is_scoped_separately_from_code(self):
+        license_text = (ROOT / "paper" / "DATA_LICENSE.md").read_text(encoding="utf-8")
+        self.assertTrue(license_text.startswith(
+            "# Community Data License Agreement - Permissive - Version 2.0\n"
+        ))
+        self.assertIn("makes available the text of this agreement with the shared Data", license_text)
+        for name in ("README.md", "paper/README.md", "paper/DATA_PROVENANCE.md",
+                     "TRANSPARENCY.md", "NOTICE.txt"):
+            with self.subTest(path=name):
+                text = (ROOT / name).read_text(encoding="utf-8")
+                self.assertIn("CDLA-Permissive-2.0", text)
+                self.assertIn("DATA_LICENSE.md", text)
+                self.assertIn("MIT", text)
+        provenance = (ROOT / "paper" / "DATA_PROVENANCE.md").read_text(encoding="utf-8")
+        self.assertIn("not a replacement", provenance)
+        self.assertIn("retained experiment results are not relicensed", provenance)
 
     def test_tracked_source_headers_and_no_prebuilt_runtime_binaries(self):
         if not (ROOT / ".git").exists():
@@ -116,8 +136,18 @@ class ReleaseTests(unittest.TestCase):
             path = ROOT.joinpath(*name.split("/"))
             with self.subTest(path=name):
                 self.assertNotIn(path.suffix.lower(), binary_extensions)
-                if path.suffix in {".py", ".cjs", ".js", ".ts", ".sh", ".ps1"}:
+                is_source = path.suffix in {
+                    ".py", ".cjs", ".js", ".ts", ".sh", ".ps1",
+                    ".yml", ".yaml", ".toml",
+                } or name in {
+                    ".github/skills/nfv-pr-review/SKILL.md",
+                    ".github/aw/actions-lock.json",
+                } or (name.startswith("workflow/src/") and path.suffix == ".txt")
+                if is_source:
                     header = "\n".join(path.read_text(encoding="utf-8").splitlines()[:8])
+                    sidecar = Path(str(path) + ".license")
+                    if sidecar.is_file():
+                        header += "\n" + sidecar.read_text(encoding="utf-8")
                     if name in frozen_tooling:
                         self.assertEqual(
                             hashlib.sha256(path.read_bytes()).hexdigest(),

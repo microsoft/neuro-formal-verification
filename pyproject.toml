@@ -13,7 +13,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 license = "MIT"
-license-files = ["LICENSE.TXT", "LICENSE", "NOTICE.txt", "PRIVACY", "paper/licenses/*", "workflow/licenses/*"]
+license-files = ["LICENSE.TXT", "LICENSE", "NOTICE.txt", "PRIVACY", "paper/DATA_LICENSE.md", "paper/DATA_PROVENANCE.md", "paper/licenses/*", "workflow/licenses/*"]
 
 [project.optional-dependencies]
 inference = ["github-copilot-sdk==1.0.4"]
