@@ -16,6 +16,12 @@ Labels are the original benchmark labels, not independently proved ground truth.
 The dataset filename and frozen metadata retain their historical identifiers for
 checksum compatibility; the public benchmark name is **nfv-micro-bench**.
 
+The dataset is released under [CDLA-Permissive-2.0](DATA_LICENSE.md); include
+the license when sharing it. Incorporated upstream material retains its MIT
+and Apache-2.0 terms and required attribution; see [DATA_PROVENANCE.md](DATA_PROVENANCE.md)
+and [licenses](licenses). Implementation and reconstruction scripts remain
+[MIT-licensed](../LICENSE.TXT).
+
 Example: the mutant of the pair for `HumanEval/97` (provenance fields omitted):
 
 ```json

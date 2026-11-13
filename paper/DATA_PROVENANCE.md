@@ -4,11 +4,19 @@ Licensed under the MIT License. -->
 # Dataset attribution and release provenance
 
 The **nfv-micro-bench** benchmark is **derived data, not newly authored benchmark code**. Retain
-this attribution and the original notices when redistributing it. This note
-records observed upstream licensing; it does not invent a separate license for
-the derived dataset or replace repository-owner/legal review.
+this attribution and the original notices when redistributing it.
 
 ## Source and license
+
+The released **nfv-micro-bench dataset** in `paper/data`, including its pilot
+subset, is available under [CDLA-Permissive-2.0](DATA_LICENSE.md). The license
+text is reproduced from the [official release](https://cdla.dev/permissive-2-0/)
+and must accompany shared dataset copies. This applies to Microsoft's dataset
+contributions and compilation, not a replacement of incorporated upstream
+material's MIT and Apache-2.0 terms. Preserve those licenses and attribution
+alongside the CDLA text. Reconstruction scripts remain under the repository's
+[MIT license](../LICENSE.TXT); retained experiment results are not relicensed
+by this dataset license.
 
 All distributed benchmark content derives from
 [microsoft/intent-formalization, nl2postcondition-fse2024](https://github.com/microsoft/intent-formalization/tree/main/nl2postcondition-fse2024):

@@ -5,8 +5,12 @@ This repository incorporates material as listed below or described in the code.
 Copyright (c) Microsoft Corporation.
 Licensed under the MIT License.
 
-The Microsoft notice applies to Microsoft-authored material. Incorporated
-components retain the copyright and license terms reproduced below.
+The Microsoft copyright notice applies to Microsoft-authored material.
+Implementation and reconstruction tooling are MIT-licensed. Microsoft's
+nfv-micro-bench dataset contributions and compilation in paper/data are
+released under CDLA-Permissive-2.0; include paper/DATA_LICENSE.md when sharing
+the dataset. That license does not replace incorporated upstream terms.
+Incorporated components retain the copyright and license terms reproduced below.
 The benchmark's acquisition metadata does
 not record every upstream revision; see paper/DATA_PROVENANCE.md.
 Separately installed dependencies, services and tools retain their own terms.

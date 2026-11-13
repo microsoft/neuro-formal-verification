@@ -60,8 +60,12 @@ See [PRIVACY](PRIVACY) for data handling and telemetry opt-out instructions.
 
 ## License and third-party content
 
-Project code is available under the [MIT license](LICENSE.TXT). The paper benchmark
-includes programs and derived data from
+Project code, including dataset reconstruction tooling, is available under the
+[MIT license](LICENSE.TXT). The **nfv-micro-bench dataset** in `paper/data` is
+released under the [CDLA-Permissive-2.0 license](paper/DATA_LICENSE.md).
+Include that license when sharing the dataset. Incorporated upstream material
+retains its applicable licenses and attribution; CDLA does not replace them.
+The paper benchmark includes programs and derived data from
 [microsoft/intent-formalization](https://github.com/microsoft/intent-formalization/tree/main/nl2postcondition-fse2024),
 including HumanEval problems via EvalPlus. See [NOTICE.txt](NOTICE.txt),
 [dataset attribution](paper/DATA_PROVENANCE.md), and the retained
