@@ -114,9 +114,9 @@ rather than producing success-shaped results.
 
 One Discussion is created per Actions run; publication retries update that
 Discussion using its run marker. Titles include overall accuracy and precision
-to two decimal places. The title's **Precision** uses the body's **Accuracy among
-decisive results**: label-matching predictions divided by all decisive predictions,
-or **N/A** when none are decisive. It is not incorrect-class precision. Partial runs keep
+to two decimal places. Precision is the fraction of predictions of **incorrect**
+whose ground-truth label is **incorrect**, or **N/A** when there are no such
+predictions; it is not accuracy among decisive predictions. Partial runs keep
 the **PARTIAL** title prefix.
 Retry only the failed publication job to avoid
 restarting paid inference. A failed worker retry reruns that shard; there is no

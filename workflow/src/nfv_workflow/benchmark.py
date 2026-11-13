@@ -513,8 +513,9 @@ def publish(summary, api, repo, category):
     else:
         raise Abstain("Discussion pagination exhausted; refusing duplicate publication")
     kind = "five-entry pilot" if summary["run"]["total"] == 5 else "nightly benchmark"
-    answered = summary["answered_accuracy"]
-    precision = f"{answered:.2%}" if answered is not None else "N/A"
+    refutations = sum(summary["matrix"][label]["incorrect"] for label in LABELS)
+    precision = (f"{summary['matrix']['incorrect']['incorrect'] / refutations:.2%}"
+                 if refutations else "N/A")
     title = ("[PARTIAL] " if not summary["completed"] else "") + (
         f"NFV {kind}: {summary['run']['started_at'][:10]} "
         f"- Accuracy {summary['accuracy']:.2%}, Precision {precision} "

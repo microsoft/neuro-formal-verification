@@ -750,15 +750,13 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(api.mutations[0][1]["title"], api.mutations[1][1]["title"])
         self.assertEqual(api.mutations[1][1]["body"], benchmark.render(summary))
 
-    def test_discussion_title_precision_matches_body_decisive_accuracy(self):
+    def test_discussion_title_includes_accuracy_and_incorrect_class_precision(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
         cases = [
-            (206, True, 68, 1, 82, 9, "nightly benchmark", "72.82%", "93.75%"),
-            (206, True, 64, 0, 78, 8, "nightly benchmark", "68.93%", "94.67%"),
-            (5, True, 1, 1, 2, 1, "five-entry pilot", "60.00%", "60.00%"),
+            (206, True, 68, 1, 82, 9, "nightly benchmark", "72.82%", "90.11%"),
+            (5, True, 1, 1, 2, 1, "five-entry pilot", "60.00%", "66.67%"),
             (206, False, 0, 0, 0, 1, "nightly benchmark", "0.00%", "0.00%"),
-            (206, True, 1, 0, 0, 0, "nightly benchmark", "0.49%", "100.00%"),
-            (206, True, 0, 0, 0, 0, "nightly benchmark", "0.00%", "N/A"),
+            (206, True, 1, 0, 0, 0, "nightly benchmark", "0.49%", "N/A"),
         ]
         for total, completed, tn, fn, tp, fp, kind, accuracy, precision in cases:
             with self.subTest(total=total, completed=completed, precision=precision):
@@ -769,15 +767,9 @@ class BenchmarkTests(unittest.TestCase):
                     "incorrect": {"correct": fn, "incorrect": tp, "abstain": total - tn - fn - tp - fp},
                 }
                 summary["accuracy"] = (tn + tp) / total
-                decisive = tn + fn + tp + fp
-                summary["answered_accuracy"] = (tn + tp) / decisive if decisive else None
                 api = PublicationAPI()
                 benchmark.publish(summary, api, REPO, "General")
                 title = api.mutations[0][1]["title"]
-                body = api.mutations[0][1]["body"]
-                self.assertIn(
-                    "**Accuracy among decisive results:** "
-                    + ("N/A." if precision == "N/A" else f"{precision}."), body)
                 prefix = "" if completed else "[PARTIAL] "
                 self.assertEqual(
                     title,
