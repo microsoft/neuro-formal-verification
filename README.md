@@ -11,12 +11,12 @@ This repository contains two components:
 - **Paper artifact:** nfv-micro-bench dataset, retained results, experiment scripts, and Dafny/CBMC backends.
   See [paper/README.md](paper/README.md) for the paper, dataset, model
   configuration, and instructions for running experiments.
-- **Formal Code Reviewer (research prototype):** a PR
+- **Neuro-formal code reviewer (research prototype):** a PR
   reviewer based on GitHub Agentic Workflow that applies NFV on nontrivial properties and
   comments the result. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
-To try the formal code reviewer in your repository, follow the
+To try the neuro-formal code reviewer in your repository, follow the
 [onboarding guide](workflow/ONBOARDING.md) for installing the
 AW template, selecting inference billing and setting its required secrets. 
 

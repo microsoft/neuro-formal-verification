@@ -125,7 +125,9 @@ class ReleaseTests(unittest.TestCase):
             path = ROOT.joinpath(*name.split("/"))
             if path.suffix.lower() in {".md", ".rst"} or name in {"PRIVACY", "NOTICE.txt"}:
                 with self.subTest(path=name):
-                    self.assertNotRegex(path.read_text(encoding="utf-8"), r"(?i)audit")
+                    text = path.read_text(encoding="utf-8")
+                    self.assertNotRegex(text, r"(?i)audit")
+                    self.assertNotRegex(text, r"(?i)(?<!neuro-)formal code review")
 
     def test_tracked_source_headers_and_no_prebuilt_runtime_binaries(self):
         if not (ROOT / ".git").exists():
