@@ -746,7 +746,35 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("createDiscussion", api.mutations[0][0])
         self.assertIn("updateDiscussion", api.mutations[1][0])
         self.assertIn("[PARTIAL]", api.mutations[1][1]["title"])
+        self.assertIn("Accuracy 0.00%, Precision N/A", api.mutations[0][1]["title"])
+        self.assertEqual(api.mutations[0][1]["title"], api.mutations[1][1]["title"])
         self.assertEqual(api.mutations[1][1]["body"], benchmark.render(summary))
+
+    def test_discussion_title_includes_accuracy_and_incorrect_class_precision(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        cases = [
+            (206, True, 68, 1, 82, 9, "nightly benchmark", "72.82%", "90.11%"),
+            (5, True, 1, 1, 2, 1, "five-entry pilot", "60.00%", "66.67%"),
+            (206, False, 0, 0, 0, 1, "nightly benchmark", "0.00%", "0.00%"),
+            (206, True, 1, 0, 0, 0, "nightly benchmark", "0.49%", "N/A"),
+        ]
+        for total, completed, tn, fn, tp, fp, kind, accuracy, precision in cases:
+            with self.subTest(total=total, completed=completed, precision=precision):
+                summary["run"]["total"] = total
+                summary["completed"] = completed
+                summary["matrix"] = {
+                    "correct": {"correct": tn, "incorrect": fp, "abstain": 0},
+                    "incorrect": {"correct": fn, "incorrect": tp, "abstain": total - tn - fn - tp - fp},
+                }
+                summary["accuracy"] = (tn + tp) / total
+                api = PublicationAPI()
+                benchmark.publish(summary, api, REPO, "General")
+                title = api.mutations[0][1]["title"]
+                prefix = "" if completed else "[PARTIAL] "
+                self.assertEqual(
+                    title,
+                    f"{prefix}NFV {kind}: {summary['run']['started_at'][:10]} "
+                    f"- Accuracy {accuracy}, Precision {precision} (run 123)")
 
     def test_unavailable_discussions_or_category_fail_without_writes(self):
         for enabled, category in ((False, "General"), (True, "missing")):
