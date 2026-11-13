@@ -25,3 +25,4 @@ paper/data/**/*.json -text
 paper/data/** -text
 
 .github/workflows/*.lock.yml linguist-generated=true
+workflow/templates/*.lock.yml linguist-generated=true

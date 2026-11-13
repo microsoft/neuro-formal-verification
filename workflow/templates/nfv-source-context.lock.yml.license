@@ -2,6 +2,6 @@ Copyright (c) Microsoft Corporation.
 Licensed under the MIT License.
 
 This notice applies to Microsoft-authored workflow contributions in
-nfv-pr-review.lock.yml. Generated GitHub Agentic Workflows framework
+nfv-source-context.lock.yml. Generated GitHub Agentic Workflows framework
 code retains its upstream attribution; see ../../NOTICE.txt and
-../../workflow/licenses/github-gh-aw-LICENSE.
+../licenses/github-gh-aw-LICENSE.

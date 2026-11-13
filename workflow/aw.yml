@@ -8,5 +8,5 @@ emoji: 🔎
 description: Prototype PR reviewer that refutes a pull request's intended properties with Dafny models (neuro-formal verification).
 experimental: true
 includes:
-  - .github/workflows/nfv-source-context.md
-  - .github/workflows/nfv-pr-review.md
+  - templates/nfv-source-context.md
+  - templates/nfv-pr-review.md

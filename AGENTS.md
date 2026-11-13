@@ -16,7 +16,7 @@ Guidance for coding agents and contributors working in this repository. Read
 | `tests/` | Core and artifact tests |
 | `workflow/` | `nfv-workflow` package: PR collection, Dafny refutation pipeline, publication |
 | `workflow/aw.yml` | gh-aw package manifest that installs the PR reviewer |
-| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow (source) and its `.lock.yml` |
+| `workflow/templates/` | Reusable NFV PR reviewer workflow sources and compiled locks for consumer repositories |
 | `.github/skills/nfv-pr-review/SKILL.md` | Agent skill to bootstrap, test and troubleshoot the PR reviewer in a repository |
 | `.github/workflows/ci.yml` | Offline checks with the real verifiers |
 
@@ -169,10 +169,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Preserve shared gh-aw skill/maintenance files byte-for-byte and retain existing
   action pins when adding NFV pins. Compiler version detection must accept
   stdout or stderr without mixing stderr into JSON command results.
-- Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
-  then recompile the affected workflow and commit both the
-  `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
-  `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
+- Reviewer templates live in `workflow/templates/`, not in this repository's
+  installed workflows. Recompile both after edits with
+  `gh aw compile --dir workflow/templates --approve`
+  (gh-aw v0.88.7). Commit sources, compiled locks and action-lock changes together.
+  Consumer installations still place both workflows in `.github/workflows/`.
 - Audits start on non-draft `opened` and `ready_for_review` events targeting any
   branch in the onboarded repository from same-repository branches only.
   Fork PRs are skipped before admission or inference. The `pull_request`
@@ -224,7 +225,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   never a shared `GH_AW_GITHUB_TOKEN` override or an inference/release token.
 - Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
   `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string
-  `includes` entry starting with `.github/` resolves from the repository root.
+  `includes` entry in `workflow/aw.yml` resolves relative to the package directory.
   Local package paths are not supported, so test installs from a pushed ref in
   a scratch repository.
 

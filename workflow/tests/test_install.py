@@ -36,7 +36,7 @@ class FakeCLI:
         self.extension_installed = not case.get("missing_extension")
 
     def source(self, path, pin):
-        source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
+        source = (SOURCE.parent / "templates" / Path(path).name).read_text(encoding="utf-8")
         if self.case.get("missing_gate"):
             source = source.replace(INSTALL.ACTIVATION_GATE, "true")
         if path.endswith(".lock.yml"):
@@ -389,7 +389,7 @@ class InstallerTests(unittest.TestCase):
         for path in (".github/workflows/nfv-pr-review.md",
                      ".github/workflows/nfv-pr-review.lock.yml"):
             with self.subTest(path=path):
-                source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
+                source = (SOURCE.parent / "templates" / Path(path).name).read_text(encoding="utf-8")
                 installer.check_activation_gate(source, path)
                 before, admission = source.split("\n  admission:\n", 1)
                 unsafe = before + "\n  admission:\n" + admission.replace(INSTALL.ACTIVATION_GATE, "true", 1)
