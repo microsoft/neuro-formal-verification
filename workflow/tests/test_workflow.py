@@ -1015,17 +1015,30 @@ class AdmissionTests(ScratchTest):
         self.assertEqual(self.writes, [])
 
     def test_ineligible_events_do_not_reserve_or_run(self):
-        for field, value in (("draft", True), ("action", "synchronize"), ("base", "release")):
+        for field, value in (("draft", True), ("action", "synchronize"), ("action", "reopened")):
             with self.subTest(field=field):
                 captured = copy.deepcopy(self.event)
                 if field == "action":
                     captured[field] = value
-                elif field == "base":
-                    captured["pull_request"]["base"]["ref"] = value
                 else:
                     captured["pull_request"][field] = value
                 self.assertFalse(admission.admit(captured, self.api, "42"))
         self.assertEqual(self.writes, [])
+
+    def test_non_default_targets_share_the_pr_reservation_and_explicit_retry(self):
+        for action in ("opened", "ready_for_review"):
+            for base in ("release", "feature/nested"):
+                with self.subTest(action=action, base=base):
+                    self.comments.clear()
+                    self.writes.clear()
+                    self.event["action"] = action
+                    self.event["pull_request"]["base"]["ref"] = base
+                    self.assertTrue(admission.admit(self.event, self.api, "42"))
+                    self.assertFalse(admission.admit(self.event, self.api, "43"))
+                    self.assertTrue(admission.admit(self.event, self.api, "42", 2))
+                    self.event["pull_request"]["base"]["ref"] = "master"
+                    self.assertFalse(admission.admit(self.event, self.api, "44"))
+                    self.assertEqual(len(self.writes), 1)
 
     def test_legacy_or_unrelated_event_types_fail_before_api_access(self):
         for name in ("pull_request_target", "workflow_dispatch", "push"):
@@ -1126,7 +1139,6 @@ class TemplateTests(unittest.TestCase):
         source, lock = self.source(), self.lock()
         self.assertIn("types: [opened, ready_for_review]", source)
         gate = ("vars.NFV_RELEASE_SHA != '' && "
-                "github.event.pull_request.base.ref == github.event.repository.default_branch && "
                 "github.event.pull_request.draft == false && "
                 "(github.event.action == 'opened' || github.event.action == 'ready_for_review')")
         self.assertEqual(source.count("if: " + gate), 3)
@@ -1140,7 +1152,9 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn('"has_pull_request_target":true', lock)
         self.assertIn("  roles: all\n", source)
         self.assertIn("github.event.pull_request.head.repo.id == github.repository_id", lock)
-        self.assertIn("github.event.pull_request.base.ref == github.event.repository.default_branch", lock)
+        for template in (source, lock):
+            self.assertNotIn("github.event.pull_request.base.ref", template)
+            self.assertNotRegex(template, r"(?m)^\s+branches(?:-ignore)?:")
         self.assertFalse((self.template / "agentic_commands.yml").exists())
 
     def test_admission_precedes_both_sessions_and_has_only_scoped_reservation_writes(self):
@@ -1161,7 +1175,7 @@ class TemplateTests(unittest.TestCase):
             template = (self.template / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn('--event "$GITHUB_EVENT_PATH" --event-snapshot', template)
 
-    def test_default_branch_activation_rejects_forks_without_auditing_pushes(self):
+    def test_all_target_branches_activation_rejects_forks_without_auditing_pushes(self):
         gate = re.search(r"\n  activation:\n    if: >\n(.*?)\n    runs-on:",
                          self.lock(), re.DOTALL).group(1)
         condition = (" ".join(gate.split()).replace("&&", "and").replace("||", "or")
@@ -1170,10 +1184,15 @@ class TemplateTests(unittest.TestCase):
             ("master", "master", False, "opened", 1, True),
             ("main", "main", False, "ready_for_review", 1, True),
             ("dev", "dev", False, "opened", 1, True),
+            ("release", "main", False, "opened", 1, True),
+            ("feature/nested", "main", False, "ready_for_review", 1, True),
             ("main", "main", False, "opened", 2, False),
             ("main", "main", False, "ready_for_review", 2, False),
             ("main", "main", False, "opened", None, False),
             ("release", "main", False, "opened", 2, False),
+            ("release", "main", True, "opened", 1, False),
+            ("release", "main", False, "synchronize", 1, False),
+            ("release", "main", False, "reopened", 1, False),
             ("main", "main", True, "opened", 2, False),
             ("main", "main", False, "synchronize", 2, False),
             ("main", "main", False, "reopened", 2, False),

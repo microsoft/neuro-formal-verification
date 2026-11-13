@@ -16,12 +16,14 @@ The source is `.github/workflows/nfv-pr-review.md` in
 `microsoft/neuro-formal-verification`. The gh-aw package is `workflow/aw.yml`.
 User docs are in `workflow/README.md`.
 
-Audits start when a supported-source PR into the onboarded repository's default
-branch opens non-draft or transitions from draft to ready, from a branch in
+Audits start when a supported-source PR targeting any branch in the onboarded
+repository opens non-draft or transitions from draft to ready, from a branch in
 that same repository. Fork PRs are skipped. The `pull_request` workflow runs
 from the PR merge ref; branch contributors must be trusted with workflow
 changes and repository secrets. The NFV package stays pinned, and inspected
 PR source remains inspection-only data.
+The workflows must exist in the target branch/merge ref; installation does not
+add them to older branches.
 Each PR gets one automatic attempt, reserved by a trusted admission comment
 before either inference session starts; failures consume that attempt too.
 Pushes and repeated readiness transitions never cancel or restart an audit.
@@ -90,7 +92,7 @@ look for `missing_tool` safe outputs.
 
 | Symptom | Cause and fix |
 |---|---|
-| Both inference sessions skipped | Check the release gate, draft/default-branch eligibility and existing admission/report comments. Repeated readiness events do not retry an admitted PR. |
+| Both inference sessions skipped | Check the release gate, draft/fork eligibility, workflows in the target branch/merge ref and existing admission/report comments. Repeated readiness events do not retry an admitted PR. |
 | `status: superseded` | The default strict collector detected an obsolete snapshot. Installed collectors must use `--event-snapshot`; do not fabricate a completed audit or delete a reservation to retry. |
 | Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; either mode requires `NFV_RELEASE_TOKEN` while NFV is private. |
 | Organization inference is denied | Confirm an organization-owned target, the organization CLI-billing policy, allowed model and all three `copilot-requests: write` entries. Do not silently fall back to a PAT. |
