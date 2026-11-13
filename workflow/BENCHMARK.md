@@ -113,7 +113,12 @@ remain unsuccessful in Actions. Malformed or mismatched evidence fails scoring
 rather than producing success-shaped results.
 
 One Discussion is created per Actions run; publication retries update that
-Discussion using its run marker. Retry only the failed publication job to avoid
+Discussion using its run marker. Titles include overall accuracy and precision
+to two decimal places. Precision is the fraction of predictions of **incorrect**
+whose ground-truth label is **incorrect**, or **N/A** when there are no such
+predictions; it is not accuracy among decisive predictions. Partial runs keep
+the **PARTIAL** title prefix.
+Retry only the failed publication job to avoid
 restarting paid inference. A failed worker retry reruns that shard; there is no
 automatic best-of search or deterministic replay requirement.
 
