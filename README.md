@@ -16,7 +16,7 @@ This repository contains two components:
   comments the result. See [workflow/README.md](workflow/README.md) for setup,
   model configuration, supported languages, and examples.
 
-To try the formal code audit reviewer in your repository, follow the
+To try the formal code reviewer in your repository, follow the
 [onboarding guide](workflow/ONBOARDING.md) for installing the
 AW template, selecting inference billing and setting its required secrets. 
 

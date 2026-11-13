@@ -57,7 +57,7 @@ flowchart LR
     Properties --> Checks["Verification first,<br/>then refutation if needed"]
     Checks --> Verified["verified<br/>Property proved in the model"]
     Checks --> Refuted["refuted<br/>Model counterexample accepted"]
-    Checks --> Unresolved["resources exhausted<br/>or type-check/audit failure"]
+    Checks --> Unresolved["resources exhausted<br/>or type-check/model-validation failure"]
     Verified --> Report["One PR comment<br/>+ retained evidence"]
     Refuted --> Followups["Optional checked simplification<br/>+ model-checked candidate fix"]
     Followups --> Report
@@ -112,7 +112,7 @@ NFV users can self-report public repository onboarding for nightly summary colle
 [onboarding](ONBOARDING.md#optional-public-dashboard). The existing dashboard
 keeps these registrations separate from historical replay campaigns. Older
 releases without summaries appear as coverage gaps; the collector never launches
-audits or derives proof counts from green jobs or comment prose.
+reviews or derives proof counts from green jobs or comment prose.
 
 The maintainer-only [micro-benchmark](BENCHMARK.md) has a separate Discussion
 dashboard with the latest completed full run, per-run NFV revision links and

@@ -1,15 +1,15 @@
 <!-- Copyright (c) Microsoft Corporation.
 Licensed under the MIT License. -->
 
-# NFV PR audit onboarding
+# NFV PR reviewer onboarding
 
 Already installed? Use the [upgrade procedure](#upgrade-an-existing-installation),
 not the first-installation script.
 
 For expired tokens and other common problems, see the [FAQ](FAQ.md).
 
-NFV audits non-draft, supported-source PRs from branches in the onboarded
-repository targeting any branch. Fork PRs are skipped. Audits start on opening
+NFV reviews non-draft, supported-source PRs from branches in the onboarded
+repository targeting any branch. Fork PRs are skipped. Reviews start on opening
 or draft-to-ready transitions, once automatically per PR, not later pushes.
 The `pull_request` workflow runs from the PR merge ref, so contributors allowed
 to push repository branches must be trusted with workflow changes and repository
@@ -30,7 +30,7 @@ inference or enabling the workflows.
 
 3. **Clone the target:** Start from the clean default branch of `OWNER/repo`,
    where you can manage Actions, secrets and variables. An approved fork is
-   fine, but its installation audits PRs in that fork, not upstream.
+   fine, but its installation reviews PRs in that fork, not upstream.
 
 4. **Choose billing and enter secrets:**
 
@@ -124,16 +124,13 @@ for permissions, optional settings and installer options.
 
 Anyone using NFV can report their onboarded public repository by opening
 a [Discussion](https://github.com/microsoft/neuro-formal-verification/discussions)
-with this exact title:
-
-```text
-NFV PR Audit onboarded on OWNER/repo
-```
+using the exact registration title specified in the
+[dashboard's instructions](https://github.com/shuvendu-lahiri/nfv_dashboard#optional-public-repository-registration).
 
 Only validated public repositories are listed on the
 [existing dashboard](https://shuvendu-lahiri.github.io/nfv_dashboard/registered/).
 While NFV is private, creating this Discussion requires access to NFV.
-Registration does not install or activate NFV, start an audit, or change billing.
+Registration does not install or activate NFV, start a review, or change billing.
 No target-repository admin permission or maintainer approval is required.
 Registrations are self-reported, not verified owner endorsement or proof of a
 healthy installation. Describe problems or ask for help in the Discussion replies;
@@ -142,7 +139,7 @@ Close all matching registration Discussions to withdraw.
 
 The dashboard's [README](https://github.com/shuvendu-lahiri/nfv_dashboard#optional-public-repository-registration)
 describes nightly activation and collector-owned read access. No reporting secret
-or cross-repository write permission is needed in the audited repository.
+or cross-repository write permission is needed in the reviewed repository.
 The dashboard repository can remain private; Pages publication is separately
 opt-in and is not required for collection or local viewing. A private source
 repository does not itself provide private Pages access.
@@ -152,10 +149,10 @@ See [PRIVACY](../PRIVACY#optional-public-dashboard) before opting in.
 
 Ask the agent to upgrade; do not rerun the first-installation script against an
 existing installation. Keep the approved model, secrets and budgets. Disable
-new audits and wait for all active/queued runs to finish before changing shared
+new reviews and wait for all active/queued runs to finish before changing shared
 configuration. Preserve the selected billing mode unless a change is approved.
 Disabling a workflow does not cancel its runs; let them finish rather than
-cancelling an audit that has started.
+cancelling a review that has started.
 
 Resolve the trusted NFV release once, replace the package with
 `gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, recompile
@@ -167,7 +164,7 @@ organization billing permissions in the reviewer, reusable caller and worker.
 Recheck [repository permission policies](REFERENCE.md#repository-permission-policies)
 against the regenerated jobs.
 
-Existing completed NFV bot reports prevent another automatic audit. For a
+Existing completed NFV bot reports prevent another automatic review. For a
 legacy failed attempt without a report or admission record, a maintainer with
 repository write access can record it before enabling the upgraded workflow.
 Post a PR comment with this exact first-line format, substituting the repository,
@@ -175,7 +172,7 @@ PR number and verified historical Actions run ID:
 `<!-- nfv-pr-attempt:OWNER/repo:PR_NUMBER:RUN_ID -->`.
 Include a run link and the reason below it. The admission gate verifies a
 non-bot record author's current write permission. Do not seed records for runs
-that never started an audit merely because GitHub created a skipped run.
+that never started a review merely because GitHub created a skipped run.
 
 After the approved merge, update `NFV_RELEASE_SHA` and read it back. Replace
 `OWNER/repo` with the target repository and `<SHA>` with the same full trusted
@@ -199,5 +196,5 @@ upgrade and must run before NFV is re-enabled.
 
 Verify the returned SHA matches both merged package pins, and verify the model,
 billing permissions and required secret names before enabling NFV and reading
-back `active`. Repeat a separately approved pilot; leave audits paused on failure.
+back `active`. Repeat a separately approved pilot; leave reviews paused on failure.
 `gh aw update` and `gh aw upgrade` do not update NFV's runtime variable.

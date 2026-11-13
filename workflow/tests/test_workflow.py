@@ -1389,7 +1389,7 @@ class TemplateTests(unittest.TestCase):
     def test_attempt_status_is_separate_from_completed_property_outcomes(self):
         prompt = self.source().split("\n---\n", 1)[1]
         self.assertIn("Completed analyses submit all four property outcomes", prompt)
-        self.assertIn("property type-check/audit failures", prompt)
+        self.assertIn("property type-check/model-validation failures", prompt)
         self.assertIn("review-status.json", prompt)
         self.assertIn("never fabricates a completed", prompt)
 
