@@ -46,14 +46,15 @@ under `workflow/tests/.general-scratch/`; never commit them.
   failure to refute is not evidence of correctness. Keep this wording in docs.
 - The general workflow selects nontrivial intent/source properties, verifies the
   original model first, then tries refutation. Its only property outcomes are
-  `refuted`, `verified`, `resources exhausted`, `type-check/audit failure`.
+  `refuted`, `verified`, `resources exhausted`, and type-check/model-validation
+  failure (descriptive wording; preserve existing machine outcome identifiers).
   Verification is model-conditional, not source correctness. Use "input-domain
   check" for the feasible-return guard in public text.
 - Bind new proposals to trusted, snapshot-bound function IDs; derive changed
   anchors in code. Source-inferred quotes may come from anywhere in the selected
   captured function. Preserve immutable cross-file source-context capture.
   Retain draft formalizations and diagnostics, then freeze the first fully
-  audited, type-checked model before proof or refutation. Keep each conjectured
+  validated, type-checked model before proof or refutation. Keep each conjectured
   property whole; never decompose it into atomic propositions or child checks.
   Conjunctions and multiple entry ensures remain one property: verify them
   together and mechanically negate their complete conjunction for refutation.
@@ -65,7 +66,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   They never replace or split the accepted property, weaken its domain/helpers,
   change its outcome, or count as additional properties. Keep their hash-bound
   evidence separate in `followups.json`; rendering and `present` never run proofs.
-  Audit definite-assignment and array/sequence range diagnostics before freezing a draft, without
+  Check definite-assignment and array/sequence range diagnostics before freezing a draft, without
   changing or splitting conjectures. Prefer implementation-owned properties over
   test expectations refuted only by arbitrary environment responses.
 - Report UX (`publish.general_section`): a one-line NFV intro linking the paper
@@ -101,7 +102,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   source-expression anchor or an explicit abstract-input label and reason;
   the failure prose references an anchored source condition/call, not ghost
   output flags. `nfv-workflow present` refreshes accepted saved evidence via
-  tool-free `CopilotChat`, without audits/proof reruns, writing a separate
+  tool-free `CopilotChat`, without analysis/proof reruns, writing a separate
   hash-bound `presentation.json` and deterministic `comment.md`. Invalid
   mappings fail rendering; agents never manually edit generated report text.
   Source anchors and artifact hashes are provenance, not semantic proof or
@@ -122,7 +123,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   preserving the exact original metadata in local evidence. Validate public
   metadata before publication and reject unsafe cached plans. Do not modify
   generated NFV reports or claim historical backlinks have been erased.
-- Only `nfv-workflow audit`/`evaluate` decide acceptance; agents never edit,
+- Only the workflow analysis entrypoint and `nfv-workflow evaluate` decide acceptance; agents never edit,
   summarize or add to generated report text.
 - Limits: at most 10 intended properties per PR, 6 syntax repairs and 10
   annotation-only proof repairs per property.
@@ -138,7 +139,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `// src: path:LINE | exact source line` tag; synthetic tags may only cover
   contracts, braces and annotations. Missing callees are modelled from captured
   code and comments with the weakest justified contract. Missing semantics and
-  invalid extracted claims produce per-property type-check/audit failures.
+  invalid extracted claims produce per-property type-check/model-validation failures.
 - Per-property translation context contains one changed function and at most
   two same-file callers and two callees; other bodies are environment.
   Repository-context hints additionally provide bounded cross-file helper,
@@ -173,7 +174,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
   `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
-- Audits start on non-draft `opened` and `ready_for_review` events targeting any
+- Reviews start on non-draft `opened` and `ready_for_review` events targeting any
   branch in the onboarded repository from same-repository branches only.
   Fork PRs are skipped before admission or inference. The `pull_request`
   workflow runs from the PR merge ref; branch contributors must be trusted
@@ -184,7 +185,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Reserve one automatic attempt per PR in a trusted admission comment before
   either inference session; failures consume it too. Existing NFV reports also
   suppress reanalysis. Keep the durable records and serialize without cancelling
-  running audits. Pushes and repeated readiness events never restart them;
+  running reviews. Pushes and repeated readiness events never restart them;
   an explicit rerun of the original failed workflow may reuse its reservation.
   Both workflow collectors use `--event-snapshot`: immutable event head/base,
   event description and comparison commits survive later pushes, closure and
@@ -193,7 +194,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
 - Flow: the reusable source-context AW session completes first. Trusted
   pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
   the immutable PR bundle. A deterministic custom SDK driver then runs
-  tool-free extraction and the complete foreground audit inside the AWF sandbox,
+  tool-free extraction and the complete foreground analysis inside the AWF sandbox,
   using the inference proxy without exposing real credentials.
   Extraction shortlists up to ten changed functions, then inspects full scoped
   source and cross-file context; never submit the entire bundle as a model
@@ -270,6 +271,8 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `.github/skills/agentic-workflows/` (from `gh aw init`), `.nfv-work/`, `.nfv-scratch/`.
 - Keep docs concise and user-facing: describe the current behaviour, with no
   iteration or changelog wording. Call the workflow a prototype implementation.
+  Use review/reviewer terminology for the workflow and model-validation/check
+  terminology for its integrity gates.
 - `.gitattributes` enforces LF; on Windows write files with `\n` newlines.
 - Run the relevant tests before pushing; update `workflow/README.md` and the
   workflow template tests (`TemplateTests`) when workflow behaviour changes.

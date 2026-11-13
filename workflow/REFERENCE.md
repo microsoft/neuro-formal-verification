@@ -13,7 +13,7 @@ AW session first inspects a shallow trusted-base checkout and changed-head
 blobs as text. It never builds or executes the inspected repository. NFV then
 translates the properties into **Dafny**, tries verification first and, if that
 does not succeed, tries conditional model refutation. A deterministic gh-aw SDK
-driver owns extraction, the complete audit and verbatim report submission inside
+driver owns extraction, the complete analysis and verbatim report submission inside
 the AWF sandbox. No outer model session supervises background shell commands.
 
 The default path accepts source in **C, C++, Java, C#, Go, JavaScript, TypeScript,
@@ -30,12 +30,12 @@ and return types while preserving the original source line numbers.
   the Dafny backend.
 * Each property gets up to **6 syntax/type repairs** and **10 annotation-only
   repairs** of the negative check.
-  Draft audit diagnostics identify source-tag errors and missing helper metadata
+  Draft model-validation diagnostics identify source-tag errors and missing helper metadata
   together. Definite-assignment and sequence-bound errors must be repaired before
   the model is frozen. Drafts rejected by Dafny's Boogie resolution stage use the
   same bounded draft-repair budget; they are never accepted without a successful
-  verifier run. Other verifier/tool failures still interrupt the audit.
-* Audits start on non-draft `opened` and `ready_for_review` events targeting any
+  verifier run. Other verifier/tool failures still interrupt the review.
+* Reviews start on non-draft `opened` and `ready_for_review` events targeting any
   branch in the onboarded repository from a branch in that same repository,
   whose changed paths include a supported source suffix. Fork PRs are skipped.
   The `pull_request` workflow comes from the PR merge ref; repository-branch
@@ -50,11 +50,11 @@ and return types while preserving the original source line numbers.
   Preserve these records. Duplicate detection checks all comment pages, not an
   expiring Actions cache. It is not an exactly-once computation guarantee if
   records are deleted or independent installations use different concurrency.
-  Reopening does not start an audit.
+  Reopening does not start a review.
   Drafts and documentation/configuration/submodule-only PRs are skipped before
   either inference session starts. Keep NFV advisory, not a required merge check.
   Pushes do not trigger the workflow; per-PR concurrency never cancels a running
-  audit. Repeated draft-to-ready events skip the reservation and both inference
+  review. Repeated draft-to-ready events skip the reservation and both inference
   sessions. A maintainer can explicitly rerun the original failed workflow;
   its run ID reuses the reservation. A completed report prevents a duplicate
   full-workflow rerun.
@@ -100,7 +100,8 @@ overflow, panics, Option/Result, and ownership/borrows. This guides translation;
 it is not a mechanically verified source-language frontend.
 
 Every selected property has exactly one outcome: **refuted**, **verified**,
-**resources exhausted**, or **type-check/audit failure**. Verification means
+**resources exhausted**, or **type-check/model-validation failure** (descriptive
+labels; native report identifiers are unchanged). Verification means
 the translated model satisfies the property under its stated input and
 environment assumptions, not that the source program is correct. A verified
 property gets an explicit note and checked postconditions. Resource limits and
@@ -173,14 +174,14 @@ to fit the 60,000-character comment budget. If refutation excerpts still exceed
 that budget, the report links to their full evidence in the run artifact.
 Every property, outcome, counterexample, retained condition and evidence hash
 remains visible.
-If a refutation's source-presentation metadata is missing or invalid, `audit`
+If a refutation's source-presentation metadata is missing or invalid, the workflow
 records the diagnostic and requests a separate, hash-bound presentation from
 a tool-free session. Accepted proof evidence is unchanged and never rerun;
 invalid refreshed mappings still stop publication.
 Presentation requests include the captured entry and accepted source anchors
 with nearby rows, not entire files; the complete system/user payload must fit
 the same bounded request budget as analysis.
-`audit`, general `run` and `evaluate` generate the enabled follow-ups after
+The workflow entrypoint, general `run` and `evaluate` generate the enabled follow-ups after
 acceptance. `present` remains proof-free, and `publish` only validates saved
 evidence. Both automatically read `followups.json` beside the report, or accept
 `--followups PATH`; `publish` similarly accepts `--presentation PATH`.
@@ -225,12 +226,12 @@ Failures show their category and a collapsed diagnostic excerpt of at most
 300 characters; full diagnostics remain in the artifact. Source-inferred
 properties are labeled separately from quoted intentions. Each new push hides
 the previous NFV comment. Verifier models, repair logs and hashes are in the run's
-`nfv-evidence` artifact. Interrupted audits retain incremental evidence marked
+`nfv-evidence` artifact. Interrupted reviews retain incremental evidence marked
 incomplete; it cannot be published as a finished review.
-Provider/SDK failures and verifier infrastructure failures stop the audit,
+Provider/SDK failures and verifier infrastructure failures stop the review,
 retain incomplete evidence, and fail the job without submitting a review.
 Completed analyses submit the generated comment for all four property outcomes,
-including resource exhaustion and property type-check/audit failures, even when
+including resource exhaustion and property type-check/model-validation failures, even when
 there are no refutations. These outcomes do not fail the job.
 
 The sandbox driver records its attempt separately in `review-status.json` in
@@ -238,7 +239,7 @@ The sandbox driver records its attempt separately in `review-status.json` in
 `status: completed`, `completed: true`, outcome counts, and
 `publication: submitted`: the comment intent was queued, not confirmation that
 the later safe-output job posted it. A driver-observed setup, input, extraction,
-audit or submission failure instead records `status: infrastructure_failure`,
+analysis or submission failure instead records `status: infrastructure_failure`,
 `completed: false`, the stage and diagnostic, and the captured identity when
 available. Submission errors leave publication `unconfirmed`; they are not retried.
 `analysis_completed` distinguishes an accepted completed analysis from a later
@@ -251,9 +252,9 @@ failures remain in their Actions job logs.
 An obsolete collection records `status: superseded`, `completed: false`,
 `analysis_completed: false`, `publication: not_needed`, its captured identity and
 a diagnostic. The driver acknowledges a no-op instead of extracting properties,
-running an audit or submitting a report. An already-started source-context
+running a review or submitting a report. An already-started source-context
 session may still use a model call to hand off the skipped status. Supersession is an operational skip,
-never a completed audit, proof verdict, empty successful review or property
+never a completed review, proof verdict, empty successful review or property
 outcome. Other collection failures and unsuccessful no-op submissions still fail.
 The default `nfv-workflow collect` CLI remains strict; its workflow-only
 `--status-out` option distinguishes typed supersession from genuine failures.
@@ -322,7 +323,7 @@ The existing AI-credit and wall-time budgets still apply.
    without automatically restricting the entry's input domain to those calls.
    Ambiguous boundaries, anchors spanning separate functions, or a changed
    function exceeding the 32,000-byte source-context budget produce the
-   corresponding audit-failure or resource-exhaustion outcome.
+   corresponding model-validation-failure or resource-exhaustion outcome.
    Omission notices are compacted with an explicit count when needed to keep
    an otherwise bounded source context within the same budget.
    Every translation and repair request checks the entire system and user
@@ -337,7 +338,7 @@ The existing AI-credit and wall-time budgets still apply.
    keeping the source property fixed. Each draft and its diagnostics are saved. Trusted code
    extracts the draft's actual postconditions rather than trusting a duplicate
    model-authored copy. Each attempt runs `dafny resolve`—**not verification of
-   the original property**. The first fully audited, type-correct model is frozen.
+   the original property**. The first fully validated, type-correct model is frozen.
    The workflow permits Dafny warnings, retaining them in evidence, without
    suppressing errors, integrity gates or proof obligations. This policy is
    confined to `workflow/`; the paper's `nfv/` implementation is unchanged.
@@ -397,13 +398,13 @@ translator models it from the callee's captured implementation, declaration and
 comments, preferring the weakest contract those lines justify, and leaves
 undocumented results as entry inputs. Omitted implementations are not
 reconstructed; the captured declarations/comments justify the weakest
-environment contracts, or the property has a type-check/audit failure when needed behavior is
+environment contracts, or the property has a type-check/model-validation failure when needed behavior is
 undocumented. No axioms, `assume`, `expect`, bodyless callable contracts,
 verification-disabling attributes, includes/imports, opaque definitions, or
 termination escapes are allowed. No model-authored shell command is executed.
 Canonical callable signatures/contracts are complete single lines and their
 opening body brace is on its own line. Certain advanced Dafny constructs, such
-as subset/newtype aliases and uninterpreted constants, fail the model audit.
+as subset/newtype aliases and uninterpreted constants, fail model validation.
 
 The current concrete-call bridge supports named **`int`, `bool`, `seq<int>`,
 and `seq<bool>` input/return values**. Heap/graph initial state may be modeled
@@ -468,7 +469,7 @@ Configure these as protected Actions repository variables:
 
 Unset budget variables retain their defaults. Properties run sequentially within
 the 360-minute job timeout. The two independent Boolean flags accept only `true`
-or `false`; unset or empty means enabled. Local `audit`, `run` and general
+or `false`; unset or empty means enabled. The workflow entrypoint, local `run` and general
 `evaluate` also accept `--no-simplify-refutations` and `--no-check-fixes` (or
 their positive forms). Activation and upgrades retain the approved model.
 
@@ -521,7 +522,7 @@ For `safe_outputs` HTTP 401 **Bad credentials**, inspect the compiled
 Older locks prefer `GH_AW_GITHUB_TOKEN` when present; an invalid override can
 break publication even when inference succeeds. Recompile both installed
 sources with the explicit job-token setting. A green agent job alone does not
-establish publication or a completed audit.
+establish publication or a completed review.
 
 ### Inference billing
 
@@ -560,11 +561,11 @@ in the workspace: a non-secret extraction index containing PR signals,
 changed-line anchors, captured source paths, and omissions, without duplicating
 the source bodies. Tool-free sessions receive bounded source contexts, not a shell
 or repository tools; trusted Python code invokes the actual type checker and
-verifier inside the sandbox. Input/access/tool failures fail the driver, not an empty audit.
+verifier inside the sandbox. Input/access/tool failures fail the driver, not an empty review.
 An empty proposal list is reserved for completed inspection that finds no
 grounded nontrivial property.
 
-The custom SDK driver runs extraction, then `audit`, as one foreground process
+The custom SDK driver runs extraction, then analysis, as one foreground process
 inside gh-aw's AWF sandbox. Its small Node.js supervisor launches the installed
 Python environment, forwards cancellation and emits liveness heartbeats; NFV
 keeps its own pinned Python SDK. The supervisor removes platform-authentication
@@ -578,7 +579,7 @@ injects the actual credential. There is no supervising or publishing LLM.
 
 Evidence is written under `/tmp/gh-aw/sandbox/agent/logs/nfv` and uploaded as
 `nfv-evidence`, including interrupted work. Only after extraction and the complete
-audit succeed does the driver pipe the unchanged `comment.md` as JSON to
+analysis succeed does the driver pipe the unchanged `comment.md` as JSON to
 `safeoutputs add_comment`. A failed or interrupted execution is never restarted
 in the same evidence directory, preventing duplicate write intents. Post-agent
 steps only retain evidence; they never perform analysis. gh-aw threat detection
@@ -595,7 +596,7 @@ available to that credential. For GitHub Actions, configure `NFV_MODEL` and
 the selected [inference billing mode](#inference-billing) as described above.
 
 To refresh the presentation of an existing accepted general report, without
-rerunning an audit or verifier:
+rerunning analysis or a verifier:
 
 ```powershell
 nfv-workflow present --report .\nfv-evidence\report.json `
@@ -644,7 +645,7 @@ nfv-workflow reanchor --bundle .nfv-work\bundle-base.json --properties .nfv-work
 nfv-workflow run --bundle .nfv-work\bundle-base.json --properties .nfv-work\properties-base.json --model $env:NFV_MODEL --out .nfv-work\evidence-base
 ```
 
-`audit` is the AW entrypoint; `evaluate` is the standalone equivalent that also
+The AW analysis entrypoint has a standalone equivalent, `evaluate`, that also
 collects fresh source and reads properties from an `nfv_submit` item.
 Their defaults are `--mode general --syntax-rounds 6 --proof-rounds 10`.
 `--verifier-timeout` defaults to 60 seconds. Each model request defaults to
@@ -707,7 +708,7 @@ NL formalization, external caller preconditions, or linker behavior.
 * General modeling: 600,000-character context, 160,000-character verifier model,
   1,000-line source span, 20 input conditions, 30 environment helpers, and a
   bounded concrete-value witness bridge. Unrepresentable semantics fail the
-  model audit rather than yielding a correctness claim.
+  model-validation checks rather than yielding a correctness claim.
 * Artifact access follows repository permissions and expires after 30 days by
   default. Download evidence before expiry.
 * Paper core, historical model prompts, scoring, and experiment budgets are

@@ -19,7 +19,7 @@ The source is `.github/workflows/nfv-pr-review.md` in
 `microsoft/neuro-formal-verification`. The gh-aw package is `workflow/aw.yml`.
 User docs are in `workflow/README.md`.
 
-Audits start when a supported-source PR targeting any branch in the onboarded
+Reviews start when a supported-source PR targeting any branch in the onboarded
 repository opens non-draft or transitions from draft to ready, from a branch in
 that same repository. Fork PRs are skipped. The `pull_request` workflow runs
 from the PR merge ref; branch contributors must be trusted with workflow
@@ -29,9 +29,9 @@ The workflows must exist in the target branch/merge ref; installation does not
 add them to older branches.
 Each PR gets one automatic attempt, reserved by a trusted admission comment
 before either inference session starts; failures consume that attempt too.
-Pushes and repeated readiness transitions never cancel or restart an audit.
+Pushes and repeated readiness transitions never cancel or restart a review.
 Retry a failure only with an explicit rerun of its workflow. Keep the admission
-record; completed NFV bot reports also suppress duplicate automatic audits.
+record; completed NFV bot reports also suppress duplicate automatic reviews.
 Both collectors use the event's immutable head/base snapshot even after PR
 updates, closure or merge. Completed reports are posted after merge too.
 
@@ -67,13 +67,13 @@ before enabling and verifying `active`. Leave unrelated CI enabled.
 Preserve shared gh-aw skills, maintenance schedules and existing action pins;
 do not accept unrelated compiler-generated changes or replace the client's
 installed compiler automatically.
-Only start a separate pilot and billable audit with user approval, and check its
+Only start a separate pilot and billable review with user approval, and check its
 generated comment and completed native evidence rather than a green job alone.
 
 ## Upgrade
 
 Follow the [onboarding guide's upgrade section](../../../workflow/ONBOARDING.md#upgrade-an-existing-installation).
-Pause new audits, wait for active/queued runs to finish and keep the model,
+Pause new reviews, wait for active/queued runs to finish and keep the model,
 billing mode, secrets and budgets. Update the package and runtime together,
 verify merged configuration, then re-enable and check a separately approved pilot.
 For the post-merge client handoff, inspect both installed package pins on the
@@ -90,13 +90,13 @@ re-enabling.
 Read the `agent` job log, then download the `agent` artifact
 (`gh run download <id> -n agent`). `sandbox/agent/logs/process-*.log` holds full
 tool outputs, and `nfv-evidence/` holds the bundle, proposals, Dafny models and
-`report.json`. The agent job can succeed even when the audit did not run;
+`report.json`. The agent job can succeed even when the review did not run;
 look for `missing_tool` safe outputs.
 
 | Symptom | Cause and fix |
 |---|---|
 | Both inference sessions skipped | Check the release gate, draft/fork eligibility, workflows in the target branch/merge ref and existing admission/report comments. Repeated readiness events do not retry an admitted PR. |
-| `status: superseded` | The default strict collector detected an obsolete snapshot. Installed collectors must use `--event-snapshot`; do not fabricate a completed audit or delete a reservation to retry. |
+| `status: superseded` | The default strict collector detected an obsolete snapshot. Installed collectors must use `--event-snapshot`; do not fabricate a completed review or delete a reservation to retry. |
 | Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; either mode requires `NFV_RELEASE_TOKEN` while NFV is private. |
 | Organization inference is denied | Confirm an organization-owned target, the organization CLI-billing policy, allowed model and all three `copilot-requests: write` entries. Do not silently fall back to a PAT. |
 | Pin check fails | `NFV_RELEASE_SHA` is unset or not a 40-hex commit. |

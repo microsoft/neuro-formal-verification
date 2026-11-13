@@ -73,7 +73,7 @@ declaring a confirmed bug or applying a suggested fix.
 
 ### Out-of-scope uses
 
-NFV is not a comprehensive source-code verifier, security audit, production assurance service or
+NFV is not a comprehensive source-code verifier, security assessment, production assurance service or
 correctness certificate. It should not be used to approve or merge changes autonomously, score
 individual contributors, or claim that an absence of findings means a repository is safe. Private or
 regulated source is outside the intended open-source experimentation scope.
@@ -186,7 +186,7 @@ program/model code, inputs, labels or verifier verdicts.
 
 #### Potentially harmful content
 
-The retained records do not document a systematic audit or dedicated filtering for potentially
+The retained records do not document a systematic review or dedicated filtering for potentially
 offensive or harmful content. Benchmark sanitization targets label leakage, not content-safety
 certification. Inspect examples for the intended audience and application, and use the project's
 reporting channels for concerns without reposting sensitive material publicly.
@@ -224,7 +224,7 @@ https://github.com/microsoft/neuro-formal-verification/blob/dev/workflow/ONBOARD
 authorized open-source repository or fork, review the installer and permissions, pin a trusted
 immutable NFV revision, configure approved model access and credentials, and deliberately budget any
 paid inference. Keep NFV disabled through the initial installation PR; activate after merge and
-approve a separate pilot. Installation does not itself launch a paid audit. Never put tokens in PR
+approve a separate pilot. Installation does not itself launch a paid review. Never put tokens in PR
 text or public feedback. To inspect the dataset, load paper/data/nl2post_safe.json and its entries
 array. Read paper/data/MANIFEST.md and paper/DATA_PROVENANCE.md alongside it. The command python -m
 paper.data.build_safe --check reconstructs the frozen dataset in memory from the retained
@@ -323,7 +323,7 @@ integers, Booleans and sequences of those values rather than arbitrary reconstru
 objects.
 
 Each selected AW property has one outcome: verified, refuted, resources exhausted, or
-type-check/audit failure. Failure to refute is not evidence of correctness. A witness is a
+type-check/model-validation failure. Failure to refute is not evidence of correctness. A witness is a
 counterexample in the model, not an observed source execution or necessarily an executable source
 input. Optional follow-ups may display a separately checked shorter property or model-checked
 candidate patch, without changing the accepted whole property or outcome. Such patches are not

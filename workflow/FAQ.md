@@ -47,7 +47,7 @@ original event snapshot. Each PR has one automatic attempt, including failures:
 another push or draft-to-ready transition does not retry it. Do not delete the
 admission comment or reinstall NFV to bypass this safeguard.
 
-## Why is there no audit or report?
+## Why is there no review or report?
 
 Check workflow enablement, `NFV_RELEASE_SHA`, `NFV_MODEL`, supported source
 changes and any pending GitHub workflow approval. Installation PRs must remain
@@ -59,5 +59,5 @@ See the [overview](README.md) for report behavior.
 
 Actions artifacts have finite retention, independently of token expiry. Download
 needed evidence while available. Renewing a token cannot restore deleted
-artifacts; an approved new audit may be needed. Do not reconstruct or manually
+artifacts; an approved new review may be needed. Do not reconstruct or manually
 edit generated reports.

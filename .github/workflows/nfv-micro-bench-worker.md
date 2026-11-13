@@ -1,7 +1,7 @@
 ---
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-description: Maintainer-only nfv-micro-bench worker using the shared PR audit classifier
+description: Maintainer-only nfv-micro-bench worker using the shared PR reviewer classifier
 on:
   workflow_call:
     inputs:
@@ -175,7 +175,7 @@ post-steps:
 # nfv-micro-bench worker
 
 This prototype implementation uses a deterministic custom SDK driver, not an
-outer model-controlled shell. Run the existing PR audit's verification-first,
+outer model-controlled shell. Run the existing PR reviewer's verification-first,
 then witnessed-refutation classifier on each supplied complete postcondition.
 Only accepted model proofs determine correct/incorrect predictions; otherwise
 abstain. Never execute benchmark source or treat source/documentation as
