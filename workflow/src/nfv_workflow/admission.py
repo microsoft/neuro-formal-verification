@@ -47,16 +47,12 @@ def admit(event, api, run_id, run_attempt=1):
         return run_attempt > 1 and set(previous) == {str(run_id)}
     body = (
         f"{prefix}{run_id} -->\n"
-        f"An advisory NFV formal PR audit has started for head `{ident['head_sha']}` "
-        f"against base `{ident['base_sha']}`.\n\n"
-        f"[Run and diagnostics](https://github.com/{repo}/actions/runs/{run_id}). "
-        "It analyzes this saved snapshot even if the PR is updated, closed or merged. "
-        "A completed analysis posts a separate evidence-linked report, including when "
-        "there are no NFV refutations. Operational failures remain visible in the run.\n\n"
-        "This comment records the PR's automatic attempt, including failures. "
-        "Later pushes or draft-to-ready transitions do not start another audit. "
-        "A maintainer can explicitly rerun this workflow to retry a failed attempt. "
-        "Keep this record to prevent duplicate automatic audits."
+        "<details>\n<summary>NFV audit record</summary>\n\n"
+        f"[Run and diagnostics](https://github.com/{repo}/actions/runs/{run_id}).\n"
+        f"Saved head `{ident['head_sha']}`; base `{ident['base_sha']}`.\n\n"
+        "Keep this record to prevent duplicate automatic audits, including after failures. "
+        "To retry a failed attempt, a maintainer can rerun the linked workflow.\n\n"
+        "</details>"
     )
     result = api.request(f"repos/{repo}/issues/{number}/comments", {"body": body})
     if type(result.get("id")) is not int:

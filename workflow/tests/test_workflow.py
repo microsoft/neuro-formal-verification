@@ -983,6 +983,19 @@ class AdmissionTests(ScratchTest):
         self.assertIn("<!-- nfv-pr-attempt:owner/project:7:42 -->", self.writes[0]["body"])
         self.assertIn("a" * 40, self.writes[0]["body"])
 
+    def test_reservation_is_minimal_and_collapsed_without_hiding_diagnostics(self):
+        self.assertTrue(admission.admit(self.event, self.api, "42"))
+        body = self.writes[0]["body"]
+        self.assertTrue(body.startswith("<!-- nfv-pr-attempt:owner/project:7:42 -->\n<details>\n"))
+        self.assertIn("<summary>NFV audit record</summary>\n\n", body)
+        self.assertNotIn("<details open", body)
+        self.assertTrue(body.endswith("\n\n</details>"))
+        self.assertIn("[Run and diagnostics](https://github.com/owner/project/actions/runs/42)", body)
+        self.assertIn(self.event["pull_request"]["base"]["sha"], body)
+        self.assertIn("Keep this record to prevent duplicate automatic audits", body)
+        self.assertIn("a maintainer can rerun the linked workflow", body)
+        self.assertNotIn("An advisory NFV formal PR audit has started", body)
+
     def test_explicit_rerun_reuses_reservation_without_another_start_comment(self):
         self.assertTrue(admission.admit(self.event, self.api, "42"))
         self.assertTrue(admission.admit(self.event, self.api, "42", 2))

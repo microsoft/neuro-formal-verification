@@ -43,8 +43,9 @@ and return types while preserving the original source line numbers.
   The NFV package remains release-pinned, and inspected PR source is captured
   only as immutable data, never executed.
   The first eligible event reserves one automatic attempt per PR, including
-  failures, before either inference session starts. A small admission comment
-  records the run; existing completed NFV report comments also prevent reanalysis.
+  failures, before either inference session starts. A minimal, collapsed
+  **NFV audit record** comment retains the run/diagnostics link and saved snapshot;
+  existing completed NFV report comments also prevent reanalysis.
   Preserve these records. Duplicate detection checks all comment pages, not an
   expiring Actions cache. It is not an exactly-once computation guarantee if
   records are deleted or independent installations use different concurrency.
