@@ -3,276 +3,123 @@ Licensed under the MIT License. -->
 
 # Agent guide
 
-Guidance for coding agents and contributors working in this repository. Read
-`README.md`, `paper/README.md` and `workflow/README.md` for user-facing docs.
+Instructions for coding agents modifying this repository. Users do not need this
+file to use NFV. Start with [README.md](README.md); use
+[paper/README.md](paper/README.md) for experiments and
+[workflow/README.md](workflow/README.md) for the prototype PR reviewer.
 
 ## Layout
 
 | Path | Purpose |
 |---|---|
-| `nfv/` | Core implementation: agents, Dafny/CBMC backends, shared config and Copilot client |
-| `paper/` | Paper artifact (arXiv:2608.21516): dataset, retained results, smoke replay |
-| `paper/data/nl2post_safe.json` | Main dataset; `paper/results/*.jsonl` are the retained paper runs, indexed by `paper/manifest.json` and `paper/provenance/` |
+| `nfv/` | Core agents, Dafny/CBMC backends, shared config and Copilot client |
+| `paper/` | Dataset, retained paper results, provenance and smoke replay |
 | `tests/` | Core and artifact tests |
-| `workflow/` | `nfv-workflow` package: PR collection, Dafny refutation pipeline, publication |
-| `workflow/aw.yml` | gh-aw package manifest that installs the PR reviewer |
-| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow (source) and its `.lock.yml` |
-| `.github/skills/nfv-pr-review/SKILL.md` | Agent skill to bootstrap, test and troubleshoot the PR reviewer in a repository |
-| `.github/workflows/ci.yml` | Offline checks with the real verifiers |
+| `workflow/src/nfv_workflow/` | PR collection, translation, verification and publication |
+| `workflow/tests/` | Workflow, installer and template tests |
+| `workflow/aw.yml` | Installable gh-aw package |
+| `.github/workflows/` | Workflow sources and compiled `.lock.yml` files |
 
 ## Build and test
 
-```
+```text
 python -m pip install -e ".[inference]" -e ./workflow
 python -m unittest discover -s tests
-python -m unittest discover -s workflow/tests        # ~3 min; -p test_workflow.py for a fast subset
-python -m paper.smoke --timeout 60                  # replays saved verdicts, no inference
-python -m nfv.metrics <results.jsonl>               # scores a run
+python -m unittest discover -s workflow/tests
+python -m paper.smoke --timeout 60
 ```
 
-Paper reruns use `python -m paper.prepare`, then `python -m nfv.run --data
-paper/data/nl2post_safe.json --backend … --out paper/new-results/<name>.jsonl`
-(see `paper/README.md`); `paper/new-results/` is git-ignored.
+Run the smallest relevant test selection before pushing. For a fast workflow
+subset, use `-p test_workflow.py`. Without installing, run workflow tests from
+`workflow/` with `PYTHONPATH=src`. Tests needing Dafny skip when it is absent;
+smoke replay uses saved verdicts, not inference.
 
-Without installing, run workflow tests from `workflow/` with `PYTHONPATH=src`.
-Tests needing Dafny skip when it is absent. CI pins Dafny 4.11.0 (SHA-256
-`a46a9ff7…`) and its bundled Z3 4.12.1; `NFV_DAFNY_PATH` and `NFV_Z3_PATH`
-override discovery (`nfv/shared/config.py`). Workflow tests write scratch files
-under `workflow/tests/.general-scratch/`; never commit them.
+CI pins Dafny and its bundled Z3; preserve these pins. `NFV_DAFNY_PATH` and
+`NFV_Z3_PATH` override discovery in `nfv/shared/config.py`.
+Tests create scratch files under `workflow/tests/.general-scratch/`; do not commit them.
 
-## Invariants
+## Correctness and safety
 
-- A finding is a **conditional MODEL refutation**, never a confirmed source bug;
-  failure to refute is not evidence of correctness. Keep this wording in docs.
-- The general workflow selects nontrivial intent/source properties, verifies the
-  original model first, then tries refutation. Its only property outcomes are
-  `refuted`, `verified`, `resources exhausted`, and type-check/model-validation
-  failure (descriptive wording; preserve existing machine outcome identifiers).
-  Verification is model-conditional, not source correctness. Use "input-domain
-  check" for the feasible-return guard in public text.
-- Bind new proposals to trusted, snapshot-bound function IDs; derive changed
-  anchors in code. Source-inferred quotes may come from anywhere in the selected
-  captured function. Preserve immutable cross-file source-context capture.
-  Retain draft formalizations and diagnostics, then freeze the first fully
-  validated, type-checked model before proof or refutation. Keep each conjectured
-  property whole; never decompose it into atomic propositions or child checks.
-  Conjunctions and multiple entry ensures remain one property: verify them
-  together and mechanically negate their complete conjunction for refutation.
-  Never drop an obligation. Preserve implication, disjunction and quantifier
-  grouping. Progress counts the fixed whole review,
-  not subchecks of one property.
-  After acceptance, optional refutation follow-ups may separately prove a
-  shorter display projection and an entry-body repair of the complete property.
-  They never replace or split the accepted property, weaken its domain/helpers,
-  change its outcome, or count as additional properties. Keep their hash-bound
-  evidence separate in `followups.json`; rendering and `present` never run proofs.
-  Check definite-assignment and array/sequence range diagnostics before freezing a draft, without
-  changing or splitting conjectures. Prefer implementation-owned properties over
-  test expectations refuted only by arbitrary environment responses.
-- Report UX (`publish.general_section`): a one-line NFV intro linking the paper
-  (arXiv:2608.21516) before the issue count, instead of explaining the
-  model/source distinction; per finding normal-sized "Intended property" and
-  quote, "Input on which it fails", and "Sketch of the failure". Collapsed
-  "Details" shows changed code (`source_span`) and helpers with natural-language
-  specifications overlaid as comments (retained assumptions as Requires,
-  the intent as Ensures, helper descriptions as Spec). Typed `source_notes`
-  (`kind`: `invariant` or `spec`) annotate loops or declarations; never fabricate
-  missing loop descriptions for saved evidence. A
-  refutation is a counterexample input, not an execution, so never render a
-  trace. Derive static caller/helper/call-site links from the validated
-  `source_map`, identify functions by their source declarations, and mark the
-  call sites in the snippets; do not imply that a displayed call was executed.
-  Repairs and the minimized Dafny are collapsed; `correspondence` stays in
-  the evidence only. `general_prompt.txt` (REPORT UX) tells the translator to
-  write these texts in source terms, without model details.
-  Refutations appear first without changing the original `P` labels or analysis
-  order. Verified properties use collapsed verification details with full
-  models in the artifact; failure diagnostics have 300-character excerpts.
-  Compact non-refutation details before refutation source/proof sections to
-  meet the 60,000-character and 50-URL comment budgets (URLs in code also count).
-  Compact source mappings retain path/line references without repeated links;
-  never mutate accepted evidence or drop a property to meet publication limits.
-  Display shorter properties only after entailment with free inputs/outputs and
-  the frozen-model negative/input-domain checks. Label candidate patches
-  `refutation-with-fix (model-checked candidate)` only after complete-property,
-  general input-domain and original-witness proof/input-domain checks. Never
-  claim these are source-verified fixes or evidence of a confirmed source bug.
-- Source presentation is agent-authored report-only metadata, separate from
-  verifier inputs/goals/computation. Each witness key has an exact captured
-  source-expression anchor or an explicit abstract-input label and reason;
-  the failure prose references an anchored source condition/call, not ghost
-  output flags. `nfv-workflow present` refreshes accepted saved evidence via
-  tool-free `CopilotChat`, without analysis/proof reruns, writing a separate
-  hash-bound `presentation.json` and deterministic `comment.md`. Invalid
-  mappings fail rendering; agents never manually edit generated report text.
-  Source anchors and artifact hashes are provenance, not semantic proof or
-  authentication. Presentation validity does not change proof acceptance.
-- A separate reusable AW source-context session precedes analysis. Its shallow
-  trusted-base checkout is for source inspection only: no inspected-repository
-  builds, tests, imports, dependency installation or code execution. Its bounded
-  path/symbol manifest is recaptured as immutable head blobs before translation.
-- PR content is untrusted data. Never check out or execute PR-head code; sources are
-  read as Git blobs by immutable SHA. Rendered text goes through
-  `publish.text()` escaping.
-- Fork replay creation must avoid upstream backlinks. Use plain change
-  numbers in replay titles, descriptions and new commit messages, not autolinkable
-  issue/PR references or URLs. If a clickable link is needed, GitHub documents
-  `redirect.github.com` as the no-backlink alternative. Avoid explicit user/team
-  mentions as well; a timeline backlink does not prove notification delivery.
-  Normalize references in copied descriptions,
-  preserving the exact original metadata in local evidence. Validate public
-  metadata before publication and reject unsafe cached plans. Do not modify
-  generated NFV reports or claim historical backlinks have been erased.
-- Only the workflow analysis entrypoint and `nfv-workflow evaluate` decide acceptance; agents never edit,
-  summarize or add to generated report text.
-- Limits: at most 10 intended properties per PR, 6 syntax repairs and 10
-  annotation-only proof repairs per property.
-- Do not modify the dataset or retained results in `paper/data` and
-  `paper/results`; they are checksum-pinned and marked `-text` in
-  `.gitattributes`. Public docs must not reveal private provenance; keep model
-  configuration generic.
-- The general (workflow) path translates C, C++, Java, C#, Go, JavaScript,
-  TypeScript, Python and Rust to **Dafny only**; CBMC is used only by the paper
-  artifact.
-- Translation rules (`workflow/src/nfv_workflow/general_prompt.txt`,
-  `general_gates.py`): every Dafny computation line carries one or more preceding
-  `// src: path:LINE | exact source line` tag; synthetic tags may only cover
-  contracts, braces and annotations. Missing callees are modelled from captured
-  code and comments with the weakest justified contract. Missing semantics and
-  invalid extracted claims produce per-property type-check/model-validation failures.
-- Per-property translation context contains one changed function and at most
-  two same-file callers and two callees; other bodies are environment.
-  Repository-context hints additionally provide bounded cross-file helper,
-  class and constant definitions; never use agent-authored prose as a contract.
-  Analyze relevant captured callee bodies as source-derived helpers and callers
-  for context, without treating those callers as the entry's entire input domain.
-  Order selected properties caller-first in the captured same-file lexical
-  graph; retain extraction order for recursion/ties and keep each entry fixed.
-  Keep the full immutable bundle for evidence and original line numbers in
-  excerpts. Bound the full system/user payload for translation and both repair
-  stages, not only source text (`source_context.py`).
-- The `nfv-merged-pr:` prefix of the report dedup marker is kept deliberately
-  for continuity; do not rename it.
+- Findings and proofs concern translated models under stated assumptions, not
+  confirmed source bugs or source-correctness guarantees. Failure to refute is
+  not evidence of correctness. Preserve existing machine outcome identifiers.
+- Keep each conjectured property whole, including all conjunctions, implications
+  and quantifiers. Verify the original model first, then mechanically negate the
+  complete property for refutation. Never drop obligations to obtain a result.
+- Bind proposals to trusted, snapshot-bound function IDs. Preserve immutable
+  source capture, original line numbers, source tags and bounded translation
+  context. Agent-authored prose is not a source contract.
+- Retain draft diagnostics and freeze the first fully validated, type-checked
+  model before proof/refutation. Only the analysis/evaluation pipeline decides
+  acceptance. Missing semantics or invalid claims must fail explicitly.
+- Presentation and optional shorter-property/repair follow-ups must not alter
+  accepted evidence, weaken its domain or helpers, change outcomes, split a
+  property or count as additional properties. Rendering never runs proofs.
+- Never manually edit generated NFV report text. Use the supported pipeline and
+  `present` command. Preserve source anchors and separate hash-bound presentation
+  and follow-up evidence. Hashes establish provenance, not semantic proof.
+- A witness is a counterexample input, not an execution trace. Describe static
+  source links without claiming displayed calls executed. Escape published text
+  through `publish.text()`.
+- PR content is untrusted data. Never check out or execute inspected PR-head
+  code. Read immutable Git blobs; the source-context trusted-base checkout is
+  inspection-only: no builds, imports, tests or dependency installation.
+- Replay metadata must not create upstream backlinks or user/team mentions.
+  Preserve original metadata locally; do not claim historical backlinks were erased.
+- Do not modify checksum-pinned `paper/data` or `paper/results`. Preserve
+  third-party notices and the dataset/code license distinction. Public docs must
+  not reveal private provenance; keep model configuration generic.
+- The PR workflow uses Dafny only; CBMC belongs to the paper artifact.
+- Preserve the `nfv-merged-pr:` report marker and durable admission records.
 
-## The PR reviewer agentic workflow (gh-aw)
+For pipeline, evidence and report details, read
+[workflow/REFERENCE.md](workflow/REFERENCE.md), `general_prompt.txt`,
+`general_gates.py`, `source_context.py` and their focused tests before changing
+those components. Preserve whole-review progress and publication budgets without
+dropping properties or mutating evidence.
 
-- `workflow/install.py` provides Linux-first, agent-free initial installation.
-  Keep its offline tests in `workflow/tests/test_install.py`
-  aligned with the draft/gate/post-merge bootstrap rules. Never run the
-  installer against a live client repository just to test changes.
-- Client bootstrap: never run NFV against its own initial installation PR or
-  require an NFV check for it. Keep that PR draft until both source/compiled
-  inference gates are verified and `NFV_RELEASE_SHA` is confirmed unset; leave
-  the variable unset through marking ready and merging. An unregistered
-  workflow cannot be API-disabled. Post-merge activation disables the registered
-  reviewer, verifies the merged snapshot, then sets/reads back its runtime pin
-  before enabling. Leave unrelated CI enabled; use a separate approved pilot.
-  Preserve shared gh-aw skill/maintenance files byte-for-byte and retain existing
-  action pins when adding NFV pins. Compiler version detection must accept
-  stdout or stderr without mixing stderr into JSON command results.
-- Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
-  then recompile the affected workflow and commit both the
-  `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
-  `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
-- Reviews start on non-draft `opened` and `ready_for_review` events targeting any
-  branch in the onboarded repository from same-repository branches only.
-  Fork PRs are skipped before admission or inference. The `pull_request`
-  workflow runs from the PR merge ref; branch contributors must be trusted
-  with workflow changes and repository secrets. Keep the NFV package pinned
-  and inspected PR source inspection-only data.
-  The workflows must exist in the target branch/merge ref; installation does
-  not add them to older branches.
-  Reserve one automatic attempt per PR in a trusted admission comment before
-  either inference session; failures consume it too. Existing NFV reports also
-  suppress reanalysis. Keep the durable records and serialize without cancelling
-  running reviews. Pushes and repeated readiness events never restart them;
-  an explicit rerun of the original failed workflow may reuse its reservation.
-  Both workflow collectors use `--event-snapshot`: immutable event head/base,
-  event description and comparison commits survive later pushes, closure and
-  merge. Completed reports still post after merge and identify the saved source,
-  not later revisions. Preserve the strict default collector CLI.
-- Flow: the reusable source-context AW session completes first. Trusted
-  pre-agent `steps:` install the pinned release, Dafny and the plugin, collect
-  the immutable PR bundle. A deterministic custom SDK driver then runs
-  tool-free extraction and the complete foreground analysis inside the AWF sandbox,
-  using the inference proxy without exposing real credentials.
-  Extraction shortlists up to ten changed functions, then inspects full scoped
-  source and cross-file context; never submit the entire bundle as a model
-  request. NFV bot reports are not developer intent. The driver submits
-  `comment.md` verbatim with one `safeoutputs add_comment`
-  (also when nothing is refuted, listing the
-  formalized properties and their four outcomes). `hide-older-comments`
-  collapses earlier reports.
-  Input/access/tool failures fail the driver, never an empty proposal
-  array masquerading as a successful review. Incremental reports have
-  `completed: false` until analysis finishes and cannot be published. Retain
-  completed or interrupted evidence in the separate `nfv-evidence` artifact.
-- Configuration: repository variables `NFV_RELEASE_SHA` (40-hex commit of this
-  repo) and `NFV_MODEL`; default PAT billing requires `COPILOT_GITHUB_TOKEN`.
-  Installer `--billing organization` is explicit opt-in for organization-owned
-  targets with the CLI-billing policy enabled; it sets all three
-  `copilot-requests` permissions to `write` instead of `none`, without PAT
-  fallback. Preserve the selected mode through upgrades. Both modes need
-  `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
-- Upgrade handoffs must show literal, copy/paste-ready release-variable set and
-  read-back commands for the actual client repository. Derive the full SHA from
-  both installed package pins on the merged client default branch, verify they
-  agree, and never use placeholders or the latest NFV branch tip. Leave NFV
-  disabled if pins cannot be verified; check variable read-back before enabling.
-- NFV is advisory, never a required merge check or input to a required CI
-  aggregator. Keep operational failures visible. Both workflows explicitly use
-  `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}` for job-scoped publication,
-  never a shared `GH_AW_GITHUB_TOKEN` override or an inference/release token.
-- Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
-  `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string
-  `includes` entry starting with `.github/` resolves from the repository root.
-  Local package paths are not supported, so test installs from a pushed ref in
-  a scratch repository.
+## Workflow maintenance
 
-### gh-aw sandbox lessons
+- For installation, upgrades or troubleshooting, load
+  `.github/skills/nfv-pr-review/SKILL.md` and follow
+  [workflow/ONBOARDING.md](workflow/ONBOARDING.md). Do not duplicate its procedure
+  or test the installer against a live client repository.
+- Never run NFV on its initial installation PR. Preserve the draft/unset-release
+  gate through merge, then verify merged pins and runtime-variable read-back
+  before enabling. Leave unrelated CI enabled; pilots require separate approval.
+- Preserve billing mode, model, budgets, secrets, shared gh-aw files and existing
+  action pins during upgrades. Handoffs must give literal set/read-back commands
+  with the actual client repository and matching full merged package SHA, not a
+  moving NFV tip. Leave NFV disabled if pin verification fails.
+- Review admission permits same-repository, non-draft `opened` and
+  `ready_for_review` events; fork PRs are skipped before inference. Preserve the
+  once-per-PR durable reservation, failure consumption, explicit same-run retries
+  and non-cancelling serialization. Both collectors use `--event-snapshot`;
+  preserve the strict default collector.
+- NFV is advisory, never a required merge check or dependency of a required CI
+  aggregator. Keep operational failures visible. Publish with job-scoped
+  `GITHUB_TOKEN`, never inference/release credentials.
+- After editing a gh-aw source, compile the affected workflow with gh-aw
+  v0.88.7, for example `gh aw compile nfv-pr-review --approve`. Commit the source,
+  corresponding `.lock.yml` and `.github/aw/actions-lock.json` if changed.
+  Update `TemplateTests` and directly related docs when workflow behavior changes.
+- Keep trusted setup in pre-agent `steps:`. Source-context post-steps may sanitize
+  and upload the manifest; reviewer post-steps upload evidence, not run analysis.
+  Workspace-root Git metadata must not come from checking out PR-head code.
+- The sandbox's `$RUNNER_TEMP/gh-aw` is read-only; use `/tmp/gh-aw` for writes.
+  Never export credentials through `$GITHUB_ENV`. Connect to the SDK's supervised
+  CLI using `COPILOT_SDK_URI`; do not download another CLI inside the sandbox.
+  Nested sessions require explicit `cli.awf_provider()` configuration.
+- Inspect the `agent` job log and native evidence when debugging; a green job
+  alone does not establish that analysis ran or a report was accepted.
 
-- With `checkout: false` and checkouts only in subdirectories, initialize an
-  empty Git repository and origin at `$GITHUB_WORKSPACE` in pre-agent steps.
-  gh-aw's generated credential setup requires workspace-root Git metadata;
-  do not satisfy this by checking out PR-head code.
-- Use pre-agent `steps:`, not `post-steps:`; post-steps run after agent output
-  is ingested. The source-context worker deliberately uses trusted `post-steps`
-  only to sanitize and upload its path/symbol manifest, not to run NFV analysis.
-- `$RUNNER_TEMP/gh-aw` is mounted read-only in the sandbox and `/tmp/gh-aw` is
-  writable. Variables written to `$GITHUB_ENV` in steps reach the agent; never
-  export credentials there. The foreground SDK driver writes evidence under
-  `/tmp/gh-aw/sandbox/agent/logs/nfv`. Post-steps only upload evidence.
-- A bash allowlist entry matches the exact command line; arguments need
-  `  cmd:*`. The reviewer has no outer model session or shell/edit tools.
-- The firewall blocks the Copilot SDK's CLI download inside an agent sandbox.
-  The SDK engine provisions and supervises its trusted CLI sidecar. NFV connects
-  through `COPILOT_SDK_URI` with its per-run connection token instead of starting
-  another CLI. The Node driver supervises NFV's installed Python environment
-  without replacing its pinned SDK.
-- Nested SDK sessions require explicit provider configuration; do not rely on
-  `COPILOT_PROVIDER_*` environment variables alone. Pass
-  `cli.awf_provider()` to `CopilotChat(provider=...)`, which hands it to each
-  `create_session`. The SDK harness resolves the configured proxy endpoint and
-  provider type through AWF reflection; the proxy injects the credential.
-- `pull_request` runs use the workflow from the PR merge ref. A test PR's base
-  branch must already contain the workflow, and its head must be parented on
-  that base so the workflow files stay out of the diff.
-- Diagnose runs from the `agent` job log and the `agent` artifact
-  (`sandbox/agent/logs/process-*.log` holds full tool outputs). Failures such as
-  denied shell commands show up as `missing_tool` safe outputs, while the job
-  still succeeds.
+## Contributor conventions
 
-## Conventions
-
-- Develop on `dev`, or use feature branches/PRs targeting `dev`. Before a release,
-  squash-merge the accumulated changes into `main`; do not promote intermediate
-  development commits or push directly to `main`. Keep `dev` for development.
-- Do not commit personal or local files: `prompts.txt`, `.vscode/`,
-  `.github/skills/agentic-workflows/` (from `gh aw init`), `.nfv-work/`, `.nfv-scratch/`.
-- Keep docs concise and user-facing: describe the current behaviour, with no
-  iteration or changelog wording. Call the workflow a prototype implementation.
-  Use review/reviewer terminology for the workflow and model-validation/check
-  terminology for its integrity gates.
-- `.gitattributes` enforces LF; on Windows write files with `\n` newlines.
-- Run the relevant tests before pushing; update `workflow/README.md` and the
-  workflow template tests (`TemplateTests`) when workflow behaviour changes.
+- Develop on `dev`, or feature branches/PRs targeting `dev`. Before release,
+  squash-merge into `main`; never push intermediate development commits directly
+  to `main`. Retain `dev`.
+- Do not commit `prompts.txt`, `.vscode/`, `.github/skills/agentic-workflows/`,
+  `.nfv-work/`, `.nfv-scratch/` or test scratch files.
+- Keep docs concise and current, not a changelog. Use review/reviewer terminology
+  and model-validation/check for integrity gates. Call the workflow a prototype.
+- Preserve LF line endings, including on Windows.
