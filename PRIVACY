@@ -25,7 +25,8 @@ operator-configured endpoint; it is not enabled by an NFV-owned collector.
 Optional public dashboard
 
 Dashboard registration is explicit opt-in for public repositories only. An open
-Discussion titled "NFV PR Audit onboarded on OWNER/repo" in the NFV repository
+Discussion in the NFV repository, using the registration title specified in the
+dashboard's instructions linked from workflow/ONBOARDING.md,
 requests registration; the collector checks current public visibility before
 listing it. This is self-reported onboarding for usage and health tracking, not
 verified owner endorsement. No target-repository administrator permission or
@@ -43,7 +44,7 @@ Discussions. Collection uses separate collector-owned read credentials, not
 inference/release credentials or client-side reporting tokens.
 
 The existing public dashboard retains sanitized summaries in its own versioned
-state file; evidence remains subject to each audited repository's artifact
+state file; evidence remains subject to each reviewed repository's artifact
 retention. A successful nightly refresh rechecks registration and public
 visibility, removing withdrawn or no-longer-public repositories
 from the current site/state. Close every matching registration Discussion to

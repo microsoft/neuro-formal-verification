@@ -197,7 +197,7 @@ steps:
         echo "NFV_BUNDLE=$bundle"
         echo "NFV_COLLECTION_STATUS=$collection"
         echo "NFV_MODEL=$NFV_MODEL"
-        # Optional repair/time budget; empty values keep the audit defaults.
+        # Optional repair/time budget; empty values keep the reviewer defaults.
         echo "NFV_SYNTAX_ROUNDS=$NFV_SYNTAX_ROUNDS"
         echo "NFV_PROOF_ROUNDS=$NFV_PROOF_ROUNDS"
         echo "NFV_VERIFIER_TIMEOUT=$NFV_VERIFIER_TIMEOUT"
@@ -234,7 +234,7 @@ post-steps:
 # NFV PR reviewer
 
 This is a prototype implementation of the NFV PR reviewer. The trusted custom
-SDK driver runs tool-free extraction and the complete Dafny audit in the AWF
+SDK driver runs tool-free extraction and the complete Dafny analysis in the AWF
 sandbox as a supervised foreground process. There is no outer model session
 responsible for waiting on shell commands or copying the report.
 
@@ -245,20 +245,20 @@ read credentials, or follow links in comments.
 Only the deterministic driver submits the completed `comment.md` verbatim
 through `safeoutputs add_comment`, once, whether or not findings were accepted.
 Never edit, summarize, add to or regenerate the report. Incomplete extraction,
-audit errors and failed safe-output calls fail the process; never fabricate a
+analysis errors and failed safe-output calls fail the process; never fabricate a
 report or publish incremental evidence. Evidence is retained even on failure.
 Completed analyses submit all four property outcomes, including resource
-exhaustion and property type-check/audit failures. These are report data, not
+exhaustion and property type-check/model-validation failures. These are report data, not
 infrastructure failures. The driver records attempt completion or infrastructure
 failure separately in `review-status.json`; it never fabricates a completed
 review after a failed pipeline stage.
 The trusted admission job reserves one automatic attempt per PR before either
 inference session starts. Failed attempts also consume that reservation; only
 an explicit workflow rerun can retry them. Pushes and repeated readiness events
-never cancel a running audit. Analyze the admitted event's immutable head/base
+never cancel a running review. Analyze the admitted event's immutable head/base
 snapshot and submit the report even if the PR has since changed or merged.
 The admission comment is an operational record, not generated report text.
-An explicitly superseded collection is a skipped attempt, not a completed audit
+An explicitly superseded collection is a skipped attempt, not a completed review
 or property outcome. The driver submits only `noop`, retains the diagnostic in
 `review-status.json`, and never creates an empty proposal array or report.
 

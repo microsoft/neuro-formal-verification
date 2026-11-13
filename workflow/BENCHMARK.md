@@ -3,7 +3,7 @@ Licensed under the MIT License. -->
 
 # Nightly nfv-micro-bench statistics
 
-This maintainer-only prototype evaluates the current PR audit classifier on all
+This maintainer-only prototype evaluates the current PR reviewer's classifier on all
 206 frozen `nfv-micro-bench` entries. It is separate from the client installation
 package: client workflows, onboarding, READMEs and deployed settings are unchanged.
 The existing round-robin paper benchmark is also unchanged.
@@ -11,14 +11,14 @@ The existing round-robin paper benchmark is also unchanged.
 For each supplied complete postcondition, an accepted verification proof predicts
 **correct**; otherwise an accepted witnessed-refutation proof predicts
 **incorrect**; otherwise the prediction is **abstain**. Existing translation,
-repair, frozen-model, audit and input-domain checks remain mandatory. Benchmark
+repair, frozen-model, model-validation and input-domain checks remain mandatory. Benchmark
 source is parsed as text, never executed.
 
 Malformed generated Dafny annotations use the bounded proof-repair budget.
 Exhausting that budget abstains on the entry and allows the shard to continue;
 provider failures and verifier infrastructure errors still stop the worker.
 
-The runner calls the same `nfv-workflow audit` engine as PR review, without report
+The runner calls the same analysis engine as PR review, without report
 presentation inference. Repository-context collection, optional-assumption
 minimization, shorter-property generation and model-checked fix generation are
 disabled. The benchmark supplies specifications instead of evaluating PR intent
@@ -75,7 +75,7 @@ documentation and the complete assertion, never benchmark labels or
 class-identifying metadata. The trusted scorer retains the label map.
 The dataset and retained paper results are never modified.
 
-After each entry, workers checkpoint the native audit evidence. A deterministic
+After each entry, workers checkpoint the native analysis evidence. A deterministic
 publisher revalidates proof acceptance, the selected whole property, captured
 inputs and run identity before calculating:
 

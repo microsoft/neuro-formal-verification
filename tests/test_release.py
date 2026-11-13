@@ -115,6 +115,20 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn("not a replacement", provenance)
         self.assertIn("retained experiment results are not relicensed", provenance)
 
+    def test_documentation_uses_review_terminology(self):
+        if not (ROOT / ".git").exists():
+            self.skipTest("Documentation inventory requires Git metadata")
+        paths = subprocess.check_output(
+            ["git", "ls-files", "-z"], cwd=ROOT, text=True
+        ).split("\0")
+        for name in filter(None, paths):
+            path = ROOT.joinpath(*name.split("/"))
+            if path.suffix.lower() in {".md", ".rst"} or name in {"PRIVACY", "NOTICE.txt"}:
+                with self.subTest(path=name):
+                    text = path.read_text(encoding="utf-8")
+                    self.assertNotRegex(text, r"(?i)audit")
+                    self.assertNotRegex(text, r"(?i)(?<!neuro-)formal code review")
+
     def test_tracked_source_headers_and_no_prebuilt_runtime_binaries(self):
         if not (ROOT / ".git").exists():
             self.skipTest("Tracked-source audit requires Git metadata")
