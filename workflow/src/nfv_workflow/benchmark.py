@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import base64
 from collections import Counter
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
@@ -441,6 +442,8 @@ def render(summary):
               "This evaluates the shared PR classifier with supplied specifications, not PR intent extraction or the paper pipeline.",
               "Results concern translated models under stated assumptions, not confirmed source bugs or source-correctness proofs. "
               "Ground-truth labels are the original benchmark labels; disagreements require triage.", ""]
+    if "publication_run_created_at" in summary:
+        lines += [f"Actions run created (UTC): {text(summary['publication_run_created_at'])}.", ""]
     if total == 5:
         lines += ["Five-entry pilot only; this is not a full-dataset accuracy estimate.", ""]
     if summary.get("recovered_shards"):
@@ -463,6 +466,11 @@ def render(summary):
     if summary["abstention_reasons"]:
         lines += ["| Abstention reason | Entries |", "|---|---:|"]
         lines += [f"| {text(reason)} | {count} |" for reason, count in sorted(summary["abstention_reasons"].items())]
+    lines += ["", "**Verdict counts:** " + ", ".join(
+        f"{label}={summary['predictions'][label]}" for label in PREDICTIONS) + "."]
+    if summary["errors"]:
+        lines += ["", "**Operational failures:**"]
+        lines += [f"- {text(error)}" for error in summary["errors"]]
     lines += ["", "**Recorded inference usage (not an invoice):** " + (
         ", ".join(f"{key}={value if value is not None else 'unavailable'}"
                   for key, value in summary["recorded_usage"].items())
@@ -488,50 +496,214 @@ def publication_target(api, repo, category):
     return data["id"], matches[0]["id"]
 
 
+def publication_pages(api, query, variables, field, root="repository"):
+    rows, cursor = [], None
+    for _ in range(100):
+        page = api.graphql(query, {**variables, "cursor": cursor})[root][field]
+        rows.extend(page["nodes"])
+        if not page["pageInfo"]["hasNextPage"]:
+            return rows
+        cursor = page["pageInfo"]["endCursor"]
+    raise Abstain("Discussion pagination exhausted; refusing incomplete publication")
+
+
+def actions_owned(item):
+    author = item.get("author") or {}
+    if (author.get("__typename") != "Bot"
+            or author.get("login") not in ("github-actions", "github-actions[bot]")):
+        raise Abstain("Benchmark marker belongs to a non-Actions author; refusing to overwrite")
+
+
+def marked_item(items, marker):
+    matches = [item for item in items if marker in item["body"].splitlines()]
+    for item in matches:
+        actions_owned(item)
+    if len(matches) > 1:
+        raise Abstain("Duplicate benchmark markers; refusing ambiguous publication")
+    return matches[0] if matches else None
+
+
+def write_discussion(api, repo_id, category_id, existing, title, body):
+    if len(body) > 60000:
+        raise Abstain("Benchmark Discussion exceeds publication size budget")
+    if existing:
+        result = api.graphql("""
+          mutation($id:ID!,$title:String!,$body:String!){
+            updateDiscussion(input:{discussionId:$id,title:$title,body:$body}){discussion{id url}}
+          }""", {"id": existing["id"], "title": title, "body": body})
+        return result["updateDiscussion"]["discussion"]
+    result = api.graphql("""
+      mutation($repo:ID!,$category:ID!,$title:String!,$body:String!){
+        createDiscussion(input:{repositoryId:$repo,categoryId:$category,title:$title,body:$body}){discussion{id url}}
+      }""", {"repo": repo_id, "category": category_id, "title": title, "body": body})
+    return result["createDiscussion"]["discussion"]
+
+
+def utc_date(value):
+    stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if stamp.tzinfo is None:
+        raise Abstain("Benchmark publication dates must include a timezone")
+    return stamp.astimezone(timezone.utc)
+
+
+def statistics_body(summary):
+    saved = {key: value for key, value in summary.items() if key != "rows"}
+    encoded = base64.b64encode(json.dumps(saved, sort_keys=True).encode()).decode("ascii")
+    return render(summary) + f"\n<!-- nfv-benchmark-statistics:{encoded} -->\n"
+
+
+def saved_statistics(comment, repo):
+    actions_owned(comment)
+    matches = re.findall(r"^<!-- nfv-benchmark-statistics:([A-Za-z0-9+/=]+) -->$", comment["body"], re.M)
+    if len(matches) != 1:
+        raise Abstain("Archived benchmark statistics are missing or ambiguous")
+    summary = json.loads(base64.b64decode(matches[0], validate=True))
+    run = summary["run"]
+    if run["repository"] != repo or render(summary).splitlines()[0] != comment["body"].splitlines()[0]:
+        raise Abstain("Archived benchmark statistics disagree with their run marker")
+    sha(run["release_sha"])
+    utc_date(summary["publication_run_created_at"])
+    return summary
+
+
+def dashboard_body(repo, records, archives, legacy):
+    def order(record):
+        summary = record[0]
+        return utc_date(summary["publication_run_created_at"]), int(summary["run"]["run_id"])
+
+    records = sorted(records, key=order, reverse=True)
+    complete = [record for record in records if record[0]["completed"] is True
+                and record[0]["run"]["total"] == TOTAL
+                and record[0]["evaluated"] == TOTAL and not record[0]["errors"]]
+    lines = [f"<!-- nfv-benchmark-dashboard:{repo} -->", "# NFV benchmark dashboard", "",
+             "Latest completed full **206-entry** run; pilots and partial/failed sweeps never replace it.",
+             "Precision means accuracy among decisive results, not incorrect-class precision.", ""]
+
+    def row(record):
+        summary, url = record
+        run = summary["run"]
+        revision = sha(run["release_sha"])
+        date = utc_date(summary["publication_run_created_at"]).strftime("%Y-%m-%d")
+        status = ("Complete" if summary["completed"] else "PARTIAL / failed") + f" ({run['total']})"
+        precision = summary["answered_accuracy"]
+        credits = summary.get("ai_credits")
+        aic = credits.get("total") if credits is not None else None
+        return (f"| [{date}]({url}) | {status} | {summary['accuracy']:.2%} | "
+                + ("N/A" if precision is None else f"{precision:.2%}")
+                + f" | {summary['coverage']:.2%} | "
+                + ("unavailable" if aic is None else f"{aic:.5f}")
+                + f" | {text(run['model'])} | [{revision[:10]}](https://github.com/{repo}/commit/{revision})"
+                + f" | [Run / evidence](https://github.com/{repo}/actions/runs/{run['run_id']}) |")
+
+    header = ["| Date (UTC) / statistics | Status (entries) | Accuracy | Precision | Coverage | AIC | Model | NFV SHA | Evidence |",
+              "|---|---|---:|---:|---:|---:|---|---|---|"]
+    lines += ["## Latest completed full run", ""]
+    lines += header + [row(complete[0])] if complete else ["No completed full run has been archived yet."]
+    lines += ["", "## Recent runs", "", *header]
+    lines += [row(record) for record in records[:12]]
+    lines += ["", "## Monthly archives", "",
+              "Full statistics persist in one comment per Actions run, independently of expiring artifacts.",
+              "Months use the Actions run creation date in UTC; retries stay with that run.", ""]
+    lines += [f"- [{month}]({url})" for month, url in sorted(archives.items(), reverse=True)]
+    if legacy:
+        lines += ["", "## Legacy per-run reports", "", "Existing reports are preserved unchanged.", ""]
+        lines += [f"- [{text(item['title'])}]({item['url']})" for item in legacy]
+    lines += ["", "Results concern translated models under stated assumptions, not confirmed source bugs "
+              "or proofs of source correctness. AIC is recorded usage, not an invoice.",
+              "Evidence artifacts expire; the statistics above and monthly comments do not."]
+    return "\n".join(lines) + "\n"
+
+
 def publish(summary, api, repo, category):
     if summary["run"]["repository"] != repository(repo):
         raise Abstain("Benchmark publication repository changed")
     repo_id, category_id = publication_target(api, repo, category)
-    body = render(summary)
-    marker = body.splitlines()[0]
     owner, name = repo.split("/")
-    cursor, existing = None, None
-    for _ in range(100):
-        page = api.graphql("""
+    discussions = publication_pages(api, """
           query($owner:String!,$name:String!,$cursor:String){
             repository(owner:$owner,name:$name){
               discussions(first:100,after:$cursor,orderBy:{field:UPDATED_AT,direction:DESC}){
-                nodes{id body author{login __typename} }
+                nodes{id title body url author{login __typename}}
                 pageInfo{hasNextPage endCursor}
               }
             }
-          }""", {"owner": owner, "name": name, "cursor": cursor})["repository"]["discussions"]
-        existing = next((item for item in page["nodes"] if marker in item["body"]), None)
-        if existing or not page["pageInfo"]["hasNextPage"]:
-            break
-        cursor = page["pageInfo"]["endCursor"]
+          }""", {"owner": owner, "name": name}, "discussions")
+    dashboard = marked_item(discussions, f"<!-- nfv-benchmark-dashboard:{repo} -->")
+    run = summary["run"]
+    run_id = run["run_id"]
+    if not re.fullmatch(r"[1-9]\d*", str(run_id)):
+        raise Abstain("Invalid benchmark Actions run ID")
+    created = api.request(f"repos/{repo}/actions/runs/{run_id}")["created_at"]
+    date = utc_date(created)
+    summary = {**summary, "publication_run_created_at": date.isoformat()}
+    month = date.strftime("%Y-%m")
+    archive_marker = f"<!-- nfv-benchmark-archive:{repo}:{month} -->"
+    archive = marked_item(discussions, archive_marker)
+    archives, records, prior = {}, [], None
+    legacy = []
+    for discussion in discussions:
+        markers = re.findall(r"^<!-- nfv-benchmark-archive:" + re.escape(repo)
+                             + r":(\d{4}-\d{2}) -->$", discussion["body"], re.M)
+        if markers:
+            actions_owned(discussion)
+            if len(markers) != 1 or markers[0] in archives:
+                raise Abstain("Duplicate benchmark archive month")
+            archives[markers[0]] = discussion["url"]
+            comments = publication_pages(api, """
+              query($id:ID!,$cursor:String){
+                node(id:$id){... on Discussion{
+                  comments(first:100,after:$cursor){
+                    nodes{id body url author{login __typename}}
+                    pageInfo{hasNextPage endCursor}
+                  }
+                }}
+              }""", {"id": discussion["id"]}, "comments", "node")
+            for comment in comments:
+                if not comment["body"].startswith(f"<!-- nfv-micro-bench:{repo}:"):
+                    continue
+                saved = saved_statistics(comment, repo)
+                if saved["run"]["run_id"] == run_id:
+                    if prior is not None or markers[0] != month:
+                        raise Abstain("Duplicate run or changed archive date")
+                    prior = (saved, comment)
+                else:
+                    records.append((saved, comment["url"]))
+        elif discussion["body"].startswith(f"<!-- nfv-micro-bench:{repo}:"):
+            actions_owned(discussion)
+            legacy.append(discussion)
+    if archive is None:
+        archive = write_discussion(
+            api, repo_id, category_id, None,
+            f"NFV benchmark archive - {date.strftime('%B %Y')}",
+            f"{archive_marker}\n# NFV benchmark archive - {date.strftime('%B %Y')}\n\n"
+            "Persistent full statistics appear below, one comment per Actions run. Dates use UTC.\n")
+    archives[month] = archive["url"]
+    if prior:
+        saved, comment = prior
+        old_attempt = int(saved["run"]["sweep_id"].rsplit("-", 1)[1])
+        attempt = int(run["sweep_id"].rsplit("-", 1)[1])
+        if attempt < old_attempt or (saved["completed"] and not summary["completed"]):
+            summary = saved
+        else:
+            body = statistics_body(summary)
+            if len(body) > 60000:
+                raise Abstain("Benchmark statistics exceed comment size budget")
+            api.graphql("""
+              mutation($id:ID!,$body:String!){
+                updateDiscussionComment(input:{commentId:$id,body:$body}){comment{id url}}
+              }""", {"id": comment["id"], "body": body})
     else:
-        raise Abstain("Discussion pagination exhausted; refusing duplicate publication")
-    kind = "five-entry pilot" if summary["run"]["total"] == 5 else "nightly benchmark"
-    answered = summary["answered_accuracy"]
-    precision = f"{answered:.2%}" if answered is not None else "N/A"
-    title = ("[PARTIAL] " if not summary["completed"] else "") + (
-        f"NFV {kind}: {summary['run']['started_at'][:10]} "
-        f"- Accuracy {summary['accuracy']:.2%}, Precision {precision} "
-        f"(run {summary['run']['run_id']})")
-    if existing:
-        author = existing.get("author") or {}
-        if (author.get("__typename") != "Bot"
-                or author.get("login") not in ("github-actions", "github-actions[bot]")):
-            raise Abstain("Benchmark marker belongs to a non-Actions author; refusing to overwrite")
-        return api.graphql("""
-          mutation($id:ID!,$title:String!,$body:String!){
-            updateDiscussion(input:{discussionId:$id,title:$title,body:$body}){discussion{url}}
-          }""", {"id": existing["id"], "title": title, "body": body})["updateDiscussion"]["discussion"]["url"]
-    return api.graphql("""
-      mutation($repo:ID!,$category:ID!,$title:String!,$body:String!){
-        createDiscussion(input:{repositoryId:$repo,categoryId:$category,title:$title,body:$body}){discussion{url}}
-      }""", {"repo": repo_id, "category": category_id, "title": title, "body": body})["createDiscussion"]["discussion"]["url"]
+        body = statistics_body(summary)
+        if len(body) > 60000:
+            raise Abstain("Benchmark statistics exceed comment size budget")
+        comment = api.graphql("""
+          mutation($id:ID!,$body:String!){
+            addDiscussionComment(input:{discussionId:$id,body:$body}){comment{id url}}
+          }""", {"id": archive["id"], "body": body})["addDiscussionComment"]["comment"]
+    records.append((summary, comment["url"]))
+    body = dashboard_body(repo, records, archives, legacy)
+    return write_discussion(api, repo_id, category_id, dashboard,
+                            "NFV benchmark dashboard", body)["url"]
 
 
 def main(argv=None):
