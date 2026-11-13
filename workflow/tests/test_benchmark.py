@@ -53,9 +53,14 @@ class PublicationAPI:
         self.enabled = True
         self.category = "General"
         self.discussions = []
+        self.comments = {}
+        self.created_at = {}
         self.mutations = []
+        self.fail_dashboard = False
 
     def request(self, path):
+        if "/actions/runs/" in path:
+            return {"created_at": self.created_at.get(path.rsplit("/", 1)[1], "2026-11-13T03:00:00Z")}
         return {"has_discussions": self.enabled}
 
     def graphql(self, query, variables):
@@ -65,12 +70,38 @@ class PublicationAPI:
         if "discussions(" in query:
             return {"repository": {"discussions": {"nodes": self.discussions,
                                                     "pageInfo": {"hasNextPage": False}}}}
+        if "comments(" in query:
+            return {"node": {"comments": {"nodes": self.comments.get(variables["id"], []),
+                                         "pageInfo": {"hasNextPage": False}}}}
+        if self.fail_dashboard and variables.get("title") == "NFV benchmark dashboard":
+            raise Abstain("Publication interrupted")
         self.mutations.append((query, variables))
         if "createDiscussion" in query:
-            self.discussions.append({"id": "discussion-id", "body": variables["body"],
-                                     "author": {"login": "github-actions[bot]", "__typename": "Bot"}})
-            return {"createDiscussion": {"discussion": {"url": "https://github.com/owner/nfv/discussions/1"}}}
-        return {"updateDiscussion": {"discussion": {"url": "https://github.com/owner/nfv/discussions/1"}}}
+            number = len(self.discussions) + 1
+            discussion = {"id": f"discussion-{number}", "body": variables["body"],
+                          "title": variables["title"],
+                          "url": f"https://github.com/owner/nfv/discussions/{number}",
+                          "author": {"login": "github-actions[bot]", "__typename": "Bot"}}
+            self.discussions.append(discussion)
+            return {"createDiscussion": {"discussion": discussion}}
+        if "updateDiscussion(" in query:
+            discussion = next(item for item in self.discussions if item["id"] == variables["id"])
+            discussion.update(body=variables["body"], title=variables["title"])
+            return {"updateDiscussion": {"discussion": discussion}}
+        if "addDiscussionComment" in query:
+            comments = self.comments.setdefault(variables["id"], [])
+            comment = {"id": f"comment-{variables['id']}-{len(comments) + 1}",
+                       "body": variables["body"],
+                       "url": f"https://github.com/owner/nfv/discussions/1#discussioncomment-{len(comments) + 1}",
+                       "author": {"login": "github-actions[bot]", "__typename": "Bot"}}
+            comments.append(comment)
+            return {"addDiscussionComment": {"comment": comment}}
+        if "updateDiscussionComment" in query:
+            comment = next(item for comments in self.comments.values() for item in comments
+                           if item["id"] == variables["id"])
+            comment["body"] = variables["body"]
+            return {"updateDiscussionComment": {"comment": comment}}
+        raise AssertionError(query)
 
 
 class BenchmarkTests(unittest.TestCase):
@@ -223,7 +254,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("not a full-dataset accuracy estimate", rendered)
         api = PublicationAPI()
         benchmark.publish(summary, api, REPO, "General")
-        self.assertIn("five-entry pilot", api.mutations[0][1]["title"])
+        self.assertIn("five-entry pilot", api.comments["discussion-1"][0]["body"])
         with self.assertRaises(Abstain):
             benchmark.select(self.prepared, 1, self.directory / "invalid.json",
                              RELEASE, "test-model", "123-1")
@@ -735,22 +766,34 @@ class BenchmarkTests(unittest.TestCase):
         updated["ai_credits"]["total"] = None
         self.assertIn("Missing credits are unavailable, not zero", benchmark.render(updated))
 
-    def test_publication_retry_updates_one_run_discussion(self):
+    def test_publication_retry_updates_one_archived_run_and_stable_dashboard(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
         api = PublicationAPI()
         first = benchmark.publish(summary, api, REPO, "General")
         api.discussions[0]["author"]["login"] = "github-actions"
         second = benchmark.publish(summary, api, REPO, "General")
         self.assertEqual(first, second)
-        self.assertEqual(len(api.discussions), 1)
+        self.assertEqual(len(api.discussions), 2)
+        self.assertEqual(len(api.comments["discussion-1"]), 1)
         self.assertIn("createDiscussion", api.mutations[0][0])
-        self.assertIn("updateDiscussion", api.mutations[1][0])
-        self.assertIn("[PARTIAL]", api.mutations[1][1]["title"])
-        self.assertIn("Accuracy 0.00%, Precision N/A", api.mutations[0][1]["title"])
-        self.assertEqual(api.mutations[0][1]["title"], api.mutations[1][1]["title"])
-        self.assertEqual(api.mutations[1][1]["body"], benchmark.render(summary))
+        self.assertIn("updateDiscussionComment", api.mutations[3][0])
+        self.assertIn("updateDiscussion", api.mutations[4][0])
+        self.assertIn("PARTIAL sweep", api.comments["discussion-1"][0]["body"])
+        saved = benchmark.saved_statistics(api.comments["discussion-1"][0], REPO)
+        self.assertEqual(saved["run"]["release_sha"], RELEASE)
+        self.assertNotIn("rows", saved)
+        for field in ("matrix", "predictions", "abstention_reasons", "errors",
+                      "accuracy", "answered_accuracy", "coverage", "finished_at", "recorded_usage"):
+            self.assertEqual(saved[field], summary[field])
+        self.assertIn("**Verdict counts:** correct=0, incorrect=0, abstain=206.",
+                      api.comments["discussion-1"][0]["body"])
+        self.assertIn("**Operational failures:**", api.comments["discussion-1"][0]["body"])
+        dashboard = api.discussions[1]["body"]
+        self.assertIn("No completed full run", dashboard)
+        self.assertIn(f"[{RELEASE[:10]}](https://github.com/{REPO}/commit/{RELEASE})", dashboard)
+        self.assertIn("NFV SHA", dashboard)
 
-    def test_discussion_title_precision_matches_body_decisive_accuracy(self):
+    def test_dashboard_precision_matches_archived_decisive_accuracy(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
         cases = [
             (206, True, 68, 1, 82, 9, "nightly benchmark", "72.82%", "93.75%"),
@@ -770,19 +813,139 @@ class BenchmarkTests(unittest.TestCase):
                 }
                 summary["accuracy"] = (tn + tp) / total
                 decisive = tn + fn + tp + fp
+                summary["coverage"] = decisive / total
                 summary["answered_accuracy"] = (tn + tp) / decisive if decisive else None
                 api = PublicationAPI()
                 benchmark.publish(summary, api, REPO, "General")
-                title = api.mutations[0][1]["title"]
-                body = api.mutations[0][1]["body"]
+                body = api.comments["discussion-1"][0]["body"]
                 self.assertIn(
                     "**Accuracy among decisive results:** "
                     + ("N/A." if precision == "N/A" else f"{precision}."), body)
-                prefix = "" if completed else "[PARTIAL] "
-                self.assertEqual(
-                    title,
-                    f"{prefix}NFV {kind}: {summary['run']['started_at'][:10]} "
-                    f"- Accuracy {accuracy}, Precision {precision} (run 123)")
+                self.assertIn(f"| {accuracy} | {precision} |", api.discussions[1]["body"])
+
+    def test_dashboard_links_exact_revision_and_keeps_incomplete_credits_unavailable(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        summary["ai_credits"] = {"complete": False, "total": None, "inference": 1.25,
+                                "threat_detection": None, "shards_observed": 1,
+                                "shards_expected": 26, "recorded_subtotal": 1.25}
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        self.assertIn("| unavailable | test-model |", api.discussions[1]["body"])
+        self.assertEqual(benchmark.saved_statistics(api.comments["discussion-1"][0], REPO)["ai_credits"],
+                         summary["ai_credits"])
+        summary["ai_credits"].update(complete=True, total=3.75, threat_detection=2.5)
+        benchmark.publish(summary, api, REPO, "General")
+        self.assertIn("| 3.75000 | test-model |", api.discussions[1]["body"])
+        self.assertIn(RELEASE, api.comments["discussion-1"][0]["body"])
+        self.assertEqual(len(api.comments["discussion-1"]), 1)
+
+    def test_archive_index_survives_year_boundary_and_backfills_cannot_replace_latest(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        summary.update(completed=True, evaluated=206, not_evaluated=0, errors=[])
+        api = PublicationAPI()
+
+        def publish(run_id, date, total=206, completed=True):
+            run = {**summary["run"], "run_id": run_id, "sweep_id": f"{run_id}-1",
+                   "total": total, "release_sha": run_id[-1] * 40}
+            current = {**summary, "run": run, "completed": completed, "evaluated": total}
+            api.created_at[run_id] = date
+            benchmark.publish(current, api, REPO, "General")
+
+        publish("123", "2026-11-30T23:59:59Z")
+        publish("124", "2026-12-01T00:00:00Z")
+        publish("125", "2027-01-01T00:00:00Z")
+        publish("126", "2027-01-02T00:00:00Z", total=5)
+        publish("127", "2027-01-03T00:00:00Z", completed=False)
+        publish("122", "2026-11-01T00:00:00Z")
+        dashboard = api.discussions[1]["body"]
+        latest = dashboard.split("## Recent runs")[0]
+        self.assertIn("5555555555", latest)
+        self.assertNotIn("6666666666", latest)
+        self.assertNotIn("7777777777", latest)
+        self.assertNotIn("2222222222", latest)
+        for month in ("2026-11", "2026-12", "2027-01"):
+            self.assertIn(f"[{month}]", dashboard)
+        self.assertEqual(len(api.discussions), 4)
+        self.assertEqual(sum(map(len, api.comments.values())), 6)
+
+    def test_run_creation_utc_month_is_stable_across_retry_and_offset(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        api = PublicationAPI()
+        api.created_at["123"] = "2026-12-01T00:30:00+02:00"
+        benchmark.publish(summary, api, REPO, "General")
+        retry = copy.deepcopy(summary)
+        retry["run"].update(started_at="2027-01-01T00:00:00Z", sweep_id="123-2")
+        benchmark.publish(retry, api, REPO, "General")
+        self.assertIn("November 2026", api.discussions[0]["title"])
+        self.assertEqual(len(api.comments["discussion-1"]), 1)
+        self.assertIn("[2026-11-30]", api.discussions[1]["body"])
+
+    def test_old_attempt_and_partial_retry_do_not_downgrade_archived_success(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        summary.update(completed=True, evaluated=206, not_evaluated=0, errors=[])
+        summary["run"] = {**summary["run"], "sweep_id": "123-2"}
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        original = api.comments["discussion-1"][0]["body"]
+        for attempt, completed in (("123-1", True), ("123-3", False)):
+            retry = copy.deepcopy(summary)
+            retry["run"]["sweep_id"] = attempt
+            retry.update(completed=completed, accuracy=0.99)
+            benchmark.publish(retry, api, REPO, "General")
+            self.assertEqual(api.comments["discussion-1"][0]["body"], original)
+        self.assertEqual(len(api.comments["discussion-1"]), 1)
+
+    def test_archive_survives_dashboard_failure_and_retry_deduplicates(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        api = PublicationAPI()
+        api.fail_dashboard = True
+        with self.assertRaisesRegex(Abstain, "interrupted"):
+            benchmark.publish(summary, api, REPO, "General")
+        self.assertEqual(len(api.comments["discussion-1"]), 1)
+        self.assertIn("matrix", benchmark.saved_statistics(api.comments["discussion-1"][0], REPO))
+        api.fail_dashboard = False
+        benchmark.publish(summary, api, REPO, "General")
+        self.assertEqual(len(api.discussions), 2)
+        self.assertEqual(len(api.comments["discussion-1"]), 1)
+
+    def test_legacy_reports_are_linked_but_never_rewritten(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        api = PublicationAPI()
+        legacy = {"id": "old", "body": benchmark.render(summary), "title": "Old statistics",
+                  "url": "https://github.com/owner/nfv/discussions/99",
+                  "author": {"login": "github-actions", "__typename": "Bot"}}
+        api.discussions.append(copy.deepcopy(legacy))
+        benchmark.publish(summary, api, REPO, "General")
+        self.assertEqual(api.discussions[0], legacy)
+        self.assertIn("[Old statistics]", api.discussions[-1]["body"])
+
+    def test_human_archive_comment_marker_and_duplicate_dashboard_are_rejected(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        api.comments["discussion-1"][0]["author"] = {"login": "human", "__typename": "User"}
+        writes = len(api.mutations)
+        with self.assertRaisesRegex(Abstain, "non-Actions"):
+            benchmark.publish(summary, api, REPO, "General")
+        self.assertEqual(len(api.mutations), writes)
+        api.discussions.append(copy.deepcopy(api.discussions[1]))
+        with self.assertRaisesRegex(Abstain, "Duplicate"):
+            benchmark.publish(summary, api, REPO, "General")
+        self.assertEqual(len(api.mutations), writes)
+
+    def test_publication_pagination_reads_all_pages_and_fails_closed_at_limit(self):
+        class Pages:
+            def graphql(self, query, variables):
+                cursor = variables["cursor"]
+                return {"repository": {"discussions": {
+                    "nodes": [cursor], "pageInfo": {"hasNextPage": cursor is None, "endCursor": "next"}}}}
+        self.assertEqual(benchmark.publication_pages(Pages(), "", {}, "discussions"), [None, "next"])
+        class Endless:
+            def graphql(self, query, variables):
+                return {"node": {"comments": {"nodes": [], "pageInfo": {
+                    "hasNextPage": True, "endCursor": "next"}}}}
+        with self.assertRaisesRegex(Abstain, "pagination exhausted"):
+            benchmark.publication_pages(Endless(), "", {}, "comments", "node")
 
     def test_unavailable_discussions_or_category_fail_without_writes(self):
         for enabled, category in ((False, "General"), (True, "missing")):

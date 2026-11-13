@@ -112,15 +112,39 @@ not evaluated. Interrupted sweeps publish explicitly **PARTIAL** statistics and
 remain unsuccessful in Actions. Malformed or mismatched evidence fails scoring
 rather than producing success-shaped results.
 
-One Discussion is created per Actions run; publication retries update that
-Discussion using its run marker. Titles include overall accuracy and precision
-to two decimal places. The title's **Precision** uses the body's **Accuracy among
-decisive results**: label-matching predictions divided by all decisive predictions,
-or **N/A** when none are decisive. It is not incorrect-class precision. Partial runs keep
-the **PARTIAL** title prefix.
-Retry only the failed publication job to avoid
-restarting paid inference. A failed worker retry reruns that shard; there is no
-automatic best-of search or deterministic replay requirement.
+The stable **NFV benchmark dashboard** Discussion shows the latest completed
+full 206-entry run and a recent-runs table. Each row includes accuracy,
+**Precision** (accuracy among decisive results, or **N/A**), coverage, AIC, model,
+UTC date, evidence links and a short **NFV SHA** linked to the exact full commit.
+Precision is not incorrect-class precision. A maintainer should pin the dashboard
+using GitHub's Discussion menu after its first publication; GitHub's public API
+does not support pinning Discussions.
+
+One **NFV benchmark archive - Month Year** Discussion retains a full statistics
+comment per Actions run, including the confusion matrix, verdict/abstention
+counts and reasons, operational failures, metrics, usage, full release SHA,
+timestamps and run/artifact links. The archive is written **before** the dashboard
+so interrupted publication does not lose statistics. These comments persist
+independently of expiring Actions artifacts. The dashboard indexes every monthly
+archive across year boundaries and links existing per-run reports as unchanged
+legacy history.
+
+Archive months and dashboard ordering use the Actions run creation timestamp
+normalized to **UTC**, not publication time or a retry's preparation date.
+Pilots, partial sweeps and failed sweeps with scored statistics are archived but
+never replace the latest completed full run. Failures before preparation remain
+visible in Actions and cannot publish scored statistics.
+Historical/backfill runs cannot displace newer completed runs.
+Publication retries update the same run comment, including across month
+boundaries; older attempts and incomplete retries cannot downgrade an archived
+success. Markers must belong to the trusted Actions bot; duplicate markers or
+incomplete pagination fail visibly rather than creating duplicate reports.
+Publication relies on the coordinator's non-cancelling concurrency group to
+serialize dashboard/archive writes.
+
+Retry only the failed publication job to avoid restarting paid inference.
+A failed worker retry reruns that shard; there is no automatic best-of search
+or deterministic replay requirement.
 
 Prepared inputs and native evidence are retained for seven days, statistics for
 30 days. Retry publication while the required artifacts remain available.

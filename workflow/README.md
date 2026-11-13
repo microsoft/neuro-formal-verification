@@ -114,6 +114,10 @@ keeps these registrations separate from historical replay campaigns. Older
 releases without summaries appear as coverage gaps; the collector never launches
 audits or derives proof counts from green jobs or comment prose.
 
+The maintainer-only [micro-benchmark](BENCHMARK.md) has a separate Discussion
+dashboard with the latest completed full run, per-run NFV revision links and
+persistent monthly statistics archives. It does not run in client repositories.
+
 **Installation:** [Onboarding](ONBOARDING.md).
 
 <a id="upgrade-an-existing-installation"></a>
