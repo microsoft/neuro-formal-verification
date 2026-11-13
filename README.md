@@ -43,6 +43,23 @@ of correctness.
 Verification likewise applies to the translated model under its assumptions,
 not automatically to the source code.
 
+## Citation
+
+If you use this work, please cite the [NFV paper](https://arxiv.org/abs/2608.21516):
+
+```bibtex
+@misc{lahiri2026neuroformalverification,
+  title         = {Neuro-Formal Verification: Agentic Language-Agnostic Formal Program Reasoning},
+  author        = {Shuvendu K. Lahiri},
+  year          = {2026},
+  eprint        = {2608.21516},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.SE},
+  doi           = {10.48550/arXiv.2608.21516},
+  url           = {https://arxiv.org/abs/2608.21516}
+}
+```
+
 ## Contributing and support
 
 Contributions and research feedback are welcome. See
