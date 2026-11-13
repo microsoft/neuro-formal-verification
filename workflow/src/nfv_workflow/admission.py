@@ -17,8 +17,7 @@ def admit(event, api, run_id, run_attempt=1):
     ident = identity(event)
     pr = event["pull_request"]
     if (event["action"] not in ("opened", "ready_for_review")
-            or pr.get("draft") is not False
-            or pr["base"]["ref"] != event["repository"]["default_branch"]):
+            or pr.get("draft") is not False):
         return False
     if not re.fullmatch(r"[1-9][0-9]*", str(run_id)) or run_attempt < 1:
         raise Abstain("Invalid Actions run identity")

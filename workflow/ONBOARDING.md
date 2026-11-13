@@ -9,11 +9,13 @@ not the first-installation script.
 For expired tokens and other common problems, see the [FAQ](FAQ.md).
 
 NFV audits non-draft, supported-source PRs from branches in the onboarded
-repository into its default branch. Fork PRs are skipped. Audits start on opening
+repository targeting any branch. Fork PRs are skipped. Audits start on opening
 or draft-to-ready transitions, once automatically per PR, not later pushes.
 The `pull_request` workflow runs from the PR merge ref, so contributors allowed
 to push repository branches must be trusted with workflow changes and repository
 secrets. NFV installs its pinned release and never executes inspected PR source.
+The workflows must exist in the target branch/merge ref; installation does not
+add them to older branches.
 
 Review [data handling and telemetry opt-outs](../PRIVACY) before using hosted
 inference or enabling the workflows.

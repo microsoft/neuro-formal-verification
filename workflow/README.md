@@ -11,7 +11,7 @@ behavioral properties, and translates relevant source into Dafny. It attempts
 verification and refutation, then posts one evidence-linked PR comment.
 PR code is inspected as data, never executed.
 
-Only same-repository PRs into the default branch are eligible; fork PRs are
+Same-repository PRs targeting any branch are eligible; fork PRs are
 skipped. Each PR gets one automatic attempt when opened non-draft or marked ready.
 Admission records attempts, including failures. Pushes and repeated
 ready transitions neither cancel nor repeat it. The saved snapshot is reviewed
@@ -119,6 +119,9 @@ dashboard with the latest completed full run, per-run NFV revision links and
 persistent monthly statistics archives. It does not run in client repositories.
 
 **Installation:** [Onboarding](ONBOARDING.md).
+
+The workflows must exist in the target branch/PR merge ref; installing NFV does
+not add them to older branches.
 
 <a id="upgrade-an-existing-installation"></a>
 

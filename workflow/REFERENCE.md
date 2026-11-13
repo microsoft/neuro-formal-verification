@@ -35,11 +35,13 @@ and return types while preserving the original source line numbers.
   the model is frozen. Drafts rejected by Dafny's Boogie resolution stage use the
   same bounded draft-repair budget; they are never accepted without a successful
   verifier run. Other verifier/tool failures still interrupt the audit.
-* Audits start on non-draft `opened` and `ready_for_review` events targeting the
-  onboarded repository's default branch from a branch in that same repository,
+* Audits start on non-draft `opened` and `ready_for_review` events targeting any
+  branch in the onboarded repository from a branch in that same repository,
   whose changed paths include a supported source suffix. Fork PRs are skipped.
   The `pull_request` workflow comes from the PR merge ref; repository-branch
   contributors must be trusted with workflow changes and repository secrets.
+  The workflows must exist in the target branch/merge ref; installing NFV does
+  not install them into older branches.
   The NFV package remains release-pinned, and inspected PR source is captured
   only as immutable data, never executed.
   The first eligible event reserves one automatic attempt per PR, including
