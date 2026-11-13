@@ -6,7 +6,6 @@ Licensed under the MIT License. -->
 This maintainer-only prototype evaluates the current PR reviewer's classifier on all
 206 frozen `nfv-micro-bench` entries. It is separate from the client installation
 package: client workflows, onboarding, READMEs and deployed settings are unchanged.
-The existing round-robin paper benchmark is also unchanged.
 
 For each supplied complete postcondition, an accepted verification proof predicts
 **correct**; otherwise an accepted witnessed-refutation proof predicts
