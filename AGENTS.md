@@ -224,8 +224,10 @@ under `workflow/tests/.general-scratch/`; never commit them.
   `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}` for job-scoped publication,
   never a shared `GH_AW_GITHUB_TOKEN` override or an inference/release token.
 - Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
-  `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string
-  `includes` entry in `workflow/aw.yml` resolves relative to the package directory.
+  `aw.yml` needs `README.md` beside it and rejects unknown fields. Its `includes`
+  mappings resolve `source` relative to the package and `destination` relative to
+  the consumer repository. Use mappings for inert sources in `workflow/templates/`;
+  bare `templates/` strings are not recognized as installable workflows.
   Local package paths are not supported, so test installs from a pushed ref in
   a scratch repository.
 

@@ -1148,8 +1148,12 @@ class TemplateTests(unittest.TestCase):
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
-        self.assertIn("  - templates/nfv-pr-review.md\n", manifest)
-        self.assertIn("  - templates/nfv-source-context.md\n", manifest)
+        for name in ("nfv-pr-review", "nfv-source-context"):
+            self.assertIn(
+                f"  - source: templates/{name}.md\n"
+                f"    destination: .github/workflows/{name}.md\n",
+                manifest,
+            )
         self.assertTrue((self.package / "README.md").exists())
 
     def test_reviewer_is_distributed_without_installing_it_in_this_repository(self):
