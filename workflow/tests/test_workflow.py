@@ -98,6 +98,23 @@ class ScratchTest(unittest.TestCase):
 
 
 class GitHubRequestTests(unittest.TestCase):
+    def test_graphql_failure_reports_bounded_redacted_reason_without_claiming_no_writes(self):
+        token = "diagnostic-test-token"
+        response = {"data": {"updateDiscussion": None}, "errors": [
+            {"message": "Resource not accessible\nBearer " + token},
+            {"message": "x" * 2000},
+            {"message": "y" * 2000},
+        ]}
+        with patch.object(GitHub, "request", return_value=response), \
+                self.assertRaises(Abstain) as raised:
+            GitHub(token=token).graphql("private-query", {"body": "private-request-body"})
+        diagnostic = str(raised.exception)
+        self.assertIn("earlier mutations may have succeeded", diagnostic)
+        self.assertIn("Resource not accessible Bearer [REDACTED]", diagnostic)
+        self.assertLessEqual(len(diagnostic), 1200)
+        for secret in (token, "private-query", "private-request-body", "\n"):
+            self.assertNotIn(secret, diagnostic)
+
     def test_denied_comment_identifies_request_and_rate_limit_without_credentials_or_body(self):
         token = "diagnostic-test-token"
         error = HTTPError("https://api.github.com/repos/owner/project/issues/7/comments", 403,

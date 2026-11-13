@@ -102,7 +102,18 @@ class GitHub:
     def graphql(self, query, variables):
         result = self.request("graphql", {"query": query, "variables": variables})
         if result.get("errors"):
-            raise Abstain("GitHub GraphQL failed; no publication attempted")
+            messages = []
+            for error in result["errors"][:3]:
+                if isinstance(error, dict) and isinstance(error.get("message"), str):
+                    message = error["message"]
+                    if self.token:
+                        message = message.replace(self.token, "[REDACTED]")
+                    messages.append(message[:600])
+            diagnostic = "GitHub GraphQL failed; earlier mutations may have succeeded"
+            if messages:
+                diagnostic += ": " + "; ".join(messages)
+            diagnostic = re.sub(r"[\x00-\x1f\x7f]", " ", diagnostic)
+            raise Abstain(" ".join(diagnostic.split())[:1200])
         return result["data"]
 
     def blob(self, repo, oid):

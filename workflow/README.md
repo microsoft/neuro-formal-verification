@@ -116,7 +116,8 @@ audits or derives proof counts from green jobs or comment prose.
 
 The maintainer-only [micro-benchmark](BENCHMARK.md) has a separate Discussion
 dashboard with the latest completed full run, per-run NFV revision links and
-persistent monthly statistics archives. It does not run in client repositories.
+persistent monthly statistics archives. Publication preserves custom Discussion
+titles, including the pinned dashboard's title. It does not run in client repositories.
 
 **Installation:** [Onboarding](ONBOARDING.md).
 

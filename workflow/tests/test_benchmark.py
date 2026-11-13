@@ -73,7 +73,8 @@ class PublicationAPI:
         if "comments(" in query:
             return {"node": {"comments": {"nodes": self.comments.get(variables["id"], []),
                                          "pageInfo": {"hasNextPage": False}}}}
-        if self.fail_dashboard and variables.get("title") == "NFV benchmark dashboard":
+        if self.fail_dashboard and (variables.get("title") == benchmark.DASHBOARD_TITLE
+                                    or variables.get("id") == "discussion-2"):
             raise Abstain("Publication interrupted")
         self.mutations.append((query, variables))
         if "createDiscussion" in query:
@@ -86,7 +87,9 @@ class PublicationAPI:
             return {"createDiscussion": {"discussion": discussion}}
         if "updateDiscussion(" in query:
             discussion = next(item for item in self.discussions if item["id"] == variables["id"])
-            discussion.update(body=variables["body"], title=variables["title"])
+            discussion["body"] = variables["body"]
+            if "title" in variables:
+                discussion["title"] = variables["title"]
             return {"updateDiscussion": {"discussion": discussion}}
         if "addDiscussionComment" in query:
             comments = self.comments.setdefault(variables["id"], [])
@@ -822,6 +825,29 @@ class BenchmarkTests(unittest.TestCase):
                     "**Accuracy among decisive results:** "
                     + ("N/A." if precision == "N/A" else f"{precision}."), body)
                 self.assertIn(f"| {accuracy} | {precision} |", api.discussions[1]["body"])
+
+    def test_publication_preserves_custom_titles_and_refreshes_marked_dashboard(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        archive, dashboard = api.discussions
+        self.assertEqual(dashboard["title"], "Nightly nfv-micro-bench evaluation dashboard")
+        self.assertEqual(archive["title"], "Nightly nfv-micro-bench evaluation archive - November 2026")
+        archive["title"] = "Custom monthly archive"
+        dashboard["title"] = "Custom pinned dashboard"
+        summary["run"] = {**summary["run"], "run_id": "124", "sweep_id": "124-1"}
+        api.created_at["124"] = "2026-11-14T03:00:00Z"
+        benchmark.publish(summary, api, REPO, "General")
+        self.assertEqual(len(api.discussions), 2)
+        self.assertEqual(archive["title"], "Custom monthly archive")
+        self.assertEqual(dashboard["title"], "Custom pinned dashboard")
+        self.assertIn("/actions/runs/124", dashboard["body"])
+        self.assertEqual(len(api.comments[archive["id"]]), 2)
+        updates = [(query, variables) for query, variables in api.mutations
+                   if "updateDiscussion(" in query]
+        self.assertEqual(len(updates), 1)
+        self.assertNotIn("title", updates[0][0])
+        self.assertNotIn("title", updates[0][1])
 
     def test_dashboard_links_exact_revision_and_keeps_incomplete_credits_unavailable(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
