@@ -93,32 +93,6 @@ in the run artifact when details are compacted.
 
 ![NFV report showing model verification with expanded assumptions and checked property](images/nfv-report-verification.png)
 
-## Operational failures
-
-The trusted admission job writes PR comments separately from read-only inference.
-API failures report the method, endpoint, status, a bounded credential-redacted
-GitHub message and available rate-limit headers. Admission failures block inference.
-
-## Optional repository dashboards
-
-The driver writes a separate `nfv-summary-<run-attempt>` artifact with versioned
-repository/run/source identity, completion and the four outcome counts.
-It contains no source, formal models, property prose, counterexamples or
-diagnostics. An incomplete analysis has unknown counts, not zero findings.
-Early failures before the driver starts may have no summary. Safe-output
-submission is recorded as `submitted`, not confirmed publication.
-
-NFV users can self-report public repository onboarding for nightly summary collection through
-[onboarding](ONBOARDING.md#optional-public-dashboard). The existing dashboard
-keeps these registrations separate from historical replay campaigns. Older
-releases without summaries appear as coverage gaps; the collector never launches
-reviews or derives proof counts from green jobs or comment prose.
-
-The maintainer-only [micro-benchmark](BENCHMARK.md) has a separate Discussion
-dashboard with the latest completed full run, per-run NFV revision links and
-persistent monthly statistics archives. Publication preserves custom Discussion
-titles, including the pinned dashboard's title. It does not run in client repositories.
-
 **Installation:** [Onboarding](ONBOARDING.md).
 
 The workflows must exist in the target branch/PR merge ref; installing NFV does
@@ -128,5 +102,8 @@ not add them to older branches.
 
 **More:** [Configuration](REFERENCE.md#configure-github-agentic-workflows),
 [upgrades](ONBOARDING.md#upgrade-an-existing-installation), and
-[technical reference](REFERENCE.md).
+[command reference](REFERENCE.md).
 For expired tokens and other common problems, see the [FAQ](FAQ.md).
+
+Maintainers: the independent [micro-benchmark and its Discussion dashboard](BENCHMARK.md)
+do not run in client repositories.

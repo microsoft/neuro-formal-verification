@@ -27,6 +27,20 @@ DATA_COLLECTION = (
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_readme_opens_with_description_and_two_components(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        opening = readme.split("# Neuro-Formal Verification\n\n", 1)[1]
+        description, components = opening.split("\n\n", 1)
+        self.assertTrue(description.startswith("Neuro-Formal Verification (NFV) "))
+        bullets = [line for line in components.split("\n\n", 1)[0].splitlines()
+                   if line.startswith("- ")]
+        self.assertEqual(len(bullets), 2)
+        self.assertIn("https://arxiv.org/abs/2608.21516", bullets[0])
+        self.assertIn("reviewer", bullets[1])
+        for link in ("paper/README.md", "workflow/README.md"):
+            self.assertIn(f"]({link})", components.split("\n\n", 1)[0])
+        self.assertIn("```bibtex\n", readme)
+
     def test_named_mit_license_and_compatibility_copy(self):
         license_text = (ROOT / "LICENSE.TXT").read_bytes()
         self.assertEqual((ROOT / "LICENSE").read_bytes(), license_text)

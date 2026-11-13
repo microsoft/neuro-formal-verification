@@ -3,22 +3,17 @@ Licensed under the MIT License. -->
 
 # Neuro-Formal Verification
 
-Code and data for the paper [*Neuro-Formal Verification: Agentic Language-Agnostic
-Formal Program Reasoning*](https://arxiv.org/abs/2608.21516) (arXiv:2608.21516).
+Neuro-Formal Verification (NFV) is the problem of combining neuro-symbolic agents
+that translate intent, code and environment into formal models with program
+verifiers that reason over those models to produce proof-backed verdicts with
+high empirical accuracy.
 
-This repository contains two components:
-
-- **Paper artifact:** nfv-micro-bench dataset, retained results, experiment scripts, and Dafny/CBMC backends.
-  See [paper/README.md](paper/README.md) for the paper, dataset, model
-  configuration, and instructions for running experiments.
-- **Neuro-formal code reviewer (research prototype):** a PR
-  reviewer based on GitHub Agentic Workflow that applies NFV on nontrivial properties and
-  comments the result. See [workflow/README.md](workflow/README.md) for setup,
-  model configuration, supported languages, and examples.
-
-To try the neuro-formal code reviewer in your repository, follow the
-[onboarding guide](workflow/ONBOARDING.md) for installing the
-AW template, selecting inference billing and setting its required secrets. 
+- **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
+  and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
+  retained results and experiment instructions.
+- **Neuro-formal code reviewer:** a prototype PR reviewer built with GitHub
+  Agentic Workflows. See the [reviewer guide](workflow/README.md) and
+  [setup](workflow/ONBOARDING.md).
 
 The code and artifacts are intended for research reproduction, authorized
 experimentation, and feedback on neuro-formal reasoning. The prototype reviewer
@@ -26,16 +21,6 @@ is not a substitute for source review, testing, or a security assessment.
 
 See the [code and dataset transparency note](TRANSPARENCY.md) for intended
 uses, dataset provenance, evaluation, and limitations.
-
-## Folder structure
-
-| Directory | Purpose |
-|---|---|
-| `nfv/` | Core implementation, backends, and experiment runner |
-| `paper/` | Paper artifact: dataset, retained results, documentation and utilities |
-| `tests/` | Core and artifact tests |
-| `workflow/` | Prototype GitHub Agentic Workflow integration (`nfv-workflow` package and `aw.yml`) |
-| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow |
 
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof

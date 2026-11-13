@@ -22,36 +22,6 @@ publishes PR comments in the consuming repository. These services have their own
 data-handling policies. Optional gh-aw OpenTelemetry export sends traces to an
 operator-configured endpoint; it is not enabled by an NFV-owned collector.
 
-Optional public dashboard
-
-Dashboard registration is explicit opt-in for public repositories only. An open
-Discussion in the NFV repository, using the registration title specified in the
-dashboard's instructions linked from workflow/ONBOARDING.md,
-requests registration; the collector checks current public visibility before
-listing it. This is self-reported onboarding for usage and health tracking, not
-verified owner endorsement. No target-repository administrator permission or
-maintainer approval is required. The collector does not request author identity
-or collaborator permissions. The NFV
-repository's own visibility still controls who can read or create Discussions.
-
-The collector exports only allowlisted summary fields: public repository identity,
-PR number, source/base and NFV release hashes, workflow run/attempt identity,
-completion/submission status and outcome counts. It does not export Discussion
-bodies, authors, account information, source, formal models, counterexamples or
-diagnostics. It downloads only the compact summary artifact, never full proof
-evidence. Private repositories are excluded, including targets named in private
-Discussions. Collection uses separate collector-owned read credentials, not
-inference/release credentials or client-side reporting tokens.
-
-The existing public dashboard retains sanitized summaries in its own versioned
-state file; evidence remains subject to each reviewed repository's artifact
-retention. A successful nightly refresh rechecks registration and public
-visibility, removing withdrawn or no-longer-public repositories
-from the current site/state. Close every matching registration Discussion to
-withdraw. Failed refreshes can leave the last published site stale. Withdrawal
-does not erase previously public Git history, cached pages or downloaded copies.
-No new public repository or NFV Pages site is created by registration.
-
 Turning off telemetry and avoiding cloud collection
 
 - Optional workflow OTLP export: clear GH_AW_DEFAULT_OTLP_ENDPOINT for the
