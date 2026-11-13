@@ -38,6 +38,8 @@ LABELS = ("correct", "incorrect")
 PREDICTIONS = (*LABELS, "abstain")
 CASE_ID = re.compile(r"case-[a-f0-9]{32}")
 USAGE_FIELDS = ("api_calls", "input_tokens", "output_tokens", "nano_aiu")
+DASHBOARD_TITLE = "Nightly nfv-micro-bench evaluation dashboard"
+ARCHIVE_TITLE = "Nightly nfv-micro-bench evaluation archive"
 
 
 def now():
@@ -528,9 +530,9 @@ def write_discussion(api, repo_id, category_id, existing, title, body):
         raise Abstain("Benchmark Discussion exceeds publication size budget")
     if existing:
         result = api.graphql("""
-          mutation($id:ID!,$title:String!,$body:String!){
-            updateDiscussion(input:{discussionId:$id,title:$title,body:$body}){discussion{id url}}
-          }""", {"id": existing["id"], "title": title, "body": body})
+          mutation($id:ID!,$body:String!){
+            updateDiscussion(input:{discussionId:$id,body:$body}){discussion{id url}}
+          }""", {"id": existing["id"], "body": body})
         return result["updateDiscussion"]["discussion"]
     result = api.graphql("""
       mutation($repo:ID!,$category:ID!,$title:String!,$body:String!){
@@ -575,7 +577,7 @@ def dashboard_body(repo, records, archives, legacy):
     complete = [record for record in records if record[0]["completed"] is True
                 and record[0]["run"]["total"] == TOTAL
                 and record[0]["evaluated"] == TOTAL and not record[0]["errors"]]
-    lines = [f"<!-- nfv-benchmark-dashboard:{repo} -->", "# NFV benchmark dashboard", "",
+    lines = [f"<!-- nfv-benchmark-dashboard:{repo} -->", f"# {DASHBOARD_TITLE}", "",
              "Latest completed full **206-entry** run; pilots and partial/failed sweeps never replace it.",
              "Precision means accuracy among decisive results, not incorrect-class precision.", ""]
 
@@ -674,8 +676,8 @@ def publish(summary, api, repo, category):
     if archive is None:
         archive = write_discussion(
             api, repo_id, category_id, None,
-            f"NFV benchmark archive - {date.strftime('%B %Y')}",
-            f"{archive_marker}\n# NFV benchmark archive - {date.strftime('%B %Y')}\n\n"
+            f"{ARCHIVE_TITLE} - {date.strftime('%B %Y')}",
+            f"{archive_marker}\n# {ARCHIVE_TITLE} - {date.strftime('%B %Y')}\n\n"
             "Persistent full statistics appear below, one comment per Actions run. Dates use UTC.\n")
     archives[month] = archive["url"]
     if prior:
@@ -703,7 +705,7 @@ def publish(summary, api, repo, category):
     records.append((summary, comment["url"]))
     body = dashboard_body(repo, records, archives, legacy)
     return write_discussion(api, repo_id, category_id, dashboard,
-                            "NFV benchmark dashboard", body)["url"]
+                            DASHBOARD_TITLE, body)["url"]
 
 
 def main(argv=None):

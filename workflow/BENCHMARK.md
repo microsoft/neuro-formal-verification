@@ -112,7 +112,7 @@ not evaluated. Interrupted sweeps publish explicitly **PARTIAL** statistics and
 remain unsuccessful in Actions. Malformed or mismatched evidence fails scoring
 rather than producing success-shaped results.
 
-The stable **NFV benchmark dashboard** Discussion shows the latest completed
+The stable **Nightly nfv-micro-bench evaluation dashboard** Discussion shows the latest completed
 full 206-entry run and a recent-runs table. Each row includes accuracy,
 **Precision** (accuracy among decisive results, or **N/A**), coverage, AIC, model,
 UTC date, evidence links and a short **NFV SHA** linked to the exact full commit.
@@ -120,7 +120,7 @@ Precision is not incorrect-class precision. A maintainer should pin the dashboar
 using GitHub's Discussion menu after its first publication; GitHub's public API
 does not support pinning Discussions.
 
-One **NFV benchmark archive - Month Year** Discussion retains a full statistics
+One **Nightly nfv-micro-bench evaluation archive - Month Year** Discussion retains a full statistics
 comment per Actions run, including the confusion matrix, verdict/abstention
 counts and reasons, operational failures, metrics, usage, full release SHA,
 timestamps and run/artifact links. The archive is written **before** the dashboard
@@ -135,6 +135,10 @@ Pilots, partial sweeps and failed sweeps with scored statistics are archived but
 never replace the latest completed full run. Failures before preparation remain
 visible in Actions and cannot publish scored statistics.
 Historical/backfill runs cannot displace newer completed runs.
+Discussion titles may be customized, including for a pinned dashboard:
+publication identifies Discussions by hidden body markers and updates existing
+bodies without changing their titles. Keep those markers intact.
+GraphQL failures report the API reason; an earlier archive write may have succeeded.
 Publication retries update the same run comment, including across month
 boundaries; older attempts and incomplete retries cannot downgrade an archived
 success. Markers must belong to the trusted Actions bot; duplicate markers or
