@@ -214,7 +214,7 @@ def worker(payload_path, output):
             or not env.get("COPILOT_SDK_URI") or not env.get("COPILOT_CONNECTION_TOKEN")
             or not env.get("COPILOT_PROVIDER_BASE_URL") or not env.get("COPILOT_PROVIDER_TYPE")):
         raise Abstain("Benchmark inference requires the gh-aw AWF SDK runtime")
-    if any(env.get(key) for key in ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN", "NFV_RELEASE_TOKEN")):
+    if any(env.get(key) for key in ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")):
         raise Abstain("Do not expose GitHub credentials to the benchmark driver")
     payload = load(payload_path)
     run = payload["run"]

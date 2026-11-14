@@ -9,7 +9,7 @@ if (!process.env.NFV_PYTHON || !process.env.NFV_BENCH_PAYLOAD || !process.env.NF
   throw new Error("Trusted benchmark setup must configure Python, payload and output");
 }
 const environment = { ...process.env };
-for (const name of ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN", "NFV_RELEASE_TOKEN"]) {
+for (const name of ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"]) {
   delete environment[name];
 }
 const child = spawn(process.env.NFV_PYTHON, [

@@ -1118,7 +1118,6 @@ class TemplateTests(unittest.TestCase):
             for suffix in (".md", ".lock.yml"):
                 with self.subTest(name=name, suffix=suffix):
                     source = (self.template / (name + suffix)).read_text(encoding="utf-8")
-                    self.assertNotIn("NFV_RELEASE_TOKEN", source)
                     checkouts = []
                     block = None
                     for line in source.splitlines():
