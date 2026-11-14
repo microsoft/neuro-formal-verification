@@ -1,0 +1,51 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+name: NFV publication capability probe
+on:
+  push:
+    branches: [shuvendu-lahiri-benchmark-publication-fix]
+    paths: [.github/workflows/nfv-publication-probe.yml]
+permissions:
+  contents: read
+  discussions: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect Actions edit capability and reproduce same-body dashboard update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          def graphql(query, variables=None):
+              request = urllib.request.Request(
+                  "https://api.github.com/graphql",
+                  data=json.dumps({"query": query, "variables": variables or {}}).encode(),
+                  headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                           "Content-Type": "application/json"})
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  return json.load(response)
+          result = graphql('''query {
+            repository(owner:"microsoft",name:"neuro-formal-verification"){
+              discussion(number:76){
+                id title body locked viewerCanUpdate viewerDidAuthor
+                author{login} category{id name}
+              }
+            }
+          }''')
+          if result.get("errors"):
+              raise RuntimeError(result["errors"])
+          discussion = result["data"]["repository"]["discussion"]
+          print(json.dumps({k:v for k,v in discussion.items() if k != "body"}))
+          for label, query, variables in [
+              ("body-only", '''mutation($id:ID!,$body:String!){
+                updateDiscussion(input:{discussionId:$id,body:$body}){discussion{id url}}
+              }''', {"id": discussion["id"], "body": discussion["body"]}),
+              ("same-title-and-body", '''mutation($id:ID!,$title:String!,$body:String!){
+                updateDiscussion(input:{discussionId:$id,title:$title,body:$body}){discussion{id url}}
+              }''', {"id": discussion["id"], "title": discussion["title"], "body": discussion["body"]}),
+          ]:
+              print(label, json.dumps(graphql(query, variables)))
+          PY
