@@ -65,6 +65,11 @@ summary { font-weight: 600; margin-bottom: 14px; }
 <pre><code>  ensures !((((!layersPresent || layersKind != 0 || (exists i :: 0 &lt;= i &lt; |layerOrder| &amp;&amp; (!layerIsObject[i] || !roleIsText[i] || !pathIsText[i] || !uuidIsText[i] || !roleIsDistro[i]))) ==&gt; outcome == 0) &amp;&amp; (outcome == 1 ==&gt; layersPresent &amp;&amp; layersKind == 0 &amp;&amp; (forall i :: 0 &lt;= i &lt; |layerOrder| ==&gt; layerIsObject[i] &amp;&amp; roleIsText[i] &amp;&amp; pathIsText[i] &amp;&amp; uuidIsText[i] &amp;&amp; roleIsDistro[i]) &amp;&amp; decodedOrder == layerOrder)))</code></pre>
 <p><strong>Formal Dafny code</strong></p>
 <pre><code>...
+  requires 0 &lt;= layersKind &lt;= 3
+  requires layersPresent == true
+  requires layersKind == 1
+  requires layerOrder == []
+...
   while i &lt; |layerOrder|
     invariant 0 &lt;= i &lt;= |layerOrder|
     invariant layersKind == 0 ==&gt; decodedOrder == layerOrder[..i]
