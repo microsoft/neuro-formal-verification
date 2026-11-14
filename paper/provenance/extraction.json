@@ -1,0 +1,211 @@
+{
+  "source_commit": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
+  "files": [
+    {
+      "source": "nfv/__init__.py",
+      "destination": "nfv/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "nfv/run.py",
+      "destination": "nfv/run.py",
+      "source_sha256": "009b543b070add04e80296dc7a2503ff0d24a5c59eaa4f3d2eaf32950e5cb226"
+    },
+    {
+      "source": "nfv/run_judge.py",
+      "destination": "nfv/run_judge.py",
+      "source_sha256": "88c76f4f08b078ec1f8d4a9e2dabce64bc061b0674a1ac256be63ae50440f66e"
+    },
+    {
+      "source": "nfv/metrics.py",
+      "destination": "nfv/metrics.py",
+      "source_sha256": "a2d50ea2bce1b29bc33ea7519e02716fa1f7ec8dfd8c287e90e691e09ba18f6c"
+    },
+    {
+      "source": "nfv/backends/__init__.py",
+      "destination": "nfv/backends/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "nfv/backends/_scratch.py",
+      "destination": "nfv/backends/_scratch.py",
+      "source_sha256": "0a3d2667684ad8b6e235cb7ca9c5de943a17a4e430c5dfba57f9139cf851eba8"
+    },
+    {
+      "source": "nfv/backends/dafny.py",
+      "destination": "nfv/backends/dafny.py",
+      "source_sha256": "c0c662ce454212dce9d459c27bd40c09b3042ecd80ea4ad506385f24b9b1a2e7"
+    },
+    {
+      "source": "nfv/backends/cbmc.py",
+      "destination": "nfv/backends/cbmc.py",
+      "source_sha256": "123e3b9cfe2db3380ea5146925b39fafc188b75424cef8a99b56f2db905312a9"
+    },
+    {
+      "source": "nfv/shared/__init__.py",
+      "destination": "nfv/shared/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "nfv/shared/account.py",
+      "destination": "nfv/shared/account.py",
+      "source_sha256": "464da79ac7931827ceeca3610e250afe8dddde2acd335f36fc3a0a5dbba26206"
+    },
+    {
+      "source": "nfv/shared/config.py",
+      "destination": "nfv/shared/config.py",
+      "source_sha256": "b85e2da0d1da4e0d883b97a51de2d8952a71379c0d64ea5e6d8c31a00fcc1d53"
+    },
+    {
+      "source": "nfv/shared/copilot_client.py",
+      "destination": "nfv/shared/copilot_client.py",
+      "source_sha256": "cf2416e460a75c5d4471fa4acb184cf3f7c2e20c6106b04e98e1c80a26cc486f"
+    },
+    {
+      "source": "nfv/shared/store.py",
+      "destination": "nfv/shared/store.py",
+      "source_sha256": "8060211d6e6ac2e8c18f7ed859b6a964bce0bd54debb8c88c033af0d98115239"
+    },
+    {
+      "source": "nfv/agent/__init__.py",
+      "destination": "nfv/agent/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "nfv/agent/c_integrity.py",
+      "destination": "nfv/agent/c_integrity.py",
+      "source_sha256": "cbb94f8c86c37734c6545d781f768e1fabca8f5269e07760255d9c784091e106"
+    },
+    {
+      "source": "nfv/agent/c_witness.py",
+      "destination": "nfv/agent/c_witness.py",
+      "source_sha256": "b7f561a17e45f0a8a8d6fc120a4de2eac69c12eab810ba157e01bb8479694f7c"
+    },
+    {
+      "source": "nfv/agent/integrity.py",
+      "destination": "nfv/agent/integrity.py",
+      "source_sha256": "9b6dcb37aa7064ed53105aed805d3c0a27a0cb80a27e11d46c65cecd1b7087d8"
+    },
+    {
+      "source": "nfv/agent/invariant_agent.py",
+      "destination": "nfv/agent/invariant_agent.py",
+      "source_sha256": "0b6c9a6437bfc6b7d6acc2cc30ff0d1183afb9b7ca959fefb27c0e0a87d2c26a"
+    },
+    {
+      "source": "nfv/agent/library_theory.py",
+      "destination": "nfv/agent/library_theory.py",
+      "source_sha256": "1408be66f2d583ea2d101947b08ebf83bb8e843218a86d3f958cbf39a7e4cf16"
+    },
+    {
+      "source": "nfv/agent/oracle_witness.py",
+      "destination": "nfv/agent/oracle_witness.py",
+      "source_sha256": "5d856d5158b9e517045572b6655817b40ad7997d0a94be3abba6070c7a37c59a"
+    },
+    {
+      "source": "nfv/agent/provenance.py",
+      "destination": "nfv/agent/provenance.py",
+      "source_sha256": "d1832375611adbf9e5231c5c9bb1beb47538677eb2a3da81888745e132bdc867"
+    },
+    {
+      "source": "nfv/agent/pydocs.py",
+      "destination": "nfv/agent/pydocs.py",
+      "source_sha256": "d79ab92631bb9d03d692e580bce4b2bb8d3d78dfff0be84b5b9a2dd1dfde3bb5"
+    },
+    {
+      "source": "nfv/agent/refute.py",
+      "destination": "nfv/agent/refute.py",
+      "source_sha256": "178e0111b48b7893858c39102ad88f6346355f2e53560eb2f9b0f3925957c4e4"
+    },
+    {
+      "source": "nfv/agent/tautology.py",
+      "destination": "nfv/agent/tautology.py",
+      "source_sha256": "c5b171f8e109a01ff587bc0ea4e56ea11c383f0fc8da8a35a72532d4ada492b3"
+    },
+    {
+      "source": "nfv/agent/translate.py",
+      "destination": "nfv/agent/translate.py",
+      "source_sha256": "292c7ccbdc8544c36997b591bbce8ab9ddec92d3868ff25f696e7fb7cf37d497"
+    },
+    {
+      "source": "nfv/agent/ub_repair.py",
+      "destination": "nfv/agent/ub_repair.py",
+      "source_sha256": "0eca96472f7693df8a5b3fef8b9802879960a733456b1b388308405999899b01"
+    },
+    {
+      "source": "nfv/data/__init__.py",
+      "destination": "paper/data/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "nfv/data/build_safe.py",
+      "destination": "paper/data/build_safe.py",
+      "source_sha256": "a23b330ae432960546889afa53e53c2f4852e08c29c5e93189eff87e59a861e0"
+    },
+    {
+      "source": "nfv/data/build_subset.py",
+      "destination": "paper/data/build_subset.py",
+      "source_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc"
+    },
+    {
+      "source": "nfv/data/killing_tests.py",
+      "destination": "paper/data/killing_tests.py",
+      "source_sha256": "ff66e0d8f1d629c57c53956ed27d3a178bd2ee57f7b56c071c7d54ff60e27731"
+    },
+    {
+      "source": "nfv/data/rebuild_dataset.py",
+      "destination": "paper/data/rebuild_dataset.py",
+      "source_sha256": "44a48c4b4a755f68feda7d648b0e3e06f784d97a7b237e3923875d49cd78bed5"
+    },
+    {
+      "source": "nfv/data/verify_no_leak.py",
+      "destination": "paper/data/verify_no_leak.py",
+      "source_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830"
+    },
+    {
+      "source": "nfv/data/nl2post_safe.json",
+      "destination": "paper/data/nl2post_safe.json",
+      "source_sha256": "ec6822a561b5f865e21efeee6f5680236ada2c67312771a6643dff914993e963"
+    },
+    {
+      "source": "nfv/data/MANIFEST.md",
+      "destination": "paper/data/MANIFEST.md",
+      "source_sha256": "23582ce208d8160284b4686816914bcba38bf1eb1f9af9cb4205cbb99ad15ba8"
+    },
+    {
+      "source": "nfv/data/input_assumptions.json",
+      "destination": "paper/data/input_assumptions.json",
+      "source_sha256": "33793c340ac69609655d1fdc61ebe3835b971ebdfe9ecbabb49722710654c6ec"
+    },
+    {
+      "source": "nfv/data/subsets/pilot10.json",
+      "destination": "paper/data/subsets/pilot10.json",
+      "source_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf"
+    },
+    {
+      "source": "nfv/backends/registry.py",
+      "destination": "nfv/backends/registry.py",
+      "source_sha256": "8456debd764913f8040a5cdeb85f6c9063c3d353f21b377787249851afaf9d3b",
+      "transformation": "AST-selected source slices; retained variants and dependencies only"
+    },
+    {
+      "source": "results/nl2post_verified_subset.json",
+      "destination": "paper/data/upstream/results/nl2post_verified_subset.json",
+      "source_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332"
+    },
+    {
+      "source": "results/nl2post_spec_validation.json",
+      "destination": "paper/data/upstream/results/nl2post_spec_validation.json",
+      "source_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312"
+    },
+    {
+      "source": "nl2post/nl2post_dataset.json",
+      "destination": "paper/data/upstream/nl2post/nl2post_dataset.json",
+      "source_sha256": "61df3cb88532d3a43f8be906548712206a9c374be3444ec5a325b3a19f2ef837"
+    },
+    {
+      "source": "a5r10_refute.jsonl",
+      "destination": "paper/data/upstream/a5r10_refute.jsonl",
+      "source_sha256": "9ce74f17bb1c20f40b86c9399a1c7004af0a542d2479cf9aae33647ab91a0655"
+    }
+  ]
+}

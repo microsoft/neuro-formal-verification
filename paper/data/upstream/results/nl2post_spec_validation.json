@@ -1,0 +1,777 @@
+{
+  "config": {
+    "model": "claude-sonnet-4.5",
+    "concurrency": 16,
+    "num_tests": 100
+  },
+  "summary": {
+    "pass": 116,
+    "exception": 26,
+    "spec_fails": 6,
+    "runtime_error": 7
+  },
+  "results": [
+    {
+      "task_id": "HumanEval/0",
+      "entry_point": "has_close_elements",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/1",
+      "entry_point": "separate_paren_groups",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/2",
+      "entry_point": "truncate_number",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/3",
+      "entry_point": "below_zero",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/5",
+      "entry_point": "intersperse",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/6",
+      "entry_point": "parse_nested_parens",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 3518-3519: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/8",
+      "entry_point": "sum_product",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/9",
+      "entry_point": "rolling_max",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/10",
+      "entry_point": "make_palindrome",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/11",
+      "entry_point": "string_xor",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u03b1' in position 2417: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/13",
+      "entry_point": "greatest_common_divisor",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 1503-1504: character maps to <undefined>"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 1961-1963: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/17",
+      "entry_point": "parse_music",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/18",
+      "entry_point": "how_many_times",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/19",
+      "entry_point": "sort_numbers",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/20",
+      "entry_point": "find_closest_elements",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\U0001f600' in position 2782: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/15",
+      "entry_point": "string_sequence",
+      "status": "spec_fails",
+      "output": "FAIL: Test 73 with input n=-2\n  Expected: string with -1 space-separated values\n  Got: '' with 0 values"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\U0001f389' in position 1047: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/24",
+      "entry_point": "largest_divisor",
+      "status": "spec_fails",
+      "output": "FAIL: n=1, return_value=1\n  n % return_value == 0: True\n  return_value < n: False"
+    },
+    {
+      "task_id": "HumanEval/25",
+      "entry_point": "factorize",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u03b1' in position 1751: character maps to <undefined>"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 2038-2040: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/30",
+      "entry_point": "get_positive",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/31",
+      "entry_point": "is_prime",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/34",
+      "entry_point": "unique",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/35",
+      "entry_point": "max_element",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/37",
+      "entry_point": "sort_even",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 2062-2064: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/40",
+      "entry_point": "triples_sum_to_zero",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/41",
+      "entry_point": "car_race_collision",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/42",
+      "entry_point": "incr_list",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/43",
+      "entry_point": "pairs_sum_to_zero",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/44",
+      "entry_point": "change_base",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/45",
+      "entry_point": "triangle_area",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\U0001f388' in position 2062: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/49",
+      "entry_point": "modp",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/50",
+      "entry_point": "decode_shift",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/52",
+      "entry_point": "below_threshold",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/53",
+      "entry_point": "add",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 2187-2188: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/55",
+      "entry_point": "fib",
+      "status": "runtime_error",
+      "output": "Traceback (most recent call last):\n  File \"<host-path>/tmpn7_woou5.py\", line 82, in <module>\n    test_fib()\n    ~~~~~~~~^^\n  File \"<host-path>/tmpn7_woou5.py\", line 59, in test_fib\n    assert len(test_cases) == 100, f\"Expected 100 test cases, got {len(test_cases)}\"\n           ^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Expected 100 test cases, got 115"
+    },
+    {
+      "task_id": "HumanEval/57",
+      "entry_point": "monotonic",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/58",
+      "entry_point": "common",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/60",
+      "entry_point": "sum_to_n",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/62",
+      "entry_point": "derivative",
+      "status": "spec_fails",
+      "output": "FAIL: Test case 1 failed postcondition\n  Input: []\n  Output: []\n  Expected length: -1, got: 0"
+    },
+    {
+      "task_id": "HumanEval/63",
+      "entry_point": "fibfib",
+      "status": "runtime_error",
+      "output": "Traceback (most recent call last):\n  File \"<host-path>/tmp7y4rr96a.py\", line 89, in <module>\n    test_fibfib()\n    ~~~~~~~~~~~^^\n  File \"<host-path>/tmp7y4rr96a.py\", line 66, in test_fibfib\n    assert len(test_inputs) == 100, f\"Expected 100 test inputs, got {len(test_inputs)}\"\n           ^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Expected 100 test inputs, got 97"
+    },
+    {
+      "task_id": "HumanEval/64",
+      "entry_point": "vowels_count",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/66",
+      "entry_point": "digitSum",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/67",
+      "entry_point": "fruit_distribution",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/68",
+      "entry_point": "pluck",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/69",
+      "entry_point": "search",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/71",
+      "entry_point": "triangle_area",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u279e' in position 314: character maps to <undefined>"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u279e' in position 328: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/75",
+      "entry_point": "is_multiply_prime",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/76",
+      "entry_point": "is_simple_power",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/77",
+      "entry_point": "iscube",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/78",
+      "entry_point": "hex_key",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/79",
+      "entry_point": "decimal_to_binary",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 2372-2374: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/81",
+      "entry_point": "numerical_letter_grade",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 4224-4226: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/85",
+      "entry_point": "add",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/86",
+      "entry_point": "anti_shuffle",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/87",
+      "entry_point": "get_row",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/88",
+      "entry_point": "sort_array",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/90",
+      "entry_point": "next_smallest",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 3660-3661: character maps to <undefined>"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u279e' in position 265: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/93",
+      "entry_point": "encode",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/94",
+      "entry_point": "skjkasdkd",
+      "status": "spec_fails",
+      "output": "FAIL: Test 14 with input [0]: return_value = None, type = <class 'NoneType'>"
+    },
+    {
+      "task_id": "HumanEval/95",
+      "entry_point": "check_dict_case",
+      "status": "runtime_error",
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmprm0bzpa5.py on line 141, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+    },
+    {
+      "task_id": "HumanEval/96",
+      "entry_point": "count_up_to",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/97",
+      "entry_point": "multiply",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/98",
+      "entry_point": "count_upper",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/99",
+      "entry_point": "closest_integer",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/100",
+      "entry_point": "make_a_pile",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 1841-1846: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/102",
+      "entry_point": "choose_num",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/103",
+      "entry_point": "rounded_avg",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/105",
+      "entry_point": "by_length",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/107",
+      "entry_point": "even_odd_palindrome",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/109",
+      "entry_point": "move_one_ball",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/110",
+      "entry_point": "exchange",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/111",
+      "entry_point": "histogram",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/112",
+      "entry_point": "reverse_delete",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/114",
+      "entry_point": "minSubArraySum",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/115",
+      "entry_point": "max_fill",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/116",
+      "entry_point": "sort_array",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/117",
+      "entry_point": "select_words",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/118",
+      "entry_point": "get_closest_vowel",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/119",
+      "entry_point": "match_parens",
+      "status": "runtime_error",
+      "output": "File \"<host-path>/tmpn150_991.py\", line 95\n    [))))', '(((('],\n     ^\nSyntaxError: closing parenthesis ')' does not match opening parenthesis '['"
+    },
+    {
+      "task_id": "HumanEval/120",
+      "entry_point": "maximum",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/121",
+      "entry_point": "solution",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/123",
+      "entry_point": "get_odd_collatz",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/124",
+      "entry_point": "valid_date",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u279e' in position 379: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/127",
+      "entry_point": "intersection",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/128",
+      "entry_point": "prod_signs",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/131",
+      "entry_point": "digits",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u279e' in position 302: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/133",
+      "entry_point": "sum_squares",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u279e' in position 349: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/136",
+      "entry_point": "largest_smallest_integers",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/138",
+      "entry_point": "is_equal_to_sum_even",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 2563-2564: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/141",
+      "entry_point": "file_name_check",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/143",
+      "entry_point": "words_in_sentence",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/144",
+      "entry_point": "simplify",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/145",
+      "entry_point": "order_by_points",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/146",
+      "entry_point": "specialFilter",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u2264' in position 148: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/148",
+      "entry_point": "bf",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 4542-4543: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/150",
+      "entry_point": "x_or_y",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/151",
+      "entry_point": "double_the_difference",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/152",
+      "entry_point": "compare",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/153",
+      "entry_point": "Strongest_Extension",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/154",
+      "entry_point": "cycpattern_check",
+      "status": "runtime_error",
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmp5xboyf9c.py on line 141, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+    },
+    {
+      "task_id": "HumanEval/155",
+      "entry_point": "even_odd_count",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/156",
+      "entry_point": "int_to_mini_roman",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/157",
+      "entry_point": "right_angle_triangle",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/159",
+      "entry_point": "eat",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/161",
+      "entry_point": "solve",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode characters in position 1552-1554: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/163",
+      "entry_point": "generate_integers",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/33",
+      "entry_point": "sort_third",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/61",
+      "entry_point": "correct_bracketing",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/108",
+      "entry_point": "count_nums",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/113",
+      "entry_point": "odd_count",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/51",
+      "entry_point": "remove_vowels",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/56",
+      "entry_point": "correct_bracketing",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/158",
+      "entry_point": "find_max",
+      "status": "runtime_error",
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmp6laz61pc.py on line 151, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+    },
+    {
+      "task_id": "HumanEval/59",
+      "entry_point": "largest_prime_factor",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/73",
+      "entry_point": "smallest_change",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/104",
+      "entry_point": "unique_digits",
+      "status": "pass"
+    },
+    {
+      "status": "exception",
+      "reason": "'charmap' codec can't encode character '\\u279e' in position 347: character maps to <undefined>"
+    },
+    {
+      "task_id": "HumanEval/129",
+      "entry_point": "minPath",
+      "status": "spec_fails",
+      "output": "FAIL: Test case 30 failed\n  Grid: [[9, 1], [2, 8]]\n  k: 6\n  Return value: [1, 4, 1, 4, 1, 4]\n  Length check: 6 == 6 is True\n  Values in grid check failed for: [4, 4, 4]"
+    },
+    {
+      "task_id": "HumanEval/26",
+      "entry_point": "remove_duplicates",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/122",
+      "entry_point": "add_elements",
+      "status": "spec_fails",
+      "output": "FAIL: Test 14 FAILED\n  Input: arr=[-100], k=1\n  return_value=0\n  sum(arr[:k])=-100\n  Postcondition violated: 0 > -100"
+    },
+    {
+      "task_id": "HumanEval/135",
+      "entry_point": "can_arrange",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/70",
+      "entry_point": "strange_sort_list",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/89",
+      "entry_point": "encrypt",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/36",
+      "entry_point": "fizz_buzz",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/21",
+      "entry_point": "rescale_to_unit",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/47",
+      "entry_point": "median",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/4",
+      "entry_point": "mean_absolute_deviation",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/65",
+      "entry_point": "circular_shift",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/27",
+      "entry_point": "flip_case",
+      "status": "runtime_error",
+      "output": "SyntaxError: Non-UTF-8 code starting with '\\xe9' in file <host-path>/tmp4q2i57r0.py on line 69, but no encoding declared; see https://peps.python.org/pep-0263/ for details"
+    },
+    {
+      "task_id": "HumanEval/130",
+      "entry_point": "tri",
+      "status": "pass"
+    },
+    {
+      "task_id": "HumanEval/106",
+      "entry_point": "f",
+      "status": "pass"
+    }
+  ]
+}

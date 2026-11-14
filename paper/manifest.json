@@ -1,0 +1,994 @@
+{
+  "paper": {
+    "url": "https://arxiv.org/abs/2608.21516",
+    "verified_html": "https://arxiv.org/html/2608.21516",
+    "note": "Manuscript sources and table generators are not included. Reported claims can be recounted from paper/results with python -m nfv.metrics."
+  },
+  "source": {
+    "snapshot_id": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1"
+  },
+  "result_integrity": {
+    "source_snapshot": "650a2ce0cffff9847ea4f4674e8a6e1168d172a1",
+    "files": [
+      {
+        "source_relative_path": "nfv/results/cbmc_theory.jsonl",
+        "destination": "paper/results/cbmc_theory.jsonl",
+        "bytes": 2451985,
+        "records": 206,
+        "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "cbmc-theory"
+        ],
+        "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "original_bytes": 2477475,
+        "metadata_redaction": "cex_diagnostics host paths only; models, inputs, labels and verdicts unchanged"
+      },
+      {
+        "source_relative_path": "nfv/results/judge.jsonl",
+        "destination": "paper/results/judge.jsonl",
+        "bytes": 177430,
+        "records": 206,
+        "sha256": "461d95817a29b53ce100917c7b7f0abf0bd47368d58504ef5d93731e30d8c38d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "llm-judge"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_haiku_refute.jsonl",
+        "destination": "paper/results/lemma4_haiku_refute.jsonl",
+        "bytes": 549536,
+        "records": 206,
+        "sha256": "4e4e679cc839128e4a776a9eb7ca63f3135416bf8f5d149739e2b6bf45cdcad3",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_haiku_verify.jsonl",
+        "destination": "paper/results/lemma4_haiku_verify.jsonl",
+        "bytes": 782423,
+        "records": 206,
+        "sha256": "d7936b0958d8844fc7e8f403ec86516e10099a011ea6198bfe067149c4c49862",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_mini_refute.jsonl",
+        "destination": "paper/results/lemma4_mini_refute.jsonl",
+        "bytes": 1217921,
+        "records": 206,
+        "sha256": "8defc75aeaab44110ee8eacc36fd8c95d91571b8a36f0330338b8ac367454000",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_mini_verify.jsonl",
+        "destination": "paper/results/lemma4_mini_verify.jsonl",
+        "bytes": 1581296,
+        "records": 206,
+        "sha256": "d7e23f3620dd003a935868bbf91d2200152138667100892140ce39cb0bff999b",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_oracle.jsonl",
+        "destination": "paper/results/lemma4_oracle.jsonl",
+        "bytes": 797188,
+        "records": 103,
+        "sha256": "b2dd2b56a1d74ca62a68ed97e827de2174a9dd89900083c0c91cbd6330b50f8d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_refute.jsonl",
+        "destination": "paper/results/lemma4_refute.jsonl",
+        "bytes": 1564660,
+        "records": 206,
+        "sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_refute.jsonl",
+        "bytes": 772777,
+        "records": 203,
+        "sha256": "ed8485258c310eb4cd33611f5093c91a70778cc072c463090b14e82001ab6d27",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_verify.jsonl",
+        "bytes": 1122774,
+        "records": 206,
+        "sha256": "8100a6b4405c6af4c63810d0c9b90067b835375de6d7abd90bfdf0a85de3d251",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/lemma4_verify.jsonl",
+        "destination": "paper/results/lemma4_verify.jsonl",
+        "bytes": 2881974,
+        "records": 206,
+        "sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      },
+      {
+        "source_relative_path": "nfv/results/naive_nogates.jsonl",
+        "destination": "paper/results/naive_nogates.jsonl",
+        "bytes": 668458,
+        "records": 206,
+        "sha256": "4d8977d9a244ce3e61714d7f2d4a5bd71f95d137652ab03378082762a1a7e7ad",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-naive"
+        ]
+      }
+    ]
+  },
+  "metadata_redactions": {
+    "scope": "Public diagnostic metadata anonymization only. No program/model, input, label or verifier-verdict changes.",
+    "files": [
+      {
+        "path": "paper/results/cbmc_theory.jsonl",
+        "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "release_sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
+        "field": "cex_diagnostics",
+        "records_changed": 96,
+        "change": "Host-specific paths in diagnostic text replaced with anonymous placeholders; all other fields unchanged."
+      },
+      {
+        "path": "paper/data/upstream/results/nl2post_spec_validation.json",
+        "original_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
+        "release_sha256": "15e937816c0beebe4d60586f6123d19d0288f0c8f59b86cb02b9fa87c17e0313",
+        "field": "output",
+        "records_changed": 7,
+        "change": "Host-specific paths in diagnostic text replaced with anonymous placeholders; all other fields unchanged."
+      },
+      {
+        "path": "paper/replayed/smoke.json",
+        "original_sha256": "b01e0074ffa1ba84c4e2a450ab241e355b9ba5e10bbe2fd4711e131e5f570fff",
+        "release_sha256": "7275ad68b2e8f5476ea3af8983f193e715d4563f9b39048f85ca9e22e721e5ea",
+        "change": "Host paths anonymized in executable/diagnostic metadata; links now distinguish original and release raw hashes. Observations and code hashes unchanged."
+      }
+    ]
+  },
+  "runtime": {
+    "python": "3.10+; release validation 3.14",
+    "sdk": "github-copilot-sdk==1.0.4 (source client docstring)",
+    "dafny": "4.11.0",
+    "z3_for_dafny": "4.12.1",
+    "cbmc": "6.9.0 (local validation; historical paper version not recorded)",
+    "model": "gpt-5.6-sol",
+    "comparison_models": [
+      "claude-haiku-4.5",
+      "gpt-5-mini",
+      "claude-sonnet-4.6"
+    ],
+    "dataset_validation_model": "claude-sonnet-4.5 (100 tests/task)",
+    "availability": "Historical model IDs and account entitlements are external; no inference calls made during extraction."
+  },
+  "host_portability": {
+    "historical_host": "Windows with MSVC; historical metrics are not Ubuntu measurements.",
+    "supported_new_experiment_host": "Ubuntu 22.04",
+    "dafny_version": "4.11.0",
+    "ubuntu_archive_sha256": "a46a9ff7cdd720f7955854c78e95df13f4cfe6b80691b05f8654fe19e8267179",
+    "archive_provenance": "Official Dafny 4.11.0 Ubuntu 22.04 archive.",
+    "validation_scope": "Platform-discovery regression tests and real verifier smoke are provided."
+  },
+  "budgets": {
+    "main_and_weak_models": {
+      "attempts": 5,
+      "proof_rounds": 10
+    },
+    "oracle": {
+      "translation_attempts": 1,
+      "proof_rounds": 3,
+      "mutants_only": 103
+    },
+    "unstaged_baseline": {
+      "attempts": 1,
+      "proof_rounds": 3
+    },
+    "warning": "Use each logged command, not current CLI defaults. Refutation separately defaults to 5 witness attempts. A5 is not 5 full refutation restarts."
+  },
+  "reported_claims": {
+    "dafny_verify": {
+      "correct_claims": 72,
+      "wrong_claims": 5,
+      "class_population": 103
+    },
+    "dafny_refute": {
+      "correct_claims": 47,
+      "wrong_claims": 6,
+      "class_population": 103
+    },
+    "combined": {
+      "claims": 128,
+      "correct_claims": 118,
+      "population": 206,
+      "rule": "offline join of two independent arms (refutation first); not run.py's newer combined mode"
+    },
+    "cbmc": {
+      "recall_percent_rounded": 63,
+      "precision_percent_rounded": 90
+    },
+    "judge": {
+      "precision_percent_rounded": 72
+    },
+    "unstaged": {
+      "proved_percent_each_class_rounded": 98,
+      "precision_percent": 50
+    }
+  },
+  "result_files": {
+    "cbmc_theory.jsonl": {
+      "source_path": "nfv/results/cbmc_theory.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "cbmc_theory-1",
+          "source_snapshot": "2234f47",
+          "command": "python -m nfv.run --backend cbmc-theory --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase bounded --resume --out nfv\\results\\cbmc_theory.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        },
+        {
+          "run_id": "cbmc_theory-2",
+          "source_snapshot": "9a21dac",
+          "command": "python -m nfv.run --backend cbmc-theory --model gpt-5.6-sol --attempts 5 --concurrency 24 --entry-deadline 1800.0 --llm-timeout 300.0 --max-proof-rounds 10 --phase bounded --resume --out nfv\\results\\cbmc_theory.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/cbmc_theory.jsonl",
+        "destination": "paper/results/cbmc_theory.jsonl",
+        "bytes": 2451985,
+        "records": 206,
+        "sha256": "39e101385795dca3d966f5add860dd2ed9c406d512ae8af4055cd62d6a3dcdef",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "cbmc-theory"
+        ],
+        "original_sha256": "1a660710f21e94a72154a8c1a43e7dd67742149272f6e9089b92d4c317f87f42",
+        "original_bytes": 2477475,
+        "metadata_redaction": "cex_diagnostics host paths only; models, inputs, labels and verdicts unchanged"
+      }
+    },
+    "judge.jsonl": {
+      "source_path": "nfv/results/judge.jsonl",
+      "status": "retained",
+      "logged_runs": [],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/judge.jsonl",
+        "destination": "paper/results/judge.jsonl",
+        "bytes": 177430,
+        "records": 206,
+        "sha256": "461d95817a29b53ce100917c7b7f0abf0bd47368d58504ef5d93731e30d8c38d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "llm-judge"
+        ]
+      }
+    },
+    "lemma4_haiku_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_haiku_refute.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_haiku_refute-1",
+          "source_snapshot": "b12b5c3",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-haiku-4.5 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --out nfv/results/lemma4_haiku_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_haiku_refute.jsonl",
+        "destination": "paper/results/lemma4_haiku_refute.jsonl",
+        "bytes": 549536,
+        "records": 206,
+        "sha256": "4e4e679cc839128e4a776a9eb7ca63f3135416bf8f5d149739e2b6bf45cdcad3",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_haiku_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_haiku_verify.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_haiku_verify-1",
+          "source_snapshot": "a5f2fb6",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-haiku-4.5 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_haiku_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_haiku_verify.jsonl",
+        "destination": "paper/results/lemma4_haiku_verify.jsonl",
+        "bytes": 782423,
+        "records": 206,
+        "sha256": "d7936b0958d8844fc7e8f403ec86516e10099a011ea6198bfe067149c4c49862",
+        "models": [
+          "claude-haiku-4.5"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_mini_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_mini_refute.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_mini_refute-1",
+          "source_snapshot": "0f6a026",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5-mini --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --out nfv/results/lemma4_mini_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_mini_refute.jsonl",
+        "destination": "paper/results/lemma4_mini_refute.jsonl",
+        "bytes": 1217921,
+        "records": 206,
+        "sha256": "8defc75aeaab44110ee8eacc36fd8c95d91571b8a36f0330338b8ac367454000",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_mini_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_mini_verify.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_mini_verify-1",
+          "source_snapshot": "3b22314",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5-mini --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_mini_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_mini_verify.jsonl",
+        "destination": "paper/results/lemma4_mini_verify.jsonl",
+        "bytes": 1581296,
+        "records": 206,
+        "sha256": "d7e23f3620dd003a935868bbf91d2200152138667100892140ce39cb0bff999b",
+        "models": [
+          "gpt-5-mini"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_oracle.jsonl": {
+      "source_path": "nfv/results/lemma4_oracle.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_oracle-1",
+          "source_snapshot": "8f7d4cf",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --oracle-witness --phase refute --resume --out nfv/results/lemma4_oracle.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        },
+        {
+          "run_id": "lemma4_oracle-2",
+          "source_snapshot": "c7481ec",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --oracle-witness --phase refute --resume --out nfv/results/lemma4_oracle.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_oracle.jsonl",
+        "destination": "paper/results/lemma4_oracle.jsonl",
+        "bytes": 797188,
+        "records": 103,
+        "sha256": "b2dd2b56a1d74ca62a68ed97e827de2174a9dd89900083c0c91cbd6330b50f8d",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_refute.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_refute-1",
+          "source_snapshot": "656632d",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --resume --out nfv/results/lemma4_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        },
+        {
+          "run_id": "lemma4_refute-2",
+          "source_snapshot": "51cfe05",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase refute --resume --out nfv/results/lemma4_refute.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_refute.jsonl",
+        "destination": "paper/results/lemma4_refute.jsonl",
+        "bytes": 1564660,
+        "records": 206,
+        "sha256": "5235e46189e3e13f1afa6c28029165776cd90b307b06cf1ea4662e59f479f948",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_sonnet46_refute.jsonl": {
+      "source_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
+      "status": "retained",
+      "logged_runs": [],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_refute.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_refute.jsonl",
+        "bytes": 772777,
+        "records": 203,
+        "sha256": "ed8485258c310eb4cd33611f5093c91a70778cc072c463090b14e82001ab6d27",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_sonnet46_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_sonnet46_verify-1",
+          "source_snapshot": "90aa134",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model claude-sonnet-4.6 --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --out nfv/results/lemma4_sonnet46_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_sonnet46_verify.jsonl",
+        "destination": "paper/results/lemma4_sonnet46_verify.jsonl",
+        "bytes": 1122774,
+        "records": 206,
+        "sha256": "8100a6b4405c6af4c63810d0c9b90067b835375de6d7abd90bfdf0a85de3d251",
+        "models": [
+          "claude-sonnet-4.6"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "lemma4_verify.jsonl": {
+      "source_path": "nfv/results/lemma4_verify.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "lemma4_verify-1",
+          "source_snapshot": "d8d8b7b",
+          "command": "python -m nfv.run --backend dafny-theory-lemma4 --model gpt-5.6-sol --attempts 5 --concurrency 24 --max-proof-rounds 10 --phase unbounded --resume --out nfv/results/lemma4_verify.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/lemma4_verify.jsonl",
+        "destination": "paper/results/lemma4_verify.jsonl",
+        "bytes": 2881974,
+        "records": 206,
+        "sha256": "dd7232d0ab20b37b3a91e0a4b6493e222b1ffc2b9997acf12dc48cfe8758abf3",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-theory-lemma4"
+        ]
+      }
+    },
+    "naive_nogates.jsonl": {
+      "source_path": "nfv/results/naive_nogates.jsonl",
+      "status": "retained",
+      "logged_runs": [
+        {
+          "run_id": "naive_nogates-1",
+          "source_snapshot": "8fe439f",
+          "command": "python -m nfv.run --backend dafny-naive --model gpt-5.6-sol --concurrency 24 --max-proof-rounds 3 --phase unbounded --out nfv\\results\\naive_nogates.jsonl",
+          "command_note": "The logger's non-CLI ---resolved-backend repr is omitted; all real flags are retained."
+        }
+      ],
+      "local_provenance": {
+        "source_relative_path": "nfv/results/naive_nogates.jsonl",
+        "destination": "paper/results/naive_nogates.jsonl",
+        "bytes": 668458,
+        "records": 206,
+        "sha256": "4d8977d9a244ce3e61714d7f2d4a5bd71f95d137652ab03378082762a1a7e7ad",
+        "models": [
+          "gpt-5.6-sol"
+        ],
+        "backends": [
+          "dafny-naive"
+        ]
+      }
+    }
+  },
+  "smoke_replay": {
+    "command": "python -m paper.smoke",
+    "report": "paper/replayed/smoke.json",
+    "sha256": "7275ad68b2e8f5476ea3af8983f193e715d4563f9b39048f85ca9e22e721e5ea",
+    "scope": "Four fixed retained model artifacts, two per backend; no inference or model repair."
+  },
+  "files": [
+    {
+      "source": "nfv/__init__.py",
+      "destination": "nfv/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/__init__.py",
+      "destination": "nfv/agent/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/c_integrity.py",
+      "destination": "nfv/agent/c_integrity.py",
+      "source_sha256": "cbb94f8c86c37734c6545d781f768e1fabca8f5269e07760255d9c784091e106",
+      "source_git_blob": "1d63b0f0d4b308773185960d9700665f7b8c9b54",
+      "release_sha256": "cbb94f8c86c37734c6545d781f768e1fabca8f5269e07760255d9c784091e106",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/c_witness.py",
+      "destination": "nfv/agent/c_witness.py",
+      "source_sha256": "b7f561a17e45f0a8a8d6fc120a4de2eac69c12eab810ba157e01bb8479694f7c",
+      "source_git_blob": "1870a89c87a8affbc895e7a2bc5f268b52a339a5",
+      "release_sha256": "b7f561a17e45f0a8a8d6fc120a4de2eac69c12eab810ba157e01bb8479694f7c",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/integrity.py",
+      "destination": "nfv/agent/integrity.py",
+      "source_sha256": "9b6dcb37aa7064ed53105aed805d3c0a27a0cb80a27e11d46c65cecd1b7087d8",
+      "source_git_blob": "1db9c75f98d05ecda593f1f37302c3e3a2dcc95d",
+      "release_sha256": "9b6dcb37aa7064ed53105aed805d3c0a27a0cb80a27e11d46c65cecd1b7087d8",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/invariant_agent.py",
+      "destination": "nfv/agent/invariant_agent.py",
+      "source_sha256": "0b6c9a6437bfc6b7d6acc2cc30ff0d1183afb9b7ca959fefb27c0e0a87d2c26a",
+      "source_git_blob": "505ddfd1c4d23d624d1e805c1dba6107142980a4",
+      "release_sha256": "26a1a005e943de92f48e142b0c8010826d63c6043bd757f5aa405117ff9cfec5",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/library_theory.py",
+      "destination": "nfv/agent/library_theory.py",
+      "source_sha256": "1408be66f2d583ea2d101947b08ebf83bb8e843218a86d3f958cbf39a7e4cf16",
+      "source_git_blob": "fe63abe664c91c3ebe2326480b58904675685326",
+      "release_sha256": "bd878837a3dede901654a6584b06d720382367115495bc4a0ba5cef74b7acd18",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/oracle_witness.py",
+      "destination": "nfv/agent/oracle_witness.py",
+      "source_sha256": "5d856d5158b9e517045572b6655817b40ad7997d0a94be3abba6070c7a37c59a",
+      "source_git_blob": "3fec900b383b26aa4c6643bb21a246a315b6692d",
+      "release_sha256": "5d856d5158b9e517045572b6655817b40ad7997d0a94be3abba6070c7a37c59a",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/provenance.py",
+      "destination": "nfv/agent/provenance.py",
+      "source_sha256": "d1832375611adbf9e5231c5c9bb1beb47538677eb2a3da81888745e132bdc867",
+      "source_git_blob": "52293514abbf8f97c5bce38d41aa4be6b92d193b",
+      "release_sha256": "d1832375611adbf9e5231c5c9bb1beb47538677eb2a3da81888745e132bdc867",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/pydocs.py",
+      "destination": "nfv/agent/pydocs.py",
+      "source_sha256": "d79ab92631bb9d03d692e580bce4b2bb8d3d78dfff0be84b5b9a2dd1dfde3bb5",
+      "source_git_blob": "37d98e7e2768843f6b9abc71a0aa3679fd50814e",
+      "release_sha256": "d79ab92631bb9d03d692e580bce4b2bb8d3d78dfff0be84b5b9a2dd1dfde3bb5",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/refute.py",
+      "destination": "nfv/agent/refute.py",
+      "source_sha256": "178e0111b48b7893858c39102ad88f6346355f2e53560eb2f9b0f3925957c4e4",
+      "source_git_blob": "9bcf24877a53f3f23991ee00e52c6f8ee2ebd428",
+      "release_sha256": "c840227a9ea8d2dbbea4d86df616e2e87a09b86b51f8a31073f5658f7691b048",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/tautology.py",
+      "destination": "nfv/agent/tautology.py",
+      "source_sha256": "c5b171f8e109a01ff587bc0ea4e56ea11c383f0fc8da8a35a72532d4ada492b3",
+      "source_git_blob": "58c38db03a583c9476b3d4f00e1930cbfe091d6b",
+      "release_sha256": "c5b171f8e109a01ff587bc0ea4e56ea11c383f0fc8da8a35a72532d4ada492b3",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/agent/translate.py",
+      "destination": "nfv/agent/translate.py",
+      "source_sha256": "292c7ccbdc8544c36997b591bbce8ab9ddec92d3868ff25f696e7fb7cf37d497",
+      "source_git_blob": "279016efc5d8d6f7c19b743b4082c7175753fcc7",
+      "release_sha256": "6731b2ee2e491694e58e9c76089987ec37ead371280bc552861612d1da76e556",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/agent/ub_repair.py",
+      "destination": "nfv/agent/ub_repair.py",
+      "source_sha256": "0eca96472f7693df8a5b3fef8b9802879960a733456b1b388308405999899b01",
+      "source_git_blob": "74d5d36e98dd69144df270650c09307125d50ef8",
+      "release_sha256": "0eca96472f7693df8a5b3fef8b9802879960a733456b1b388308405999899b01",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/backends/__init__.py",
+      "destination": "nfv/backends/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/backends/_scratch.py",
+      "destination": "nfv/backends/_scratch.py",
+      "source_sha256": "0a3d2667684ad8b6e235cb7ca9c5de943a17a4e430c5dfba57f9139cf851eba8",
+      "source_git_blob": "80bff8b1d68522bde485265844448fc6bf433dcf",
+      "release_sha256": "2a83e9823bd724b6d14927ebd9a19aae9f08825dafd9b6590d67c436e1f7b5a1",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/backends/cbmc.py",
+      "destination": "nfv/backends/cbmc.py",
+      "source_sha256": "123e3b9cfe2db3380ea5146925b39fafc188b75424cef8a99b56f2db905312a9",
+      "source_git_blob": "9b6800481d921a27f3619f73f8ad1ceb702722c3",
+      "release_sha256": "d56758ee4bdf2eb0d789d1c68cf77f84779eef49eb32af81bc464e090c3d7162",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/backends/dafny.py",
+      "destination": "nfv/backends/dafny.py",
+      "source_sha256": "c0c662ce454212dce9d459c27bd40c09b3042ecd80ea4ad506385f24b9b1a2e7",
+      "source_git_blob": "02f2ad03472f81052d4f55393709f4f8dbb0f50e",
+      "release_sha256": "c0c662ce454212dce9d459c27bd40c09b3042ecd80ea4ad506385f24b9b1a2e7",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/backends/registry.py",
+      "destination": "nfv/backends/registry.py",
+      "source_sha256": "8456debd764913f8040a5cdeb85f6c9063c3d353f21b377787249851afaf9d3b",
+      "transformation": "AST-selected source slices; retained variants and dependencies only",
+      "source_git_blob": "1482c8534dd1ec4c1f7c063229f22965b926202f",
+      "release_sha256": "ef586fb9f47981c94401c05ecded1ee2fee7a623c7dccf54f2f18b0c16a31d2d",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/MANIFEST.md",
+      "destination": "paper/data/MANIFEST.md",
+      "source_sha256": "23582ce208d8160284b4686816914bcba38bf1eb1f9af9cb4205cbb99ad15ba8",
+      "source_git_blob": "38347d0e9bbf9b41ed75e91c5b1e2611031c28f3",
+      "release_sha256": "415cd906444e753583e1b074d78e01c148c17f52966698a02104111aedef0f28",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/__init__.py",
+      "destination": "paper/data/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "1c8a20fa5b81a909cb9336b543c6f7e11af5415bbab6e880cb9b0eaf2d2f20f8",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/build_safe.py",
+      "destination": "paper/data/build_safe.py",
+      "source_sha256": "a23b330ae432960546889afa53e53c2f4852e08c29c5e93189eff87e59a861e0",
+      "source_git_blob": "3ec4a55b95303cff3c880026452246b7be587a89",
+      "release_sha256": "6466c055b603b8c2e33e1eeada84e6c9b61fc7f57043d9e7b8dad43fcb58b1e6",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/build_subset.py",
+      "destination": "paper/data/build_subset.py",
+      "source_sha256": "4ac113e788b2e77f949233ba9895deecd22aef0e5b89e62e5a274e6f050a59fc",
+      "source_git_blob": "0e22eecd8af06efbf2af8254a763d4a8f70e9901",
+      "release_sha256": "efc06e83070dc2daed50831b9b2a1bb62c22c7bd2bd34892fd842c79c1d52341",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/input_assumptions.json",
+      "destination": "paper/data/input_assumptions.json",
+      "source_sha256": "33793c340ac69609655d1fdc61ebe3835b971ebdfe9ecbabb49722710654c6ec",
+      "source_git_blob": "c0242bd8bfe62d5f9aabfbb9de49291382d8b41c",
+      "release_sha256": "2bcc615aaa91c2fffffc4695b1939f8608b159877aa25bf0ae3c629559555b69",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/killing_tests.py",
+      "destination": "paper/data/killing_tests.py",
+      "source_sha256": "ff66e0d8f1d629c57c53956ed27d3a178bd2ee57f7b56c071c7d54ff60e27731",
+      "source_git_blob": "7ad272adebd048342cbfc2e5c31fcbd1ee244bee",
+      "release_sha256": "73ce05fcf3d174ba87dcb96cbee43925f78e11163cecaaf29b276d6d507b03fa",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/nl2post_safe.json",
+      "destination": "paper/data/nl2post_safe.json",
+      "source_sha256": "ec6822a561b5f865e21efeee6f5680236ada2c67312771a6643dff914993e963",
+      "source_git_blob": "c719c04da1527249f1740bc364d2652cdce86085",
+      "release_sha256": "88e96af01b553fe001036c5bdc4b0c27abbaa960e15181dc80d921f5e3c10e4e",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/rebuild_dataset.py",
+      "destination": "paper/data/rebuild_dataset.py",
+      "source_sha256": "44a48c4b4a755f68feda7d648b0e3e06f784d97a7b237e3923875d49cd78bed5",
+      "source_git_blob": "09eb897e25311fb89cef39e34ce633b77b391fa2",
+      "release_sha256": "6a2540d6a3ac1111a46b41ee3b442160061b9f67b984ab883ea4791350def56b",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/data/subsets/pilot10.json",
+      "destination": "paper/data/subsets/pilot10.json",
+      "source_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf",
+      "source_git_blob": "1adf2ae0564ecd88043bc53bb1cb92baf118f7ed",
+      "release_sha256": "077983fd469c95f862cd9c3c021ebcad124f0becb62befd83c128a7f97369adf",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/data/verify_no_leak.py",
+      "destination": "paper/data/verify_no_leak.py",
+      "source_sha256": "994cc3777966f50e5c4ae5468431af7def1f76e6f171f16f27bf367a4d70e830",
+      "source_git_blob": "eeac36b979e973f1811934fbebabb814c138eb06",
+      "release_sha256": "5616c53680b5774265e41302aed16717745d9547c727638b78a36daaf40f6f99",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/metrics.py",
+      "destination": "nfv/metrics.py",
+      "source_sha256": "a2d50ea2bce1b29bc33ea7519e02716fa1f7ec8dfd8c287e90e691e09ba18f6c",
+      "source_git_blob": "d977c50b66d463d431d6c1d75c9fd64a006a58ef",
+      "release_sha256": "a2d50ea2bce1b29bc33ea7519e02716fa1f7ec8dfd8c287e90e691e09ba18f6c",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/run.py",
+      "destination": "nfv/run.py",
+      "source_sha256": "009b543b070add04e80296dc7a2503ff0d24a5c59eaa4f3d2eaf32950e5cb226",
+      "source_git_blob": "9838a3ed1603ae01a0603a9ec2643cf95f18c341",
+      "release_sha256": "b7b6d8623349c97be88b1821993e7dfe65c26d3191a50cc883704050090f5b86",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/run_judge.py",
+      "destination": "nfv/run_judge.py",
+      "source_sha256": "88c76f4f08b078ec1f8d4a9e2dabce64bc061b0674a1ac256be63ae50440f66e",
+      "source_git_blob": "f85a9cb484cfbc235db2406b8bf2c9bf7d24041e",
+      "release_sha256": "503ce375f944d709795729a4b828911420b7c2ad9484b61728e9355b22ffb0ed",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/shared/__init__.py",
+      "destination": "nfv/shared/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "release_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/shared/account.py",
+      "destination": "nfv/shared/account.py",
+      "source_sha256": "464da79ac7931827ceeca3610e250afe8dddde2acd335f36fc3a0a5dbba26206",
+      "source_git_blob": "f6635e82bb9374465e41306b43dff2c1daa2b267",
+      "release_sha256": "312a910d71642990a14c2c122e1a002350bd3aa61f0ba4665ecf456815026348",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/shared/config.py",
+      "destination": "nfv/shared/config.py",
+      "source_sha256": "b85e2da0d1da4e0d883b97a51de2d8952a71379c0d64ea5e6d8c31a00fcc1d53",
+      "source_git_blob": "ffec7c190e968f16c8afb7b88c734d634d928cec",
+      "release_sha256": "1f7f7e04087bfd471889b251d06ed48548dad72a8790710263c8214707205353",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nfv/shared/copilot_client.py",
+      "destination": "nfv/shared/copilot_client.py",
+      "source_sha256": "cf2416e460a75c5d4471fa4acb184cf3f7c2e20c6106b04e98e1c80a26cc486f",
+      "source_git_blob": "e8537a07cad320614ce50568248cb29e2e8250b9",
+      "release_sha256": "cf2416e460a75c5d4471fa4acb184cf3f7c2e20c6106b04e98e1c80a26cc486f",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nfv/shared/store.py",
+      "destination": "nfv/shared/store.py",
+      "source_sha256": "8060211d6e6ac2e8c18f7ed859b6a964bce0bd54debb8c88c033af0d98115239",
+      "source_git_blob": "122d143bb3397475268bb92377ea5496b92da1db",
+      "release_sha256": "8060211d6e6ac2e8c18f7ed859b6a964bce0bd54debb8c88c033af0d98115239",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "a5r10_refute.jsonl",
+      "destination": "paper/data/upstream/a5r10_refute.jsonl",
+      "source_sha256": "9ce74f17bb1c20f40b86c9399a1c7004af0a542d2479cf9aae33647ab91a0655",
+      "source_git_blob": "ecfdcf47f9cfb96885690adaa1dc32f4cc4404ab",
+      "release_sha256": "9ce74f17bb1c20f40b86c9399a1c7004af0a542d2479cf9aae33647ab91a0655",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nl2post/build_nl2post_dataset.py",
+      "destination": "paper/data/upstream/nl2post/build_nl2post_dataset.py",
+      "source_git_blob": "ba2f14b8c02a1bef6bd267f84777a6fc9ceef5b0",
+      "release_sha256": "218aee48cce12833f9baa70bd138f29b52f88a8c90f9294e3e17f41614077b28",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nl2post/nl2post_dataset.json",
+      "destination": "paper/data/upstream/nl2post/nl2post_dataset.json",
+      "source_sha256": "61df3cb88532d3a43f8be906548712206a9c374be3444ec5a325b3a19f2ef837",
+      "source_git_blob": "12891a16a798923c27831ec25890d95a61417d5f",
+      "release_sha256": "61df3cb88532d3a43f8be906548712206a9c374be3444ec5a325b3a19f2ef837",
+      "modified_from_materialized_source": false
+    },
+    {
+      "source": "nl2post/validate_specs.py",
+      "destination": "paper/data/upstream/nl2post/validate_specs.py",
+      "source_git_blob": "dbb21e5d2ddfc8aa97193a2fec7dcaf07a067199",
+      "release_sha256": "4e865adc9cf1578d3788641ac583372312a7039eb67c4726c0fb20be44202a35",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "nl2post/verify_nl2post_dataset.py",
+      "destination": "paper/data/upstream/nl2post/verify_nl2post_dataset.py",
+      "source_git_blob": "5efaa48c886501874e510433ec28298375acfa17",
+      "release_sha256": "91444f5943bfd2d388899e74f3bc6eafe719c34e12816be6fe0a296aaf2eddb5",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "results/nl2post_spec_validation.json",
+      "destination": "paper/data/upstream/results/nl2post_spec_validation.json",
+      "source_sha256": "cd17119f618d68dc08582241b01679b7df50fa4fabb094b58d86d3d6de4a4312",
+      "source_git_blob": "8ae935603757080dcde9faea634c1fcd6f5abaa0",
+      "release_sha256": "15e937816c0beebe4d60586f6123d19d0288f0c8f59b86cb02b9fa87c17e0313",
+      "modified_from_materialized_source": true
+    },
+    {
+      "source": "results/nl2post_verified_subset.json",
+      "destination": "paper/data/upstream/results/nl2post_verified_subset.json",
+      "source_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332",
+      "source_git_blob": "6cfa4999f8e19682ce39e8e2c23eb47fbfe9a792",
+      "release_sha256": "70506bd10b59194e03d3a3171ab479e126259da3bf8a18e0a7390e79b2345332",
+      "modified_from_materialized_source": false
+    }
+  ],
+  "release_authored_files": [
+    {
+      "path": "paper/prepare.py",
+      "sha256": "a7abbe3e084b3db4a0a5fcc100520ea8a475ab7abbe842a33c1b593774a8c1bd",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/smoke.py",
+      "sha256": "aa39a942c73f8152b4313f208c4010057b6686a48f42d94cf3b571cd350ad75d",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/redaction.py",
+      "sha256": "851fe42a355b4e158e4c72947b638803a66175b6aa230620190b710790088eac",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/extract_source.py",
+      "sha256": "9dd1bfaa3d6fbaf3145a035073b609df641ed69dc80ac42a4a8e605f21fa7266",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "paper/build_manifest.py",
+      "sha256": "fc84e8832bc6da07af8ee5d086dfbbfa815e8aeec7a2e9f747ba16ef8a2276e9",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "tests/test_paper_core.py",
+      "sha256": "7a6653c9fd8f6190439f4c226ac3c81115bc769b06ac6d555208def8caeecc67",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    },
+    {
+      "path": "tests/test_paper_smoke.py",
+      "sha256": "c981ef7e76b23d4932b9aea38a0baa5ec462d3272ab59f7e5e17c196ce077ff5",
+      "provenance": "New extraction, portability, validation or workflow integration code"
+    }
+  ],
+  "gaps": [
+    "Complete per-run implementation and model-service snapshots are not preserved; bit-identical new inference results are not guaranteed.",
+    "Historical invocation metadata is unavailable for Sonnet refutation and judge. The Sonnet refutation result contains 203 entries, not 206.",
+    "S1 upstream archives and historical EvalPlus cache/package version are not bundled; retained S1 output permits deterministic downstream checking.",
+    "S2 validate_specs.py is archival and references legacy py2c.call_llm_async, not included; original generated tests are not retained in its summary JSON. Do not regenerate S2 silently with a new model.",
+    "Nagini results mentioned in v3 are intentionally outside this Dafny/CBMC release scope.",
+    "The retained source does not explicitly pin the historical CBMC version. Version 6.9.0 is the executable discovered and self-tested locally, not independently established as the paper's exact binary."
+  ],
+  "ports": [
+    "Restricted backend registry and removed unsupported backend imports/branches; retained exact relevant prompt literals.",
+    "Removed the newer online combined mode, which was not the paper's offline join of two completed arms.",
+    "Relocated dataset predecessors under paper/data/upstream; original frozen dataset bytes retained.",
+    "LaTeX table generators, the manuscript snapshot and the table reproduction script are not released.",
+    "Verifier scratch directories are repository-local instead of system temporary paths.",
+    "CBMC inherits the normal compiler environment on non-Windows hosts instead of requiring MSVC there; Windows discovery is unchanged.",
+    "Non-Windows CBMC lookup uses the explicit override or PATH and does not select Windows .exe candidates.",
+    "Removed automatic git staging/commit of experiment logs; logging remains available without modifying Git history.",
+    "Future command logs omit the internal _resolved_backend object because it is not a CLI argument.",
+    "An explicit identity pin fails closed if account identity is unavailable.",
+    "Workflow reuses the existing stdlib-only run_dafny backend; no additional general-purpose refutation adapter is included."
+  ]
+}

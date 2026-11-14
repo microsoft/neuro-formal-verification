@@ -1,0 +1,26 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neuro-formal-verification"
+version = "0.1.0"
+description = "Dafny and CBMC artifacts for neuro-formal verification"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+license = "MIT"
+license-files = ["LICENSE.TXT", "LICENSE", "NOTICE.txt", "PRIVACY", "paper/DATA_LICENSE.md", "paper/DATA_PROVENANCE.md", "paper/licenses/*", "workflow/licenses/*"]
+
+[project.optional-dependencies]
+inference = ["github-copilot-sdk==1.0.4"]
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+include = ["nfv", "nfv.*"]
+exclude = ["nfv.work", "nfv.work.*"]
