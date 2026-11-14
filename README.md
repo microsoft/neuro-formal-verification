@@ -5,8 +5,8 @@ Licensed under the MIT License. -->
 
 Neuro-Formal Verification (NFV) is the problem of combining (i) neuro-symbolic agents
 that translate intent, code and environment into formal models with (ii) program
-verifiers that reason over those models to produce proof-backed verdicts with
-high empirical accuracy.
+verifiers that reason over those models to produce proof-based verdicts
+(verification as well as refutation) with high empirical accuracy.
 
 - **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
   and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
