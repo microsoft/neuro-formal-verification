@@ -15,6 +15,13 @@ verifiers that reason over those models to produce proof-based verdicts
   Agentic Workflows. See the [reviewer guide](workflow/README.md) and
   [setup](workflow/ONBOARDING.md).
 
+As described in the [paper](https://arxiv.org/html/2608.21516#S1.SS1), the NFV
+framework spans a spectrum from purely neural translation of intent, code and
+environment to combinations with language-specific symbolic code translation,
+such as [Verus for Rust](https://verus-lang.github.io/verus/guide/).
+[Intent-formalization agents](https://arxiv.org/abs/2603.17150) can use tests
+and specification-quality metrics to assess informal-to-formal translation.
+
 The code and artifacts are intended for research reproduction, authorized
 experimentation, and feedback on neuro-formal reasoning. The prototype reviewer
 is not a substitute for source review, testing, or a security assessment.
