@@ -87,37 +87,17 @@ in the run artifact when details are compacted.
 | Expandable details | Source context, model evidence and any model-checked candidate fix |
 | Evidence links | Captured source and the run's full formal models and diagnostics |
 
-## Report screenshots
+## Annotated report examples
 
-![NFV report showing a model refutation, counterexample input and failure sketch](images/nfv-report-refutation.png)
+The comment header summarizes the whole review; P4 and P1 illustrate selected
+properties. Numbered callouts explain each part; `...` marks shortened content.
+Results concern translated models under stated assumptions, not source-code
+correctness or confirmed source bugs.
+Not every refutation includes a model-checked candidate fix.
 
-![NFV report showing model verification with expanded assumptions and checked property](images/nfv-report-verification.png)
+![Annotated NFV comment: report-wide outcome counts, P4 inferred property, abstract counterexample and optional model-checked candidate fix with limits](images/nfv-report-refutation.png)
 
-## Operational failures
-
-The trusted admission job writes PR comments separately from read-only inference.
-API failures report the method, endpoint, status, a bounded credential-redacted
-GitHub message and available rate-limit headers. Admission failures block inference.
-
-## Optional repository dashboards
-
-The driver writes a separate `nfv-summary-<run-attempt>` artifact with versioned
-repository/run/source identity, completion and the four outcome counts.
-It contains no source, formal models, property prose, counterexamples or
-diagnostics. An incomplete analysis has unknown counts, not zero findings.
-Early failures before the driver starts may have no summary. Safe-output
-submission is recorded as `submitted`, not confirmed publication.
-
-NFV users can self-report public repository onboarding for nightly summary collection through
-[onboarding](ONBOARDING.md#optional-public-dashboard). The existing dashboard
-keeps these registrations separate from historical replay campaigns. Older
-releases without summaries appear as coverage gaps; the collector never launches
-reviews or derives proof counts from green jobs or comment prose.
-
-The maintainer-only [micro-benchmark](BENCHMARK.md) has a separate Discussion
-dashboard with the latest completed full run, per-run NFV revision links and
-persistent monthly statistics archives. Publication preserves custom Discussion
-titles, including the pinned dashboard's title. It does not run in client repositories.
+![Annotated P1 verification: intended property, verified model outcome, quoted intention, assumptions, environment models and complete checked postcondition](images/nfv-report-verification.png)
 
 **Installation:** [Onboarding](ONBOARDING.md).
 
@@ -128,5 +108,9 @@ not add them to older branches.
 
 **More:** [Configuration](REFERENCE.md#configure-github-agentic-workflows),
 [upgrades](ONBOARDING.md#upgrade-an-existing-installation), and
-[technical reference](REFERENCE.md).
+[configuration reference](REFERENCE.md).
 For expired tokens and other common problems, see the [FAQ](FAQ.md).
+
+Maintainers: see the [maintenance and local CLI guide](MAINTAINER.md).
+The independent [micro-benchmark and its Discussion dashboard](MAINTAINER.md#nightly-nfv-micro-bench)
+do not run in client repositories.

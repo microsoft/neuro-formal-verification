@@ -3,39 +3,40 @@ Licensed under the MIT License. -->
 
 # Neuro-Formal Verification
 
-Code and data for the paper [*Neuro-Formal Verification: Agentic Language-Agnostic
-Formal Program Reasoning*](https://arxiv.org/abs/2608.21516) (arXiv:2608.21516).
+Neuro-Formal Verification (NFV) is a set of techniques to answer questions about code with high
+empirical accuracy and proof-based verdicts (verification as well as refutation)
+by combining neuro-symbolic agents that translate intent, code and environment
+into formal models with program verifiers that reason over those models.
+NFV's underlying principle is to use AI agents as translators rather than
+arbiters of correctness, leaving proof-based reasoning to formal verifiers.
 
-This repository contains two components:
+This repository provides two artefacts:
 
-- **Paper artifact:** nfv-micro-bench dataset, retained results, experiment scripts, and Dafny/CBMC backends.
-  See [paper/README.md](paper/README.md) for the paper, dataset, model
-  configuration, and instructions for running experiments.
-- **Neuro-formal code reviewer (research prototype):** a PR
-  reviewer based on GitHub Agentic Workflow that applies NFV on nontrivial properties and
-  comments the result. See [workflow/README.md](workflow/README.md) for setup,
-  model configuration, supported languages, and examples.
+- **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
+  and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
+  retained results and experiment instructions.
+- **Neuro-formal code reviewer:** a prototype for using NFV for PR review, built
+  with GitHub Agentic Workflows. See the [neuro-formal code reviewer guide](workflow/README.md) and
+  [setup](workflow/ONBOARDING.md).
 
-To try the neuro-formal code reviewer in your repository, follow the
-[onboarding guide](workflow/ONBOARDING.md) for installing the
-AW template, selecting inference billing and setting its required secrets. 
+As described in the [paper](https://arxiv.org/html/2608.21516#S1.SS1), the NFV
+framework spans a spectrum from purely neural translation of intent, code and
+environment to combinations with language-specific symbolic code translation
+(such as [Verus for Rust](https://verus-lang.github.io/verus/guide/)) and can
+target verification backends such as Dafny or Lean.
+[Intent-formalization agents](https://arxiv.org/abs/2603.17150) can use tests
+and specification-quality metrics to ground informal-to-formal intent translation.
+In the limit, NFV reduces to formal verification: checking a formal assertion
+about a closed program with no external environment in a language with a trusted
+logical encoding.
 
 The code and artifacts are intended for research reproduction, authorized
-experimentation, and feedback on neuro-formal reasoning. The prototype reviewer
-is not a substitute for source review, testing, or a security assessment.
+experimentation, and feedback on neuro-formal reasoning. The prototype
+neuro-formal code reviewer is not a substitute for source review, testing, or a
+security assessment.
 
 See the [code and dataset transparency note](TRANSPARENCY.md) for intended
 uses, dataset provenance, evaluation, and limitations.
-
-## Folder structure
-
-| Directory | Purpose |
-|---|---|
-| `nfv/` | Core implementation, backends, and experiment runner |
-| `paper/` | Paper artifact: dataset, retained results, documentation and utilities |
-| `tests/` | Core and artifact tests |
-| `workflow/` | Prototype GitHub Agentic Workflow integration (`nfv-workflow` package and `aw.yml`) |
-| `.github/workflows/nfv-pr-review.md` | The NFV PR reviewer agentic workflow |
 
 A checked model refutation depends on its translation and assumptions; it is
 not automatically a confirmed source-code bug. Failure to refute is not a proof

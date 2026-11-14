@@ -6,6 +6,9 @@ Licensed under the MIT License. -->
 Guidance for coding agents and contributors working in this repository. Read
 `README.md`, `paper/README.md` and `workflow/README.md` for user-facing docs.
 
+For benchmark operations, see [the maintainer guide](workflow/MAINTAINER.md#nightly-nfv-micro-bench);
+benchmark runs spend credits and require explicit authorization.
+
 ## Layout
 
 | Path | Purpose |

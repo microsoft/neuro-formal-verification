@@ -38,7 +38,7 @@ updates, closure or merge. Completed reports are posted after merge too.
 ## Bootstrap a repository
 
 Follow the single [onboarding guide](../../../workflow/ONBOARDING.md), including
-its seven-step setup and verification checks. If this skill was copied, retrieve
+its setup and verification checks. If this skill was copied, retrieve
 `workflow/ONBOARDING.md` from the trusted NFV release. Do not maintain a separate
 installation procedure here.
 

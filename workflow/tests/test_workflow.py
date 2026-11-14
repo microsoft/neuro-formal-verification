@@ -6,6 +6,7 @@ import copy
 from contextlib import redirect_stderr, redirect_stdout
 import fnmatch
 import hashlib
+import html
 import io
 import json
 import os
@@ -1133,13 +1134,35 @@ class TemplateTests(unittest.TestCase):
         for image in ("nfv-report-refutation.png", "nfv-report-verification.png"):
             self.assertIn(f"](images/{image})", source)
             self.assertTrue((self.package / "images" / image).is_file())
+        example = (self.package / "images" / "report-examples.html").read_text(encoding="utf-8")
+        self.assertIn("NFV: 1 refuted, 5 verified", example)
+        self.assertLess(example.index("</span>P4"), example.index("</span>P1"))
+        self.assertIn("Not every refutation includes a model-checked candidate fix.", source)
+        self.assertIn("Verification details</summary>", example)
+        self.assertNotRegex(example, r"https?://|[a-f0-9]{40}|actions/runs/|/model\.dfy")
+        self.assertIn(
+            "ensures success ==> (format == 7 && exportPresent && "
+            "((!hasExportPlan ==> exportIsNull) && (hasExportPlan ==> "
+            "(!exportIsNull && serializedExportPlan == convertedExportPlan))))",
+            html.unescape(example),
+        )
         reference = (self.package / "REFERENCE.md").read_text(encoding="utf-8")
-        self.assertIn("### Repository permission policies", reference)
+        self.assertIn("FAQ.md#repository-permission-policies", reference)
+        self.assertIn("](MAINTAINER.md)", reference)
+        maintainer = (self.package / "MAINTAINER.md").read_text(encoding="utf-8")
+        for heading in ("Installer and workflow maintenance",
+                        "Local commands and model configuration"):
+            self.assertNotIn(f"## {heading}", reference)
+            self.assertIn(f"## {heading}", maintainer)
+        self.assertIn("For developers and maintainers", maintainer)
+        self.assertIn("](REFERENCE.md)", maintainer)
+        faq = (self.package / "FAQ.md").read_text(encoding="utf-8")
+        self.assertIn("## Repository permission policies", faq)
         self.assertNotIn("### Upgrade an existing installation", reference)
         onboarding = (self.package / "ONBOARDING.md").read_text(encoding="utf-8")
         self.assertIn("](FAQ.md)", onboarding)
         self.assertNotIn("README.md#", onboarding)
-        self.assertIn("REFERENCE.md#repository-permission-policies", onboarding)
+        self.assertIn("FAQ.md#what-must-the-installation-preserve-and-check", onboarding)
         self.assertIn("## Upgrade an existing installation", onboarding)
         self.assertIn("](#upgrade-an-existing-installation)", onboarding)
         self.assertNotIn("REFERENCE.md#upgrade-an-existing-installation", onboarding)
