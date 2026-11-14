@@ -1119,17 +1119,24 @@ class TemplateTests(unittest.TestCase):
                 with self.subTest(name=name, suffix=suffix):
                     source = (self.template / (name + suffix)).read_text(encoding="utf-8")
                     self.assertNotIn("NFV_RELEASE_TOKEN", source)
-                    checkouts = re.findall(
-                        r"(?m)^\s*- (?:name: [^\n]+\n\s+)?uses: actions/checkout@[^\n]+\n"
-                        r"\s+with:\n((?:[ \t]+[^\n]*\n)+?)"
-                        r"(?=\s+- (?:name:|uses:)|\Z)", source)
+                    checkouts = []
+                    block = None
+                    for line in source.splitlines():
+                        stripped = line.lstrip()
+                        if stripped.startswith(("- uses: actions/checkout@", "uses: actions/checkout@")):
+                            block = []
+                            checkouts.append(block)
+                        elif stripped.startswith("- "):
+                            block = None
+                        elif block is not None:
+                            block.append(stripped)
                     plugin = [block for block in checkouts
-                              if "repository: microsoft/neuro-formal-verification\n" in block]
+                              if "repository: microsoft/neuro-formal-verification" in block]
                     self.assertEqual(len(plugin), count)
                     for block in plugin:
                         self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", block)
                         self.assertIn("persist-credentials: false", block)
-                        self.assertNotIn("token:", block)
+                        self.assertFalse(any(line.startswith("token:") for line in block))
 
     def test_prototype_maturity_preserves_nfv_identifiers(self):
         self.assertIn("a prototype implementation", self.source())
