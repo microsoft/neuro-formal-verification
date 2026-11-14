@@ -97,6 +97,8 @@ Not every refutation includes a model-checked candidate fix.
 
 ![Annotated NFV comment: report-wide outcome counts, P4 inferred property, abstract counterexample and optional model-checked candidate fix with limits](images/nfv-report-refutation.png)
 
+![P4 Details: postcondition and formal Dafny code excerpts](images/nfv-report-refutation-dafny.png)
+
 ![Annotated P1 verification: intended property, verified model outcome, quoted intention, assumptions, environment models and complete checked postcondition](images/nfv-report-verification.png)
 
 **Installation:** [Onboarding](ONBOARDING.md).

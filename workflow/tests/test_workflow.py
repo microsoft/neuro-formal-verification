@@ -1131,7 +1131,8 @@ class TemplateTests(unittest.TestCase):
         self.assertTrue((self.package / "FAQ.md").is_file())
         self.assertIn("](ONBOARDING.md#upgrade-an-existing-installation)", source)
         self.assertIn('<a id="upgrade-an-existing-installation"></a>', source)
-        for image in ("nfv-report-refutation.png", "nfv-report-verification.png"):
+        for image in ("nfv-report-refutation.png", "nfv-report-refutation-dafny.png",
+                      "nfv-report-verification.png"):
             self.assertIn(f"](images/{image})", source)
             self.assertTrue((self.package / "images" / image).is_file())
         example = (self.package / "images" / "report-examples.html").read_text(encoding="utf-8")
@@ -1139,6 +1140,10 @@ class TemplateTests(unittest.TestCase):
         self.assertLess(example.index("</span>P4"), example.index("</span>P1"))
         self.assertIn("Not every refutation includes a model-checked candidate fix.", source)
         self.assertIn("Verification details</summary>", example)
+        self.assertIn("Minimized Dafny</summary>", example)
+        self.assertIn("<strong>Postcondition</strong>", example)
+        self.assertIn("<strong>Formal Dafny code</strong>", example)
+        self.assertIn("while i &lt; |layerOrder|", example)
         self.assertNotRegex(example, r"https?://|[a-f0-9]{40}|actions/runs/|/model\.dfy")
         self.assertIn(
             "ensures success ==> (format == 7 && exportPresent && "
