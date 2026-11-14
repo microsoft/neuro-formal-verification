@@ -10,9 +10,12 @@ permissions:
   contents: read
   discussions: write
 jobs:
-  probe:
+  contents-write:
     runs-on: ubuntu-latest
-    steps:
+    permissions:
+      contents: write
+      discussions: write
+    steps: &probe-steps
       - name: Inspect Actions edit capability and reproduce same-body dashboard update
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,3 +52,10 @@ jobs:
           ]:
               print(label, json.dumps(graphql(query, variables)))
           PY
+  issues-write:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      discussions: write
+      issues: write
+    steps: *probe-steps
