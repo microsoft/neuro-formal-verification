@@ -32,6 +32,7 @@ class ReleaseTests(unittest.TestCase):
         opening = readme.split("# Neuro-Formal Verification\n\n", 1)[1]
         description, components = opening.split("\n\n", 1)
         self.assertTrue(description.startswith("Neuro-Formal Verification (NFV) "))
+        components = components.split("This repository provides two artefacts:\n\n", 1)[1]
         bullets = [line for line in components.split("\n\n", 1)[0].splitlines()
                    if line.startswith("- ")]
         self.assertEqual(len(bullets), 2)

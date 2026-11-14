@@ -7,6 +7,10 @@ Neuro-Formal Verification (NFV) is a set of techniques to answer questions about
 empirical accuracy and proof-based verdicts (verification as well as refutation)
 by combining neuro-symbolic agents that translate intent, code and environment
 into formal models with program verifiers that reason over those models.
+NFV's underlying principle is to use AI agents as translators rather than
+arbiters of correctness, leaving proof-based reasoning to formal verifiers.
+
+This repository provides two artefacts:
 
 - **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
   and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
@@ -22,8 +26,6 @@ environment to combinations with language-specific symbolic code translation
 target verification backends such as Dafny or Lean.
 [Intent-formalization agents](https://arxiv.org/abs/2603.17150) can use tests
 and specification-quality metrics to ground informal-to-formal intent translation.
-NFV's underlying principle is to use AI agents as translators rather than
-arbiters of correctness, leaving proof-based reasoning to formal verifiers.
 In the limit, NFV reduces to formal verification: checking a formal assertion
 about a closed program with no external environment in a language with a trusted
 logical encoding.
