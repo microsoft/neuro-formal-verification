@@ -11,8 +11,8 @@ into formal models with program verifiers that reason over those models.
 - **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
   and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
   retained results and experiment instructions.
-- **Neuro-formal code reviewer:** a prototype NFV-based PR reviewer built with
-  GitHub Agentic Workflows. See the [reviewer guide](workflow/README.md) and
+- **Neuro-formal code reviewer:** a prototype for PR review built with GitHub
+  Agentic Workflows. See the [neuro-formal code reviewer guide](workflow/README.md) and
   [setup](workflow/ONBOARDING.md).
 
 As described in the [paper](https://arxiv.org/html/2608.21516#S1.SS1), the NFV
@@ -27,8 +27,9 @@ about a closed program with no external environment in a language with a trusted
 logical encoding.
 
 The code and artifacts are intended for research reproduction, authorized
-experimentation, and feedback on neuro-formal reasoning. The prototype reviewer
-is not a substitute for source review, testing, or a security assessment.
+experimentation, and feedback on neuro-formal reasoning. The prototype
+neuro-formal code reviewer is not a substitute for source review, testing, or a
+security assessment.
 
 See the [code and dataset transparency note](TRANSPARENCY.md) for intended
 uses, dataset provenance, evaluation, and limitations.
