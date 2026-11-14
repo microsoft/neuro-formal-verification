@@ -59,6 +59,7 @@ summary { font-weight: 600; margin-bottom: 14px; }
 </article>
 
 <article id="refutation-dafny">
+<h2><span class="badge">4</span>P4 Dafny model details</h2>
 <details open><summary>Details</summary>
 <details open><summary>Minimized Dafny</summary>
 <p><strong>Postcondition</strong></p>
@@ -95,20 +96,22 @@ summary { font-weight: 600; margin-bottom: 14px; }
 <h1>NFV report example: verification</h1>
 <p class="notice">Verification applies to the translated model under its assumptions, not automatically to source code. Long descriptions are shortened with <code>...</code>.</p>
 <div class="row"><section>
-<h2><span class="badge">4</span>P1</h2>
+<h2><span class="badge">5</span>P1</h2>
 <p><strong>Intended property:</strong> For every launch that is serialized successfully, the resulting configuration uses format 7 regardless of whether the launch has shares, and contains an <code>export</code> field that is null when the launch has no export plan and is the converted export plan when one is present.</p>
 <p class="outcome">Outcome: verified</p>
 <p>The property was verified for the translated model.</p>
-</section><aside><strong>4. Verified property</strong><br>The complete intended behavior, with an explicit model-level outcome. Original property IDs are retained.</aside></div>
+</section><aside><strong>5. Verified property</strong><br>The complete intended behavior, with an explicit model-level outcome. Original property IDs are retained.</aside></div>
+<details open><summary><span class="badge">6</span>Verification details</summary>
 <div class="row"><section>
-<details open><summary><span class="badge">5</span>Verification details</summary>
 <p><strong>Quoted intention:</strong> provision now writes format 7 for every sandbox, with export null for one without shares, and start reads format 7, with export a plan or null</p>
 <p><strong>Assumptions:</strong> No additional input restrictions.</p>
 <p><strong>Environment models:</strong> Represents whether the combined <code>serde_json</code> and <code>python_value</code> conversion of a present network succeeds; its detailed value is irrelevant to the intended property.; ... For a present export plan, represents whether its conversion succeeds and returns the disclosed converted representation.</p>
-<p><strong>Checked property:</strong></p>
+</section><aside><strong>6. Scope</strong><br>Expandable details record intention, input restrictions and environment abstractions.</aside></div>
+<div class="row"><section>
+<p><span class="badge">7</span><strong>Checked property:</strong></p>
 <pre><code>ensures success ==&gt; (format == 7 &amp;&amp; exportPresent &amp;&amp; ((!hasExportPlan ==&gt; exportIsNull) &amp;&amp; (hasExportPlan ==&gt; (!exportIsNull &amp;&amp; serializedExportPlan == convertedExportPlan))))</code></pre>
 <p class="small">The full verified model and diagnostics are retained in the run artifact.</p>
+</section><aside><strong>7. Formal evidence</strong><br>The complete checked postcondition is shown without elision.</aside></div>
 </details>
-</section><aside><strong>5. Scope and formal evidence</strong><br>Expandable details record intention, input restrictions and environment abstractions. The complete checked postcondition is shown without elision.</aside></div>
 </article>
 </html>
