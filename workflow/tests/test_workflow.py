@@ -6,6 +6,7 @@ import copy
 from contextlib import redirect_stderr, redirect_stdout
 import fnmatch
 import hashlib
+import html
 import io
 import json
 import os
@@ -1130,16 +1131,20 @@ class TemplateTests(unittest.TestCase):
         self.assertTrue((self.package / "FAQ.md").is_file())
         self.assertIn("](ONBOARDING.md#upgrade-an-existing-installation)", source)
         self.assertIn('<a id="upgrade-an-existing-installation"></a>', source)
-        self.assertIn("documentation-only abbreviated excerpt", source)
-        self.assertIn("issuecomment-6511347416", source)
-        self.assertLess(source.index("### P4"), source.index("### P1"))
+        for image in ("nfv-report-refutation.png", "nfv-report-verification.png"):
+            self.assertIn(f"](images/{image})", source)
+            self.assertTrue((self.package / "images" / image).is_file())
+        example = (self.package / "images" / "report-examples.html").read_text(encoding="utf-8")
+        self.assertIn("NFV: 1 refuted, 5 verified", example)
+        self.assertLess(example.index("</span>P4"), example.index("</span>P1"))
         self.assertIn("Not every refutation includes a model-checked candidate fix.", source)
-        self.assertIn("<details><summary>Verification details</summary>", source)
+        self.assertIn("Verification details</summary>", example)
+        self.assertNotRegex(example, r"https?://|[a-f0-9]{40}|actions/runs/|/model\.dfy")
         self.assertIn(
             "ensures success ==> (format == 7 && exportPresent && "
             "((!hasExportPlan ==> exportIsNull) && (hasExportPlan ==> "
             "(!exportIsNull && serializedExportPlan == convertedExportPlan))))",
-            source,
+            html.unescape(example),
         )
         reference = (self.package / "REFERENCE.md").read_text(encoding="utf-8")
         self.assertIn("FAQ.md#repository-permission-policies", reference)

@@ -1,0 +1,81 @@
+<!-- Copyright (c) Microsoft Corporation.
+Licensed under the MIT License. -->
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Annotated NFV report examples</title>
+<!-- Render locally in Chromium at 1120px viewport width and 1.5 device scale.
+Capture #refutation and #verification as nfv-report-{id}.png, respectively. -->
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; background: #fff; color: #1f2328; font: 18px/1.5 "Segoe UI", sans-serif; }
+article { width: 1120px; padding: 28px; }
+h1 { margin: 0 0 12px; font-size: 26px; }
+h2 { font-size: 22px; margin: 0 0 12px; }
+.comment { font-size: 16px; background: #f6f8fa; border: 1px solid #d1d9e0; padding: 10px 14px; margin-bottom: 20px; }
+p { margin: 0 0 16px; }
+.notice { background: #f6f8fa; border-left: 4px solid #59636e; padding: 12px 16px; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 24px; padding: 16px 0; border-top: 1px solid #d1d9e0; }
+.row p:last-child { margin-bottom: 0; }
+aside { color: #34445a; font-size: 17px; padding: 8px 12px; border-left: 3px solid #0969da; background: #f0f6ff; align-self: start; }
+.badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; color: white; background: #0969da; font: bold 16px "Segoe UI", sans-serif; margin-right: 7px; }
+code { font: 16px/1.5 Consolas, monospace; background: #eff1f3; border-radius: 4px; padding: 1px 4px; }
+pre { background: #f6f8fa; border: 1px solid #d1d9e0; border-radius: 6px; padding: 14px; margin: 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+pre code { background: none; padding: 0; }
+.added { color: #116329; background: #dafbe1; display: block; }
+blockquote { border-left: 3px solid #d1d9e0; padding-left: 14px; color: #59636e; margin: 12px 0; }
+.outcome { font-weight: 600; }
+summary { font-weight: 600; margin-bottom: 14px; }
+.small { font-size: 16px; color: #59636e; }
+</style>
+
+<article id="refutation">
+<div class="comment">NFV &middot; commented</div>
+<div class="row"><section>
+<h1><span class="badge">0</span>NFV: 1 refuted, 5 verified</h1>
+<p>refuted: 1 &middot; verified: 5 &middot; resources exhausted: 0 &middot; type-check/model-validation failure: 0</p>
+</section><aside><strong>0. Report-wide summary</strong><br>Counts cover all six properties. P4 and P1 below are selected examples, not the complete report.</aside></div>
+<p class="notice">Results concern translated models under stated assumptions, not proofs of source-code correctness or confirmed source bugs. Long inputs and details are shortened with <code>...</code>.</p>
+<div class="row"><section>
+<h2><span class="badge">1</span>P4</h2>
+<p><strong>Inferred property:</strong> A non-list <code>layers</code> value produces the malformed-configuration failure.</p>
+<p class="outcome">Outcome: refuted</p>
+<blockquote>A missing field, or a value of the wrong type, fails as <code>sandbox configuration is malformed</code>,</blockquote>
+</section><aside><strong>1. Property and result</strong><br>The selected claim and its source intention. Refuted means a checked failure in the translated model.</aside></div>
+<div class="row"><section>
+<p><span class="badge">2</span><strong>Input on which it fails:</strong> abstract state: kind of <code>layers</code> = <code>1</code> (object); present = <code>true</code>; yielded elements = <code>[]</code>; ...</p>
+<p><strong>Sketch of the failure:</strong> If <code>layers</code> is an empty object, <code>iterate(document, layers_value)?</code> returns no items; the layer checks are skipped and the remaining valid configuration can be accepted.</p>
+</section><aside><strong>2. Counterexample</strong><br>Abstract model inputs, not an executable configuration or execution trace. The sketch relates the failure to source terms.</aside></div>
+<div class="row"><section>
+<p><span class="badge">3</span><strong>refutation-with-fix (model-checked candidate)</strong></p>
+<p><strong>Suggested fix:</strong> Require the <code>layers</code> node itself to be an array before iterating it, so empty objects and strings cannot be accepted as empty layer lists.</p>
+<pre><code><span class="added">+ if !matches!(document.node(layers_value), Node::Array(_)) {
++     return Err(Malformed::Malformed);
++ }</span></code></pre>
+<p><strong>Model checks:</strong> The patched model verifies the property with unchanged input assumptions and helper contracts. The counterexample input remains feasible.</p>
+<p><strong>Limits:</strong> The source patch is not applied, compiled or source-verified. ... The model abstracts downstream calls and error policies. ...</p>
+</section><aside><strong>3. Optional candidate fix</strong><br>A separate check of the complete property in the model, not a source-verified repair. Not every refutation includes a model-checked candidate fix.</aside></div>
+<details><summary>Details</summary>...</details>
+</article>
+
+<article id="verification">
+<h1>NFV report example: verification</h1>
+<p class="notice">Verification applies to the translated model under its assumptions, not automatically to source code. Long descriptions are shortened with <code>...</code>.</p>
+<div class="row"><section>
+<h2><span class="badge">4</span>P1</h2>
+<p><strong>Intended property:</strong> For every launch that is serialized successfully, the resulting configuration uses format 7 regardless of whether the launch has shares, and contains an <code>export</code> field that is null when the launch has no export plan and is the converted export plan when one is present.</p>
+<p class="outcome">Outcome: verified</p>
+<p>The property was verified for the translated model.</p>
+</section><aside><strong>4. Verified property</strong><br>The complete intended behavior, with an explicit model-level outcome. Original property IDs are retained.</aside></div>
+<div class="row"><section>
+<details open><summary><span class="badge">5</span>Verification details</summary>
+<p><strong>Quoted intention:</strong> provision now writes format 7 for every sandbox, with export null for one without shares, and start reads format 7, with export a plan or null</p>
+<p><strong>Assumptions:</strong> No additional input restrictions.</p>
+<p><strong>Environment models:</strong> Represents whether the combined <code>serde_json</code> and <code>python_value</code> conversion of a present network succeeds; its detailed value is irrelevant to the intended property.; ... For a present export plan, represents whether its conversion succeeds and returns the disclosed converted representation.</p>
+<p><strong>Checked property:</strong></p>
+<pre><code>ensures success ==&gt; (format == 7 &amp;&amp; exportPresent &amp;&amp; ((!hasExportPlan ==&gt; exportIsNull) &amp;&amp; (hasExportPlan ==&gt; (!exportIsNull &amp;&amp; serializedExportPlan == convertedExportPlan))))</code></pre>
+<p class="small">The full verified model and diagnostics are retained in the run artifact.</p>
+</details>
+</section><aside><strong>5. Scope and formal evidence</strong><br>Expandable details record intention, input restrictions and environment abstractions. The complete checked postcondition is shown without elision.</aside></div>
+</article>
+</html>
