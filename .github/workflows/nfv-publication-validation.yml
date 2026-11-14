@@ -1,0 +1,62 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+name: NFV append-only publication validation
+on:
+  push:
+    branches: [shuvendu-lahiri-benchmark-publication-fix]
+    paths: [.github/workflows/nfv-publication-validation.yml]
+permissions:
+  contents: read
+  actions: read
+  discussions: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Replay accepted archived statistics without inference or edits
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: workflow/src
+        run: |
+          python - <<'PY'
+          from nfv_workflow import benchmark
+          from nfv_workflow.github import GitHub
+          api = GitHub()
+          repo = "microsoft/neuro-formal-verification"
+          def root(number):
+              return api.graphql('''query($number:Int!){
+                repository(owner:"microsoft",name:"neuro-formal-verification"){
+                  discussion(number:$number){id title body url}
+                }
+              }''', {"number":number})["repository"]["discussion"]
+          original = [root(75), root(76)]
+          comment = api.graphql('''query {
+            node(id:"DC_kwDOUSBI7c4BKzfn"){... on DiscussionComment{
+              id body url author{login __typename}
+            }}
+          }''', {})["node"]
+          summary = benchmark.saved_statistics(comment, repo)
+          assert summary["completed"] and summary["evaluated"] == 206
+          before_archive = benchmark.discussion_comments(api, original[0]["id"])
+          before_dashboard = benchmark.discussion_comments(api, original[1]["id"])
+          url = benchmark.publish(summary, api, repo, "General")
+          assert [root(75), root(76)] == original
+          after_archive = benchmark.discussion_comments(api, original[0]["id"])
+          after_dashboard = benchmark.discussion_comments(api, original[1]["id"])
+          assert after_archive == before_archive
+          assert len(after_dashboard) == len(before_dashboard) + 1
+          snapshot = after_dashboard[-1]
+          assert snapshot["author"]["login"] in ("github-actions", "github-actions[bot]")
+          assert "43575402563" in snapshot["body"]
+          assert "## Latest completed full run" in snapshot["body"]
+          assert benchmark.publish(summary, api, repo, "General") == url
+          assert benchmark.discussion_comments(api, original[1]["id"]) == after_dashboard
+          assert benchmark.discussion_comments(api, original[0]["id"]) == after_archive
+          print("Append-only dashboard snapshot:", snapshot["url"])
+          print("Replay deduplicated; existing Discussion bodies, titles and archive history unchanged.")
+          PY

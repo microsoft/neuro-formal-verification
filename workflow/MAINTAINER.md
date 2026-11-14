@@ -103,8 +103,9 @@ Use the personal-credit `COPILOT_GITHUB_TOKEN` PAT. Source checkout and reposito
 API operations use the job-scoped `GITHUB_TOKEN`; no release credential is needed.
 Enable Discussions and set `NFV_DISCUSSION_CATEGORY`
 to an existing category (default `General`). Only the publisher's job-scoped
-`GITHUB_TOKEN` publishes. Missing credentials/category or oversized budgets
-fail preflight before model calls.
+`GITHUB_TOKEN` publishes by adding Discussions and comments, never editing them.
+No separate publication credential is needed. Missing credentials/category or
+oversized budgets fail preflight before model calls.
 
 Set **`NFV_BENCH_ENABLED=true`** to opt in. Both scheduled and manual sweeps
 require it. The schedule is **08:17 UTC daily**; dispatch defaults to all 206
@@ -160,22 +161,32 @@ correspondence or authorship.
 
 ### Dashboard and historical archives
 
-The **Nightly nfv-micro-bench evaluation dashboard** Discussion shows the latest
-completed full run and recent runs, with metrics, AIC, model, UTC date, exact
-NFV commit and evidence links. Pin it manually through GitHub's Discussion menu.
+The **Nightly nfv-micro-bench evaluation dashboard** Discussion receives generated
+dashboard snapshots as new comments. Read its **newest snapshot comment**, not
+the original post, for the latest completed full run and recent runs, with metrics,
+AIC, model, UTC date, exact NFV commit and evidence links.
+Pin the Discussion manually through GitHub's Discussion menu.
 Pilots, partial/failed scored sweeps and historical backfills cannot displace
 newer completed full runs. Failures before preparation remain in Actions.
 
 Monthly **Nightly nfv-micro-bench evaluation archive - Month Year** Discussions
-retain full statistics comments per Actions run independently of artifact expiry.
+retain immutable statistics comments per Actions run/attempt independently of
+artifact expiry.
 Archives are written before the dashboard and indexed across years; existing
 per-run reports remain unchanged legacy history. Months/order use the Actions
 run creation time in **UTC**, not publication/retry time.
 
-Custom titles, including pinned titles, are preserved. Keep hidden body markers:
-they identify the trusted bot's dashboard/archive records. Publication retries
-update the same run comment across month boundaries; older/incomplete retries
-cannot downgrade success. Duplicate markers or incomplete pagination fail.
+Existing titles, original posts and earlier comments are never edited, including
+custom or pinned titles. Keep hidden markers: they identify the trusted bot's
+dashboard/archive records. Exact publication replays reuse existing comments.
+Different attempts or changed statistics append new comments, identified by
+run/attempt and a statistics digest; rescoring clock changes alone reuse the
+original statistics. Dashboard snapshots show one selected result per run:
+the newest successful attempt, or the newest attempt if none succeeded.
+An older or incomplete retry cannot downgrade success. Within an attempt, the
+newest changed statistics are selected, and replaying an earlier snapshot cannot
+replace them. Months remain bound to the original run across retries.
+Duplicate snapshot identities or incomplete pagination fail.
 Non-cancelling coordinator concurrency serializes publication. A failed
 publication may already have written the archive: **retry only publication**
 while evidence is available, not paid inference. Retrying a failed worker
