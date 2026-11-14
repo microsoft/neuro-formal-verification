@@ -3,7 +3,7 @@ Licensed under the MIT License. -->
 
 # Neuro-Formal Verification
 
-Neuro-Formal Verification (NFV) aims to answer questions about code with high
+Neuro-Formal Verification (NFV) is a set of techniques to answer questions about code with high
 empirical accuracy and proof-based verdicts (verification as well as refutation)
 by combining neuro-symbolic agents that translate intent, code and environment
 into formal models with program verifiers that reason over those models.
