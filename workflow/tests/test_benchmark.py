@@ -1024,10 +1024,29 @@ class BenchmarkTests(unittest.TestCase):
         with self.assertRaisesRegex(Abstain, "non-Actions"):
             benchmark.publish(summary, api, REPO, "General")
         self.assertEqual(len(api.mutations), writes)
+        api.comments["discussion-1"][0]["author"] = {"login": "github-actions", "__typename": "Bot"}
+        snapshot = api.comments["discussion-2"][0]
+        snapshot["author"] = {"login": "human", "__typename": "User"}
+        with self.assertRaisesRegex(Abstain, "non-Actions"):
+            benchmark.publish(summary, api, REPO, "General")
+        snapshot["author"] = {"login": "github-actions", "__typename": "Bot"}
+        api.comments["discussion-2"].append(copy.deepcopy(snapshot))
+        with self.assertRaisesRegex(Abstain, "Duplicate"):
+            benchmark.publish(summary, api, REPO, "General")
+        api.comments["discussion-2"].pop()
         api.discussions.append(copy.deepcopy(api.discussions[1]))
         with self.assertRaisesRegex(Abstain, "Duplicate"):
             benchmark.publish(summary, api, REPO, "General")
         self.assertEqual(len(api.mutations), writes)
+
+    def test_invalid_run_attempt_fails_without_publication(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        api = PublicationAPI()
+        for attempt in ("124-1", "123-0", "123-x"):
+            summary["run"]["sweep_id"] = attempt
+            with self.subTest(attempt=attempt), self.assertRaisesRegex(Abstain, "run attempt"):
+                benchmark.publish(summary, api, REPO, "General")
+            self.assertFalse(api.mutations)
 
     def test_publication_pagination_reads_all_pages_and_fails_closed_at_limit(self):
         class Pages:

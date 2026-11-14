@@ -692,7 +692,7 @@ def publish(summary, api, repo, category):
     month = date.strftime("%Y-%m")
     archive_marker = f"<!-- nfv-benchmark-archive:{repo}:{month} -->"
     archive = marked_item(discussions, archive_marker)
-    archives, records, archived = {}, [], {}
+    archives, records, archived = {}, [], set()
     legacy = []
     for discussion in discussions:
         markers = re.findall(r"^<!-- nfv-benchmark-archive:" + re.escape(repo)
@@ -712,7 +712,7 @@ def publish(summary, api, repo, category):
                     raise Abstain("Duplicate benchmark attempt statistics")
                 if utc_date(saved["publication_run_created_at"]).strftime("%Y-%m") != markers[0]:
                     raise Abstain("Changed benchmark archive date")
-                archived[identity] = (saved, comment)
+                archived.add(identity)
                 records.append((saved, comment["url"]))
         elif discussion["body"].startswith(f"<!-- nfv-micro-bench:{repo}:"):
             actions_owned(discussion)

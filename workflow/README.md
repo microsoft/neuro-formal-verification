@@ -118,5 +118,6 @@ not add them to older branches.
 For expired tokens and other common problems, see the [FAQ](FAQ.md).
 
 Maintainers: see the [maintenance and local CLI guide](MAINTAINER.md).
-The independent [micro-benchmark and its Discussion dashboard](MAINTAINER.md#nightly-nfv-micro-bench)
-do not run in client repositories.
+The independent [micro-benchmark](MAINTAINER.md#nightly-nfv-micro-bench) does not
+run in client repositories; its Discussion dashboard receives append-only
+snapshot comments.
