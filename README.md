@@ -22,6 +22,9 @@ environment to combinations with language-specific symbolic code translation
 target verification backends such as Dafny or Lean.
 [Intent-formalization agents](https://arxiv.org/abs/2603.17150) can use tests
 and specification-quality metrics to ground informal-to-formal intent translation.
+In the limit, NFV reduces to formal verification: checking a formal assertion
+about a closed program with no external environment in a language with a trusted
+logical encoding.
 
 The code and artifacts are intended for research reproduction, authorized
 experimentation, and feedback on neuro-formal reasoning. The prototype reviewer
