@@ -15,8 +15,13 @@ This repository provides two artefacts:
 - **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
   and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
   retained results and experiment instructions.
-- **Neuro-formal code reviewer:** a prototype for using NFV for PR review, built
-  with GitHub Agentic Workflows. See the [neuro-formal code reviewer guide](workflow/README.md) and
+- **Neuro-formal code reviewer:** a research prototype that investigates whether
+  a code change implements its intended behavior through (a)
+  [intent formalization](https://arxiv.org/abs/2603.17150), turning informal intent
+  into checkable properties, drawing on research that uses semantic quality
+  metrics to assess formalizations, and (b) neuro-formal verification, seeking proofs or
+  counterexamples in translated models. Built with GitHub Agentic Workflows.
+  See the [neuro-formal code reviewer guide](workflow/README.md) and
   [setup](workflow/ONBOARDING.md).
 
 As described in the [paper](https://arxiv.org/html/2608.21516#S1.SS1), the NFV
