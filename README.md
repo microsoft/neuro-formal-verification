@@ -11,8 +11,8 @@ verifiers that reason over those models to produce proof-based verdicts
 - **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
   and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
   retained results and experiment instructions.
-- **Neuro-formal code reviewer:** a prototype PR reviewer built with GitHub
-  Agentic Workflows. See the [reviewer guide](workflow/README.md) and
+- **Neuro-formal code reviewer:** a prototype NFV-based PR reviewer built with
+  GitHub Agentic Workflows. See the [reviewer guide](workflow/README.md) and
   [setup](workflow/ONBOARDING.md).
 
 As described in the [paper](https://arxiv.org/html/2608.21516#S1.SS1), the NFV
