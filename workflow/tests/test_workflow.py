@@ -1130,9 +1130,17 @@ class TemplateTests(unittest.TestCase):
         self.assertTrue((self.package / "FAQ.md").is_file())
         self.assertIn("](ONBOARDING.md#upgrade-an-existing-installation)", source)
         self.assertIn('<a id="upgrade-an-existing-installation"></a>', source)
-        for image in ("nfv-report-refutation.png", "nfv-report-verification.png"):
-            self.assertIn(f"](images/{image})", source)
-            self.assertTrue((self.package / "images" / image).is_file())
+        self.assertIn("documentation-only abbreviated excerpt", source)
+        self.assertIn("issuecomment-6511347416", source)
+        self.assertLess(source.index("### P4"), source.index("### P1"))
+        self.assertIn("Not every refutation includes a model-checked candidate fix.", source)
+        self.assertIn("<details><summary>Verification details</summary>", source)
+        self.assertIn(
+            "ensures success ==> (format == 7 && exportPresent && "
+            "((!hasExportPlan ==> exportIsNull) && (hasExportPlan ==> "
+            "(!exportIsNull && serializedExportPlan == convertedExportPlan))))",
+            source,
+        )
         reference = (self.package / "REFERENCE.md").read_text(encoding="utf-8")
         self.assertIn("FAQ.md#repository-permission-policies", reference)
         self.assertIn("](MAINTAINER.md)", reference)

@@ -87,11 +87,112 @@ in the run artifact when details are compacted.
 | Expandable details | Source context, model evidence and any model-checked candidate fix |
 | Evidence links | Captured source and the run's full formal models and diagnostics |
 
-## Report screenshots
+## Abbreviated report example
 
-![NFV report showing a model refutation, counterexample input and failure sketch](images/nfv-report-refutation.png)
+This is a **documentation-only abbreviated excerpt** from
+[shuvendu-lahiri/nvx#40](https://github.com/shuvendu-lahiri/nvx/pull/40#issuecomment-6511347416)
+([run and evidence](https://github.com/shuvendu-lahiri/nvx/actions/runs/40835350142)).
+Omissions are marked `...`; original property IDs and refutation-first order
+are retained. The published report and proof evidence are unchanged.
+Not every refutation includes a model-checked candidate fix.
 
-![NFV report showing model verification with expanded assumptions and checked property](images/nfv-report-verification.png)
+**These are results for translated models under their stated assumptions, not
+proofs of source-code correctness or confirmed source bugs.**
+
+### P4
+
+**Inferred property:** A non-list `layers` value produces the malformed-configuration failure.
+
+**Outcome: refuted**
+
+> A missing field, or a value of the wrong type, fails as `sandbox configuration is malformed`,
+
+**Input on which it fails:** abstract state: kind of the value stored under
+`layers` = `1` (object); presence of the `layers` member = `true`; identities
+of values yielded while iterating `layers` = `[]`; ...
+
+These are abstract model inputs, not a reconstructed executable configuration.
+
+**Sketch of the failure:** If `layers` is an empty object, `iterate(document, layers_value)?` returns no items; the layer checks are skipped and the remaining valid configuration can be accepted.
+
+**refutation-with-fix (model-checked candidate)**
+
+**Suggested fix:** Require the `layers` node itself to be an array before iterating it, so empty objects and strings cannot be accepted as empty layer lists.
+
+```diff
+--- a/nvx-rs/src/host/cli/sandbox/state.rs
++++ b/nvx-rs/src/host/cli/sandbox/state.rs
+@@ -615,6 +615,9 @@
+     let (launch, shares) = (|| -> std::result::Result<_, Malformed> {
+         let root = document.root();
+         let layers_value = member(document, root, "layers").ok_or(Malformed::Malformed)?;
++        if !matches!(document.node(layers_value), Node::Array(_)) {
++            return Err(Malformed::Malformed);
++        }
+         let mut layers = Vec::new();
+         for layer in iterate(document, layers_value)? {
+             let layer = layer.ok_or(Malformed::Malformed)?;
+```
+
+**Model checks:** The patched model verifies the property with unchanged input assumptions and helper contracts. The counterexample input remains feasible.
+
+**Limits:** The source patch is not applied, compiled or source-verified. ...
+The model assumes `layersKind == 0` corresponds exactly to `Node::Array` and
+abstracts all downstream calls and error policies. ...
+
+<details><summary>Details</summary>
+
+**Relevant code** (abbreviated; original source line numbers):
+
+```rust
+614  pub(crate) fn deserialize_launch(document: &Document) -> Result<SandboxLaunch> {
+615      let (launch, shares) = (|| -> std::result::Result<_, Malformed> {
+616          let root = document.root();
+617          let layers_value = member(document, root, "layers").ok_or(Malformed::Malformed)?;
+618          let mut layers = Vec::new();
+619          for layer in iterate(document, layers_value)? {
+620              let layer = layer.ok_or(Malformed::Malformed)?;
+621              if !matches!(document.node(layer), Node::Object(_)) {
+622                  return Err(Malformed::Malformed);
+623              }
+...
+```
+
+**Minimized Dafny:** ...
+
+Evidence: `4f3de7703fa63d3a0906/final/model.dfy` in the
+[run artifact](https://github.com/shuvendu-lahiri/nvx/actions/runs/40835350142).
+
+</details>
+
+### P1
+
+**Intended property:** For every launch that is serialized successfully, the resulting configuration uses format 7 regardless of whether the launch has shares, and contains an `export` field that is null when the launch has no export plan and is the converted export plan when one is present.
+
+**Outcome: verified**
+
+The property was verified for the translated model.
+
+<details><summary>Verification details</summary>
+
+**Quoted intention:** provision now writes format 7 for every sandbox, with export null for one without shares, and start reads format 7, with export a plan or null
+
+**Assumptions:** No additional input restrictions.
+
+**Environment models:** Represents whether the combined serde_json and python_value conversion of a present network succeeds; its detailed value is irrelevant to the intended property.; ...
+For a present export plan, represents whether its serde_json and python_value conversion succeeds and returns the disclosed converted representation.
+
+**Checked property:**
+
+```dafny
+ensures success ==> (format == 7 && exportPresent && ((!hasExportPlan ==> exportIsNull) && (hasExportPlan ==> (!exportIsNull && serializedExportPlan == convertedExportPlan))))
+```
+
+Evidence: `9d3c24126dc41e5ac780/verification/model.dfy` in the
+[run artifact](https://github.com/shuvendu-lahiri/nvx/actions/runs/40835350142).
+The full verified Dafny is retained in the linked run artifact.
+
+</details>
 
 **Installation:** [Onboarding](ONBOARDING.md).
 
