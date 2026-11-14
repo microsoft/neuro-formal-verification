@@ -1113,6 +1113,24 @@ class TemplateTests(unittest.TestCase):
     def lock(self):
         return (self.template / "nfv-pr-review.lock.yml").read_text(encoding="utf-8")
 
+    def test_public_release_checkout_needs_no_release_secret(self):
+        for name, count in (("nfv-pr-review", 2), ("nfv-source-context", 1)):
+            for suffix in (".md", ".lock.yml"):
+                with self.subTest(name=name, suffix=suffix):
+                    source = (self.template / (name + suffix)).read_text(encoding="utf-8")
+                    self.assertNotIn("NFV_RELEASE_TOKEN", source)
+                    checkouts = re.findall(
+                        r"(?m)^\s*- (?:name: [^\n]+\n\s+)?uses: actions/checkout@[^\n]+\n"
+                        r"\s+with:\n((?:[ \t]+[^\n]*\n)+?)"
+                        r"(?=\s+- (?:name:|uses:)|\Z)", source)
+                    plugin = [block for block in checkouts
+                              if "repository: microsoft/neuro-formal-verification\n" in block]
+                    self.assertEqual(len(plugin), count)
+                    for block in plugin:
+                        self.assertIn("ref: ${{ vars.NFV_RELEASE_SHA }}", block)
+                        self.assertIn("persist-credentials: false", block)
+                        self.assertNotIn("token:", block)
+
     def test_prototype_maturity_preserves_nfv_identifiers(self):
         self.assertIn("a prototype implementation", self.source())
         self.assertIn('name: "NFV PR reviewer"\n', self.lock())

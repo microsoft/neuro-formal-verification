@@ -1005,6 +1005,11 @@ class BenchmarkTests(unittest.TestCase):
     def test_standalone_templates_preserve_personal_billing_and_bound_shard_concurrency(self):
         coordinator = (ROOT / ".github/workflows/nfv-micro-bench.yml").read_text(encoding="utf-8")
         worker = (ROOT / ".github/workflows/nfv-micro-bench-worker.md").read_text(encoding="utf-8")
+        for source in (coordinator, worker):
+            self.assertNotIn("NFV_RELEASE_TOKEN", source)
+            self.assertIn("persist-credentials: false", source)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", coordinator)
+        self.assertIn("COPILOT_GITHUB_TOKEN is required; no organization-billing fallback", coordinator)
         cron = re.search(r'cron: "(\d+) (\d+) \* \* \*"', coordinator)
         self.assertIsNotNone(cron)
         documentation = (ROOT / "workflow/MAINTAINER.md").read_text(encoding="utf-8")

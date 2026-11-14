@@ -215,8 +215,9 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Installer `--billing organization` is explicit opt-in for organization-owned
   targets with the CLI-billing policy enabled; it sets all three
   `copilot-requests` permissions to `write` instead of `none`, without PAT
-  fallback. Preserve the selected mode through upgrades. Both modes need
-  `NFV_RELEASE_TOKEN` when this repo is private to the consumer.
+  fallback. Preserve the selected mode through upgrades. NFV releases are public;
+  neither mode needs a separate release credential. Source checkout uses the
+  job-scoped Actions token, not an inference credential.
 - Upgrade handoffs must show literal, copy/paste-ready release-variable set and
   read-back commands for the actual client repository. Derive the full SHA from
   both installed package pins on the merged client default branch, verify they
@@ -225,7 +226,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
 - NFV is advisory, never a required merge check or input to a required CI
   aggregator. Keep operational failures visible. Both workflows explicitly use
   `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}` for job-scoped publication,
-  never a shared `GH_AW_GITHUB_TOKEN` override or an inference/release token.
+  never a shared `GH_AW_GITHUB_TOKEN` override or an inference token.
 - Package: `gh aw add microsoft/neuro-formal-verification/workflow@<ref> --force`.
   `aw.yml` needs `README.md` beside it, rejects unknown fields, and a string
   `includes` entry starting with `.github/` resolves from the repository root.

@@ -7,8 +7,6 @@ on:
     secrets:
       COPILOT_GITHUB_TOKEN:
         required: false
-      NFV_RELEASE_TOKEN:
-        required: false
   roles: all
 if: vars.NFV_RELEASE_SHA != ''
 permissions:
@@ -67,7 +65,6 @@ steps:
       repository: microsoft/neuro-formal-verification
       ref: ${{ vars.NFV_RELEASE_SHA }}
       path: nfv-plugin
-      token: ${{ secrets.NFV_RELEASE_TOKEN || github.token }}
       persist-credentials: false
   - uses: actions/setup-python@v7.0.0
     with:

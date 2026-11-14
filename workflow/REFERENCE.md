@@ -38,11 +38,11 @@ Set the runtime release only through [activation or upgrade](ONBOARDING.md).
 | Secret | When needed |
 |---|---|
 | `COPILOT_GITHUB_TOKEN` | Default PAT billing: licensed account, model access and **Copilot Requests: Read**; not an OAuth (`gho_`) token |
-| `NFV_RELEASE_TOKEN` | Private NFV releases: **Contents: Read-only** and any required organization approval |
 | `GITHUB_TOKEN` | Supplied per job by Actions; do not create a repository secret |
 
 Organization billing is opt-in and has no PAT fallback. For eligibility,
 permission scopes and mode changes, see [billing](FAQ.md#which-billing-mode-should-i-use).
+NFV releases are public; neither billing mode needs a release credential.
 For restrictive CI policies, see [repository permission policies](FAQ.md#repository-permission-policies).
 
 Workflow maintenance and local CLI commands are in the

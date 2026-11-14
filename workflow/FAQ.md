@@ -64,7 +64,7 @@ Do not disable policies, hand-edit locks, grant workflow-wide write access or
 grant inference jobs repository/comment writes.
 
 Use `safe-outputs.github-token: ${{ secrets.GITHUB_TOKEN }}` in both workflows,
-not inference/release tokens or shared `GH_AW_GITHUB_TOKEN`. For safe-output
+not inference tokens or shared `GH_AW_GITHUB_TOKEN`. For safe-output
 **401 Bad credentials**, check older locks for that override and recompile.
 
 ## Which PRs are reviewed?
@@ -109,14 +109,12 @@ Replace the affected Actions secret in the repository running NFV:
 | Secret | Purpose and replacement access |
 |---|---|
 | `COPILOT_GITHUB_TOKEN` | PAT billing only: fine-grained PAT with **Account permissions > Copilot Requests: Read**, from a licensed account with model access |
-| `NFV_RELEASE_TOKEN` | Reading private NFV releases: **Contents: Read-only** on NFV, with required organization approval |
 | `GITHUB_TOKEN` | GitHub supplies this per run; do not create or rotate an Actions secret with this name |
 
 Use the interactive prompt for the affected secret, replacing `OWNER/repo`:
 
 ```text
 gh secret set COPILOT_GITHUB_TOKEN --repo OWNER/repo
-gh secret set NFV_RELEASE_TOKEN --repo OWNER/repo
 ```
 
 Update only the affected secret; never expose its value in chat, commands or logs.
@@ -125,7 +123,9 @@ Update only the affected secret; never expose its value in chat, commands or log
 
 No. A 401 can mean invalid/revoked credentials; 403 can mean permissions,
 organization approval, entitlement, model policy or spending restrictions;
-404 can mean missing private-release access. Check the failing step and billing mode.
+404 can mean a missing repository, unavailable release pin or insufficient access
+to the client repository. NFV releases are public and need no separate credential.
+Check the failing step and billing mode.
 
 ## Does signing into the CLIs refresh Actions secrets?
 

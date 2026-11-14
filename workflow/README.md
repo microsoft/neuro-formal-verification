@@ -103,6 +103,10 @@ Not every refutation includes a model-checked candidate fix.
 
 **Installation:** [Onboarding](ONBOARDING.md).
 
+NFV releases are public and need no separate download credential. Inference uses
+the configured Copilot PAT or explicitly approved organization billing; client
+repository access and publication use the job-scoped Actions token.
+
 The workflows must exist in the target branch/PR merge ref; installing NFV does
 not add them to older branches.
 

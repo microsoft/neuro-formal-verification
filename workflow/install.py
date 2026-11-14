@@ -238,8 +238,6 @@ class Installer:
                 raise InstallError("Organization billing requires an organization-owned target repository.")
         secrets = json.loads(self.run("gh", "secret", "list", "--repo", self.repository, "--json", "name"))
         required = ["COPILOT_GITHUB_TOKEN"] if billing == "pat" else []
-        if self.api(f"repos/{PACKAGE}")["private"]:
-            required.append("NFV_RELEASE_TOKEN")
         names = {item["name"] for item in secrets}
         for name in required:
             if name not in names:

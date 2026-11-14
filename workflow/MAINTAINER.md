@@ -99,8 +99,9 @@ Scheduled runs resolve trusted `dev` once per sweep; manual runs use the selecte
 workflow revision. Runs record that immutable SHA, dataset checksum and existing
 `NFV_MODEL` and repair/time budgets; there is no separate benchmark model.
 
-Use the personal-credit `COPILOT_GITHUB_TOKEN` PAT and `NFV_RELEASE_TOKEN` for
-private NFV read access. Enable Discussions and set `NFV_DISCUSSION_CATEGORY`
+Use the personal-credit `COPILOT_GITHUB_TOKEN` PAT. Source checkout and repository
+API operations use the job-scoped `GITHUB_TOKEN`; no release credential is needed.
+Enable Discussions and set `NFV_DISCUSSION_CATEGORY`
 to an existing category (default `General`). Only the publisher's job-scoped
 `GITHUB_TOKEN` publishes. Missing credentials/category or oversized budgets
 fail preflight before model calls.

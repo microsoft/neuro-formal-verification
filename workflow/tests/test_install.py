@@ -100,8 +100,6 @@ class FakeCLI:
             return 0, json.dumps({"nameWithOwner": "owner/project", "defaultBranchRef": {"name": "main"}})
         if command == "secret":
             names = [] if self.case.get("missing_secret") else ["COPILOT_GITHUB_TOKEN"]
-            if not self.case.get("public_nfv") and not self.case.get("missing_release"):
-                names.append("NFV_RELEASE_TOKEN")
             return 0, json.dumps([{"name": name} for name in names])
         if command == "extension":
             if rest[0] == "install":
@@ -186,8 +184,6 @@ class FakeCLI:
                     return 1, "HTTP 403: organization variable access denied"
                 return 0, RELEASE if self.case.get("inherited_pin") else ""
             endpoint = rest[-1]
-            if endpoint == f"repos/{INSTALL.PACKAGE}":
-                return 0, json.dumps({"private": not self.case.get("public_nfv")})
             if endpoint == "repos/owner/project":
                 return 0, json.dumps({"owner": {"type": "User" if self.case.get("personal_repo") else "Organization"}})
             if "/actions/variables/NFV_RELEASE_SHA" in endpoint:
@@ -291,18 +287,21 @@ class InstallerTests(unittest.TestCase):
         self.assertIn("organization billing", output)
         self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"], calls)
 
-    def test_organization_billing_still_requires_private_release_access_and_org_owner(self):
-        for case, reason in (({"missing_release": True}, "Missing NFV_RELEASE_TOKEN"),
-                             ({"personal_repo": True}, "organization-owned")):
-            with self.subTest(case=case):
-                error, calls, _ = self.run_case(billing="organization", missing_secret=True, **case)
-                self.assertIn(reason, error)
-                self.assertFalse(any(call[:2] == ["git", "switch"] for call in calls))
+    def test_organization_billing_still_requires_org_owner(self):
+        error, calls, _ = self.run_case(billing="organization", missing_secret=True, personal_repo=True)
+        self.assertIn("organization-owned", error)
+        self.assertFalse(any(call[:2] == ["git", "switch"] for call in calls))
 
-    def test_public_organization_installation_needs_no_secrets(self):
-        error, _, _ = self.run_case(
-            billing="organization", missing_secret=True, public_nfv=True, expected_billing="organization")
-        self.assertIsNone(error)
+    def test_public_installation_and_activation_need_only_billing_secrets(self):
+        for phase in ("install", "enable"):
+            for billing in ("pat", "organization"):
+                with self.subTest(phase=phase, billing=billing):
+                    error, calls, _ = self.run_case(
+                        phase=phase, billing=billing if phase == "install" else None,
+                        organization_billing=billing == "organization",
+                        missing_secret=billing == "organization")
+                    self.assertIsNone(error)
+                    self.assertFalse(any(call[-1] == f"repos/{INSTALL.PACKAGE}" for call in calls))
 
     def test_legacy_releases_keep_pat_billing_but_cannot_select_organization(self):
         error, _, _ = self.run_case(legacy_billing=True)
@@ -317,7 +316,7 @@ class InstallerTests(unittest.TestCase):
         reasons = {
             "dirty": "checkout has local changes", "wrong_remote": "origin fetch and push URLs",
             "wrong_push": "origin fetch and push URLs", "wrong_branch": "Start from the target default branch",
-            "missing_secret": "Missing COPILOT_GITHUB_TOKEN", "missing_release": "Missing NFV_RELEASE_TOKEN",
+            "missing_secret": "Missing COPILOT_GITHUB_TOKEN",
             "behind": "local default branch differs", "wrong_compiler": "Use gh-aw v0.88.7",
             "existing_install": "NFV files already exist",
         }
@@ -484,7 +483,6 @@ class InstallerTests(unittest.TestCase):
     def test_activation_rejects_mixed_billing_without_falling_back_to_pat(self):
         for case, reason in (({"mismatched_billing": True}, "disagree on Copilot billing"),
                              ({"invalid_billing": True}, "inconsistent Copilot billing"),
-                             ({"organization_billing": True, "missing_release": True}, "Missing NFV_RELEASE_TOKEN"),
                              ({"organization_billing": True, "personal_repo": True}, "organization-owned")):
             with self.subTest(case=case):
                 error, calls, _ = self.run_case(phase="enable", **case)

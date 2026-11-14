@@ -10,19 +10,17 @@ for variables, and [PRIVACY](../PRIVACY) for data handling.
 1. **Prepare.** Install Git, GitHub CLI, Copilot CLI and Python 3.10+.
    Authenticate both CLIs and choose an approved model available to your account.
    Start in a clean checkout of the target repository's default branch, with
-   permission to manage Actions, secrets and variables. Private NFV releases
-   also require read access to `microsoft/neuro-formal-verification`.
+   permission to manage Actions, secrets and variables. NFV releases are publicly
+   downloadable; no separate release credential is needed.
 
 2. **Choose billing.** PAT billing is the default. Set
    `COPILOT_GITHUB_TOKEN` to a fine-grained PAT with **Account permissions >
    Copilot Requests: Read**, from a licensed account with model access.
    Organization billing is explicit opt-in; see [requirements](FAQ.md#which-billing-mode-should-i-use).
-   Both modes need `NFV_RELEASE_TOKEN` with **Contents: Read-only** on NFV
-   while it is private. Enter secrets interactively:
+   For PAT billing, enter the secret interactively:
 
    ```text
    gh secret set COPILOT_GITHUB_TOKEN --repo OWNER/repo
-   gh secret set NFV_RELEASE_TOKEN --repo OWNER/repo
    ```
 
    Skip the inference PAT in organization mode. Do not paste token values into chat.

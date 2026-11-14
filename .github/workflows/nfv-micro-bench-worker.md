@@ -91,7 +91,6 @@ steps:
     with:
       ref: ${{ inputs.release_sha }}
       path: nfv-plugin
-      token: ${{ secrets.NFV_RELEASE_TOKEN }}
       persist-credentials: false
   - uses: actions/setup-python@v7.0.0
     with:

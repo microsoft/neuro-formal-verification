@@ -48,8 +48,8 @@ default branch, resolved once for both the package and runtime.
 Keep PAT billing as the default. Use installer `--billing organization` only
 when explicitly approved for an organization-owned target with the CLI billing
 policy and selected model allowed. That mode uses the Actions token for inference,
-not `COPILOT_GITHUB_TOKEN`, and never falls back to a PAT. Both modes still need
-`NFV_RELEASE_TOKEN` while NFV is private.
+not `COPILOT_GITHUB_TOKEN`, and never falls back to a PAT. NFV releases are public;
+neither mode needs a separate release credential.
 Guide the user through secure token entry; never receive or display token values.
 Create the installation branch, commit and push it, and open a **draft PR**.
 Use gh-aw v0.88.7 and compile both workflows.
@@ -97,7 +97,7 @@ look for `missing_tool` safe outputs.
 |---|---|
 | Both inference sessions skipped | Check the release gate, draft/fork eligibility, workflows in the target branch/merge ref and existing admission/report comments. Repeated readiness events do not retry an admitted PR. |
 | `status: superseded` | The default strict collector detected an obsolete snapshot. Installed collectors must use `--event-snapshot`; do not fabricate a completed review or delete a reservation to retry. |
-| Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; either mode requires `NFV_RELEASE_TOKEN` while NFV is private. |
+| Activation fails on secrets | PAT billing requires `COPILOT_GITHUB_TOKEN`; organization billing needs an organization-owned target and the approved billing policy. Neither mode needs a release credential. |
 | Organization inference is denied | Confirm an organization-owned target, the organization CLI-billing policy, allowed model and all three `copilot-requests: write` entries. Do not silently fall back to a PAT. |
 | Pin check fails | `NFV_RELEASE_SHA` is unset or not a 40-hex commit. |
 | `Permission denied … could not request permission` for shell commands | The bash allowlist is too narrow. The workflow needs `bash: ["*"]`. Recompile. |

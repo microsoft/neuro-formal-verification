@@ -38,14 +38,13 @@ jobs:
       - name: Require personal billing and resolve trusted dev once
         id: source
         env:
-          GH_TOKEN: ${{ secrets.NFV_RELEASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           HAS_INFERENCE_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN != '' }}
           NFV_MODEL: ${{ vars.NFV_MODEL }}
           EVENT_NAME: ${{ github.event_name }}
           WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          test -n "$GH_TOKEN" || { echo "::error::NFV_RELEASE_TOKEN is required"; exit 1; }
           test "$HAS_INFERENCE_TOKEN" = true || { echo "::error::COPILOT_GITHUB_TOKEN is required; no organization-billing fallback"; exit 1; }
           test -n "$NFV_MODEL" || { echo "::error::Configure the PR-review NFV_MODEL"; exit 1; }
           if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
@@ -59,7 +58,6 @@ jobs:
         with:
           ref: ${{ steps.source.outputs.release_sha }}
           path: nfv-plugin
-          token: ${{ secrets.NFV_RELEASE_TOKEN }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -136,7 +134,6 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.release_sha }}
           path: nfv-plugin
-          token: ${{ secrets.NFV_RELEASE_TOKEN }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
