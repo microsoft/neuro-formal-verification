@@ -10,13 +10,10 @@ permissions:
   contents: read
   discussions: write
 jobs:
-  contents-write:
+  comment-capability:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      discussions: write
-    steps: &probe-steps
-      - name: Inspect Actions edit capability and reproduce same-body dashboard update
+    steps:
+      - name: Inspect archive comment edit capability without mutation
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -30,32 +27,9 @@ jobs:
                            "Content-Type": "application/json"})
               with urllib.request.urlopen(request, timeout=60) as response:
                   return json.load(response)
-          result = graphql('''query {
-            repository(owner:"microsoft",name:"neuro-formal-verification"){
-              discussion(number:76){
-                id title body locked viewerCanUpdate viewerDidAuthor
-                author{login} category{id name}
-              }
-            }
-          }''')
-          if result.get("errors"):
-              raise RuntimeError(result["errors"])
-          discussion = result["data"]["repository"]["discussion"]
-          print(json.dumps({k:v for k,v in discussion.items() if k != "body"}))
-          for label, query, variables in [
-              ("body-only", '''mutation($id:ID!,$body:String!){
-                updateDiscussion(input:{discussionId:$id,body:$body}){discussion{id url}}
-              }''', {"id": discussion["id"], "body": discussion["body"]}),
-              ("same-title-and-body", '''mutation($id:ID!,$title:String!,$body:String!){
-                updateDiscussion(input:{discussionId:$id,title:$title,body:$body}){discussion{id url}}
-              }''', {"id": discussion["id"], "title": discussion["title"], "body": discussion["body"]}),
-          ]:
-              print(label, json.dumps(graphql(query, variables)))
+          print(json.dumps(graphql('''query {
+            node(id:"DC_kwDOUSBI7c4BKzfn"){... on DiscussionComment{
+              id viewerCanUpdate viewerCannotUpdateReasons viewerDidAuthor author{login}
+            }}
+          }''')))
           PY
-  issues-write:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      discussions: write
-      issues: write
-    steps: *probe-steps
