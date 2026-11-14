@@ -11,8 +11,8 @@ into formal models with program verifiers that reason over those models.
 - **Paper and artifact:** [NFV paper](https://arxiv.org/abs/2608.21516)
   and [paper artifact](paper/README.md), including the nfv-micro-bench dataset,
   retained results and experiment instructions.
-- **Neuro-formal code reviewer:** a prototype for PR review built with GitHub
-  Agentic Workflows. See the [neuro-formal code reviewer guide](workflow/README.md) and
+- **Neuro-formal code reviewer:** a prototype for using NFV for PR review, built
+  with GitHub Agentic Workflows. See the [neuro-formal code reviewer guide](workflow/README.md) and
   [setup](workflow/ONBOARDING.md).
 
 As described in the [paper](https://arxiv.org/html/2608.21516#S1.SS1), the NFV
@@ -22,6 +22,8 @@ environment to combinations with language-specific symbolic code translation
 target verification backends such as Dafny or Lean.
 [Intent-formalization agents](https://arxiv.org/abs/2603.17150) can use tests
 and specification-quality metrics to ground informal-to-formal intent translation.
+NFV's underlying principle is to use AI agents as translators rather than
+arbiters of correctness, leaving proof-based reasoning to formal verifiers.
 In the limit, NFV reduces to formal verification: checking a formal assertion
 about a closed program with no external environment in a language with a trusted
 logical encoding.
