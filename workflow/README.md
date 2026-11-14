@@ -102,8 +102,9 @@ not add them to older branches.
 
 **More:** [Configuration](REFERENCE.md#configure-github-agentic-workflows),
 [upgrades](ONBOARDING.md#upgrade-an-existing-installation), and
-[command reference](REFERENCE.md).
+[configuration reference](REFERENCE.md).
 For expired tokens and other common problems, see the [FAQ](FAQ.md).
 
-Maintainers: the independent [micro-benchmark and its Discussion dashboard](BENCHMARK.md)
+Maintainers: see the [maintenance and local CLI guide](MAINTAINER.md).
+The independent [micro-benchmark and its Discussion dashboard](MAINTAINER.md#nightly-nfv-micro-bench)
 do not run in client repositories.

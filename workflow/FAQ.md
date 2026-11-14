@@ -166,4 +166,4 @@ deleted artifacts; a separately approved review may be needed.
 
 Use plain change numbers, not upstream references, GitHub links or mentions.
 Normalize descriptions; keep originals locally. `redirect.github.com` provides
-no-backlink provenance, not history erasure. See [benchmark guidance](BENCHMARK.md).
+no-backlink provenance, not history erasure. See [benchmark guidance](MAINTAINER.md#nightly-nfv-micro-bench).

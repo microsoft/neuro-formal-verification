@@ -1007,7 +1007,7 @@ class BenchmarkTests(unittest.TestCase):
         worker = (ROOT / ".github/workflows/nfv-micro-bench-worker.md").read_text(encoding="utf-8")
         cron = re.search(r'cron: "(\d+) (\d+) \* \* \*"', coordinator)
         self.assertIsNotNone(cron)
-        documentation = (ROOT / "workflow/BENCHMARK.md").read_text(encoding="utf-8")
+        documentation = (ROOT / "workflow/MAINTAINER.md").read_text(encoding="utf-8")
         self.assertIn(f"**{int(cron[2]):02}:{int(cron[1]):02} UTC daily**", documentation)
         self.assertIn("vars.NFV_BENCH_ENABLED == 'true'", coordinator)
         self.assertIn("max-parallel: 10", coordinator)

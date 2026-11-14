@@ -1135,6 +1135,14 @@ class TemplateTests(unittest.TestCase):
             self.assertTrue((self.package / "images" / image).is_file())
         reference = (self.package / "REFERENCE.md").read_text(encoding="utf-8")
         self.assertIn("FAQ.md#repository-permission-policies", reference)
+        self.assertIn("](MAINTAINER.md)", reference)
+        maintainer = (self.package / "MAINTAINER.md").read_text(encoding="utf-8")
+        for heading in ("Installer and workflow maintenance",
+                        "Local commands and model configuration"):
+            self.assertNotIn(f"## {heading}", reference)
+            self.assertIn(f"## {heading}", maintainer)
+        self.assertIn("For developers and maintainers", maintainer)
+        self.assertIn("](REFERENCE.md)", maintainer)
         faq = (self.package / "FAQ.md").read_text(encoding="utf-8")
         self.assertIn("## Repository permission policies", faq)
         self.assertNotIn("### Upgrade an existing installation", reference)
