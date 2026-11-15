@@ -525,20 +525,35 @@ def marked_item(items, marker):
     return matches[0] if matches else None
 
 
-def write_discussion(api, repo_id, category_id, existing, title, body):
+def create_discussion(api, repo_id, category_id, title, body):
     if len(body) > 60000:
         raise Abstain("Benchmark Discussion exceeds publication size budget")
-    if existing:
-        result = api.graphql("""
-          mutation($id:ID!,$body:String!){
-            updateDiscussion(input:{discussionId:$id,body:$body}){discussion{id url}}
-          }""", {"id": existing["id"], "body": body})
-        return result["updateDiscussion"]["discussion"]
     result = api.graphql("""
       mutation($repo:ID!,$category:ID!,$title:String!,$body:String!){
         createDiscussion(input:{repositoryId:$repo,categoryId:$category,title:$title,body:$body}){discussion{id url}}
       }""", {"repo": repo_id, "category": category_id, "title": title, "body": body})
     return result["createDiscussion"]["discussion"]
+
+
+def discussion_comments(api, discussion_id):
+    return publication_pages(api, """
+      query($id:ID!,$cursor:String){
+        node(id:$id){... on Discussion{
+          comments(first:100,after:$cursor){
+            nodes{id body url author{login __typename}}
+            pageInfo{hasNextPage endCursor}
+          }
+        }}
+      }""", {"id": discussion_id}, "comments", "node")
+
+
+def append_comment(api, discussion_id, body):
+    if len(body) > 60000:
+        raise Abstain("Benchmark comment exceeds publication size budget")
+    return api.graphql("""
+      mutation($id:ID!,$body:String!){
+        addDiscussionComment(input:{discussionId:$id,body:$body}){comment{id url}}
+      }""", {"id": discussion_id, "body": body})["addDiscussionComment"]["comment"]
 
 
 def utc_date(value):
@@ -548,10 +563,29 @@ def utc_date(value):
     return stamp.astimezone(timezone.utc)
 
 
+def publication_attempt(summary):
+    run = summary["run"]
+    match = re.fullmatch(re.escape(str(run["run_id"])) + r"-([1-9]\d*)", run["sweep_id"])
+    if match is None:
+        raise Abstain("Invalid benchmark Actions run attempt")
+    return int(match[1])
+
+
+def statistics_marker(summary):
+    publication_attempt(summary)
+    # Rescoring saved evidence changes wall-clock timestamps, not its statistics.
+    saved = {key: value for key, value in summary.items()
+             if key not in ("rows", "finished_at", "elapsed_seconds")}
+    fingerprint = digest(saved)
+    run = summary["run"]
+    return f"<!-- nfv-benchmark-attempt:{run['repository']}:{run['sweep_id']}:{fingerprint} -->"
+
+
 def statistics_body(summary):
     saved = {key: value for key, value in summary.items() if key != "rows"}
     encoded = base64.b64encode(json.dumps(saved, sort_keys=True).encode()).decode("ascii")
-    return render(summary) + f"\n<!-- nfv-benchmark-statistics:{encoded} -->\n"
+    return (render(summary) + f"\nPublication attempt: `{summary['run']['sweep_id']}`.\n"
+            + statistics_marker(summary) + f"\n<!-- nfv-benchmark-statistics:{encoded} -->\n")
 
 
 def saved_statistics(comment, repo):
@@ -565,10 +599,26 @@ def saved_statistics(comment, repo):
         raise Abstain("Archived benchmark statistics disagree with their run marker")
     sha(run["release_sha"])
     utc_date(summary["publication_run_created_at"])
+    expected = statistics_marker(summary)
+    markers = [line for line in comment["body"].splitlines()
+               if line.startswith("<!-- nfv-benchmark-attempt:")]
+    if markers and markers != [expected]:
+        raise Abstain("Archived benchmark attempt marker disagrees with its statistics")
     return summary
 
 
 def dashboard_body(repo, records, archives, legacy):
+    latest = {}
+    for record in records:
+        summary = record[0]
+        key = str(summary["run"]["run_id"])
+        previous = latest.get(key)
+        priority = (summary["completed"] is True, publication_attempt(summary))
+        if previous is None or priority >= (
+                previous[0]["completed"] is True, publication_attempt(previous[0])):
+            latest[key] = record
+    records = list(latest.values())
+
     def order(record):
         summary = record[0]
         return utc_date(summary["publication_run_created_at"]), int(summary["run"]["run_id"])
@@ -604,7 +654,7 @@ def dashboard_body(repo, records, archives, legacy):
     lines += ["", "## Recent runs", "", *header]
     lines += [row(record) for record in records[:12]]
     lines += ["", "## Monthly archives", "",
-              "Full statistics persist in one comment per Actions run, independently of expiring artifacts.",
+              "Full statistics persist in immutable run/attempt comments, independently of expiring artifacts.",
               "Months use the Actions run creation date in UTC; retries stay with that run.", ""]
     lines += [f"- [{month}]({url})" for month, url in sorted(archives.items(), reverse=True)]
     if legacy:
@@ -635,13 +685,14 @@ def publish(summary, api, repo, category):
     run_id = run["run_id"]
     if not re.fullmatch(r"[1-9]\d*", str(run_id)):
         raise Abstain("Invalid benchmark Actions run ID")
+    publication_attempt(summary)
     created = api.request(f"repos/{repo}/actions/runs/{run_id}")["created_at"]
     date = utc_date(created)
     summary = {**summary, "publication_run_created_at": date.isoformat()}
     month = date.strftime("%Y-%m")
     archive_marker = f"<!-- nfv-benchmark-archive:{repo}:{month} -->"
     archive = marked_item(discussions, archive_marker)
-    archives, records, prior = {}, [], None
+    archives, records, archived = {}, [], set()
     legacy = []
     for discussion in discussions:
         markers = re.findall(r"^<!-- nfv-benchmark-archive:" + re.escape(repo)
@@ -651,61 +702,42 @@ def publish(summary, api, repo, category):
             if len(markers) != 1 or markers[0] in archives:
                 raise Abstain("Duplicate benchmark archive month")
             archives[markers[0]] = discussion["url"]
-            comments = publication_pages(api, """
-              query($id:ID!,$cursor:String){
-                node(id:$id){... on Discussion{
-                  comments(first:100,after:$cursor){
-                    nodes{id body url author{login __typename}}
-                    pageInfo{hasNextPage endCursor}
-                  }
-                }}
-              }""", {"id": discussion["id"]}, "comments", "node")
+            comments = discussion_comments(api, discussion["id"])
             for comment in comments:
                 if not comment["body"].startswith(f"<!-- nfv-micro-bench:{repo}:"):
                     continue
                 saved = saved_statistics(comment, repo)
-                if saved["run"]["run_id"] == run_id:
-                    if prior is not None or markers[0] != month:
-                        raise Abstain("Duplicate run or changed archive date")
-                    prior = (saved, comment)
-                else:
-                    records.append((saved, comment["url"]))
+                identity = statistics_marker(saved)
+                if identity in archived:
+                    raise Abstain("Duplicate benchmark attempt statistics")
+                if utc_date(saved["publication_run_created_at"]).strftime("%Y-%m") != markers[0]:
+                    raise Abstain("Changed benchmark archive date")
+                archived.add(identity)
+                records.append((saved, comment["url"]))
         elif discussion["body"].startswith(f"<!-- nfv-micro-bench:{repo}:"):
             actions_owned(discussion)
             legacy.append(discussion)
     if archive is None:
-        archive = write_discussion(
-            api, repo_id, category_id, None,
+        archive = create_discussion(
+            api, repo_id, category_id,
             f"{ARCHIVE_TITLE} - {date.strftime('%B %Y')}",
             f"{archive_marker}\n# {ARCHIVE_TITLE} - {date.strftime('%B %Y')}\n\n"
-            "Persistent full statistics appear below, one comment per Actions run. Dates use UTC.\n")
+            "Persistent full statistics appear below in immutable run/attempt comments. Dates use UTC.\n")
     archives[month] = archive["url"]
-    if prior:
-        saved, comment = prior
-        old_attempt = int(saved["run"]["sweep_id"].rsplit("-", 1)[1])
-        attempt = int(run["sweep_id"].rsplit("-", 1)[1])
-        if attempt < old_attempt or (saved["completed"] and not summary["completed"]):
-            summary = saved
-        else:
-            body = statistics_body(summary)
-            if len(body) > 60000:
-                raise Abstain("Benchmark statistics exceed comment size budget")
-            api.graphql("""
-              mutation($id:ID!,$body:String!){
-                updateDiscussionComment(input:{commentId:$id,body:$body}){comment{id url}}
-              }""", {"id": comment["id"], "body": body})
-    else:
-        body = statistics_body(summary)
-        if len(body) > 60000:
-            raise Abstain("Benchmark statistics exceed comment size budget")
-        comment = api.graphql("""
-          mutation($id:ID!,$body:String!){
-            addDiscussionComment(input:{discussionId:$id,body:$body}){comment{id url}}
-          }""", {"id": archive["id"], "body": body})["addDiscussionComment"]["comment"]
-    records.append((summary, comment["url"]))
+    if statistics_marker(summary) not in archived:
+        comment = append_comment(api, archive["id"], statistics_body(summary))
+        records.append((summary, comment["url"]))
     body = dashboard_body(repo, records, archives, legacy)
-    return write_discussion(api, repo_id, category_id, dashboard,
-                            DASHBOARD_TITLE, body)["url"]
+    if dashboard is None:
+        dashboard = create_discussion(
+            api, repo_id, category_id, DASHBOARD_TITLE,
+            f"<!-- nfv-benchmark-dashboard:{repo} -->\n# {DASHBOARD_TITLE}\n\n"
+            "Generated dashboard snapshots are appended in the comments below. "
+            "The original post and earlier snapshots are never edited.\n")
+    marker = f"<!-- nfv-benchmark-dashboard-snapshot:{repo}:{run['sweep_id']}:{digest(body)} -->"
+    if marked_item(discussion_comments(api, dashboard["id"]), marker) is None:
+        append_comment(api, dashboard["id"], marker + "\n" + body)
+    return dashboard["url"]
 
 
 def main(argv=None):

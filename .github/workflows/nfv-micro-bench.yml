@@ -163,7 +163,7 @@ jobs:
         env:
           WORKERS_SUCCEEDED: ${{ needs.evaluate.result == 'success' }}
         run: python -m nfv_workflow.benchmark summarize --prepared prepared --evidence evidence --fallback agent-backups --out statistics --workers-succeeded "$WORKERS_SUCCEEDED" --usage usage
-      - name: Archive full statistics then refresh the benchmark dashboard
+      - name: Append full statistics then a benchmark dashboard snapshot
         env:
           GH_TOKEN: ${{ github.token }}
           CATEGORY: ${{ vars.NFV_DISCUSSION_CATEGORY || 'General' }}
