@@ -18,7 +18,7 @@ from urllib.parse import quote
 
 PACKAGE = "microsoft/neuro-formal-verification"
 WORKFLOW = "nfv-pr-review.lock.yml"
-COMPILER = "v0.88.7"
+COMPILER = "v1.2.2"
 WORKFLOW_FILES = (
     ".github/workflows/nfv-source-context.md",
     ".github/workflows/nfv-source-context.lock.yml",
@@ -143,7 +143,8 @@ class Installer:
             conditions = re.findall(r"(?m)^(?:    )?if: (.*)$", frontmatter)
             expected = 1
             if path.endswith("nfv-pr-review.md"):
-                expected = 3 if "\n  admission:\n" in frontmatter else 2
+                expected = 3 if any(f"\n  {job}:\n" in frontmatter
+                                    for job in ("nfv_admission", "admission")) else 2
             if len(conditions) != expected or any(
                     condition != ACTIVATION_GATE and not condition.startswith(ACTIVATION_GATE + " && ")
                     for condition in conditions):
@@ -152,8 +153,8 @@ class Installer:
             activation = "pre_activation" if "\n  pre_activation:\n" in source else "activation"
             jobs = [activation]
             if path.endswith(WORKFLOW):
-                if "\n  admission:\n" in source:
-                    jobs.append("admission")
+                jobs.extend(job for job in ("nfv_admission", "admission")
+                            if f"\n  {job}:\n" in source)
                 jobs.append("repository_context")
             for job in jobs:
                 block = re.search(rf"(?ms)^  {job}:\n(.*?)(?=^  \S|\Z)", source)

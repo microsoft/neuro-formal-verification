@@ -38,7 +38,7 @@ for variables, and [PRIVACY](../PRIVACY) for data handling.
    ```
 
    Replace the repository and model; change billing only if approved.
-   The agent uses `workflow/install.py` and gh-aw v0.88.7, resolves one trusted
+   The agent uses `workflow/install.py` and gh-aw v1.2.2, resolves one trusted
    release for both workflows, sets `NFV_MODEL` and opens a **draft installation PR**.
    Keep it draft until both source/compiled inference gates and an unset
    `NFV_RELEASE_SHA` are verified. Leave that variable unset through marking
@@ -66,7 +66,7 @@ secrets, budgets and local customizations.
 Resolve one trusted release, replace the package with
 `gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, reapply
 the approved billing permissions, compile both workflows and open an upgrade PR.
-Use gh-aw v0.88.7 and the same [installation checks](FAQ.md#what-must-the-installation-preserve-and-check).
+Use gh-aw v1.2.2 and the same [installation checks](FAQ.md#what-must-the-installation-preserve-and-check).
 
 After the approved merge, verify both installed package pins on the client's
 default branch agree. Update and read back `NFV_RELEASE_SHA` **before** enabling

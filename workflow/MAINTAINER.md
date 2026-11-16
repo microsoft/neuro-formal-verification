@@ -16,12 +16,29 @@ The Linux-first [installer](install.py) needs Python 3.10+, Git and authenticate
 python install.py --help
 ```
 
-Use **gh-aw v0.88.7**. After editing either workflow, compile it and retain the
+Use **gh-aw v1.2.2**. After editing either workflow, compile it and retain the
 source, compiled lock and changed package/action records under `.github/aw/`:
 
 ```text
 gh aw compile nfv-source-context nfv-pr-review --approve
 ```
+
+For compiler migrations, review upstream breaking changes first, then use
+`gh aw upgrade --no-agent --no-mcp --no-skill --no-actions --approve` to preserve
+shared agent assets and existing action pins. Recompile all three agentic
+workflows with `gh aw compile --strict --approve`, including the benchmark
+worker. Keep the installer, package minimum version and setup guidance aligned.
+Retain unrelated existing action-lock entries when reviewing generated changes.
+Compare generated permissions and authentication, not only compilation results.
+`admission` is compiler-owned; NFV's durable-attempt job is `nfv_admission`.
+Reusable workers disable only detection tracking issues to avoid an issue-write
+requirement in callers; detection and its handoff gates remain enabled.
+The benchmark caller additionally grants `pull-requests: read` for generated
+safe-output branch checks; both reusable callers need only `actions: read`.
+Explicit safe-output timeouts retain 45 minutes
+instead of the compiler's implicit 15-minute slim-runner default.
+The compiler's daily-credit guardrail now accounts in AIC rather than effective
+token estimates; configured credit thresholds and per-run budgets are unchanged.
 
 Maintainer invariants and sandbox guidance are in [AGENTS.md](../AGENTS.md);
 agent setup guidance is in the [NFV skill](../.github/skills/nfv-pr-review/SKILL.md).

@@ -1228,24 +1228,24 @@ class TemplateTests(unittest.TestCase):
 
     def test_admission_precedes_both_sessions_and_has_only_scoped_reservation_writes(self):
         source, lock = self.source(), self.lock()
-        self.assertIn("needs: [admission]\n", source)
-        self.assertIn("&& needs.admission.outputs.admitted == 'true'", source)
-        self.assertIn("needs: [admission, repository_context]", source)
+        self.assertIn("needs: [nfv_admission]\n", source)
+        self.assertIn("&& needs.nfv_admission.outputs.admitted == 'true'", source)
+        self.assertIn("needs: [nfv_admission, repository_context]", source)
         self.assertIn("run: python -m nfv_workflow.admission", source)
-        gate = lock.split("\n  admission:", 1)[1].split("\n  agent:", 1)[0]
+        gate = lock.split("\n  nfv_admission:", 1)[1].split("\n  repository_context:", 1)[0]
         self.assertIn("pull-requests: write", gate)
         self.assertNotIn("issues: write", gate)
-        source_gate = source.split("\n  admission:", 1)[1].split("\n  repository_context:", 1)[0]
+        source_gate = source.split("\n  nfv_admission:", 1)[1].split("\n  repository_context:", 1)[0]
         self.assertIn("pull-requests: write", source_gate)
         self.assertNotIn("issues: write", source_gate)
-        self.assertIn("needs.admission.outputs.admitted == 'true'", lock)
+        self.assertIn("needs.nfv_admission.outputs.admitted == 'true'", lock)
         self.assertNotIn("  synchronize", lock)
         for name in ("nfv-pr-review", "nfv-source-context"):
             template = (self.template / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn('--event "$GITHUB_EVENT_PATH" --event-snapshot', template)
 
     def test_all_target_branches_activation_rejects_forks_without_auditing_pushes(self):
-        gate = re.search(r"\n  activation:\n    if: >\n(.*?)\n    runs-on:",
+        gate = re.search(r"\n  activation:\n    name: activation\n    if: >\n(.*?)\n    runs-on:",
                          self.lock(), re.DOTALL).group(1)
         condition = (" ".join(gate.split()).replace("&&", "and").replace("||", "or")
                      .replace("false", "False").replace("null", "None"))
@@ -1286,13 +1286,13 @@ class TemplateTests(unittest.TestCase):
         worker = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
         for compiled in (self.lock(), worker):
             self.assertNotIn("check_membership", compiled)
-        self.assertIn("daily-effective-workflow-guardrail", self.lock())
+        self.assertIn("daily-ai-credits-workflow-guardrail", self.lock())
 
     def test_bootstrap_release_gate_precedes_both_inference_sessions(self):
         worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
         worker_lock = (self.template / "nfv-source-context.lock.yml").read_text(encoding="utf-8")
         self.assertIn("if: vars.NFV_RELEASE_SHA != ''\n", worker)
-        self.assertIn("  activation:\n    if: vars.NFV_RELEASE_SHA != ''\n", worker_lock)
+        self.assertIn("  activation:\n    name: activation\n    if: vars.NFV_RELEASE_SHA != ''\n", worker_lock)
         reviewer = self.lock().split("\n  activation:", 1)[1]
         self.assertRegex(reviewer, r"if: >\s+vars\.NFV_RELEASE_SHA != '' &&")
 
@@ -1395,11 +1395,44 @@ class TemplateTests(unittest.TestCase):
                 outputs = lock.split("\n  safe_outputs:", 1)[1]
                 process = outputs.split("      - name: Process Safe Outputs\n", 1)[1].split("\n      - ", 1)[0]
                 self.assertIn("github-token: ${{ secrets.GITHUB_TOKEN }}", process)
-                self.assertNotIn("GH_AW_GITHUB_TOKEN", process)
+                self.assertNotIn("secrets.GH_AW_GITHUB_TOKEN", process)
+                self.assertIn('GH_AW_GITHUB_TOKEN_SOURCE: "github_actions"', process)
                 self.assertNotIn("continue-on-error:", process)
                 if name == "nfv-pr-review":
-                    self.assertIn("      issues: write\n", outputs)
-                    self.assertIn("      pull-requests: write\n", outputs)
+                    self.assertRegex(outputs, r"(?m)^      issues: write(?: #.*)?$")
+                    self.assertRegex(outputs, r"(?m)^      pull-requests: write(?: #.*)?$")
+
+    def test_reusable_workers_fit_the_callers_permission_ceiling(self):
+        callers = {
+            "nfv-source-context": (self.source(), "repository_context"),
+            "nfv-micro-bench-worker": (
+                (self.template / "nfv-micro-bench.yml").read_text(encoding="utf-8"), "evaluate"),
+        }
+        levels = {"none": 0, "read": 1, "write": 2}
+        for name, (caller, job) in callers.items():
+            with self.subTest(workflow=name):
+                source = (self.template / f"{name}.md").read_text(encoding="utf-8")
+                lock = (self.template / f"{name}.lock.yml").read_text(encoding="utf-8")
+                block = re.search(rf"(?ms)^  {job}:\n(.*?)(?=^  \S|\Z)", caller)[1]
+                permissions = re.search(r"(?ms)^    permissions:\n(.*?)(?=^    \S|\Z)", block)[1]
+                ceiling = dict(re.findall(r"(?m)^      ([\w-]+): (none|read|write)(?:\s|$)", permissions))
+                for scope, level in re.findall(
+                        r"(?m)^      ([\w-]+): (none|read|write)(?:\s|$)", lock):
+                    self.assertLessEqual(levels[level], levels[ceiling.get(scope, "none")], scope)
+                self.assertIn("threat-detection:\n    report-as-issue: false", source)
+                self.assertIn("\n  detection:\n", lock)
+                handoff = "handoff_context" if name == "nfv-source-context" else "benchmark_checkpoint"
+                compiled_handoff = re.search(
+                    rf"(?ms)^  {handoff}:\n(.*?)(?=^  \S|\Z)", lock)[1]
+                self.assertIn("needs.detection.result == 'success'", compiled_handoff)
+                self.assertNotRegex(lock, r"(?m)^      issues: write(?:\s|$)")
+
+    def test_safe_output_timeout_does_not_inherit_the_new_slim_default(self):
+        for name in ("nfv-pr-review", "nfv-source-context", "nfv-micro-bench-worker"):
+            with self.subTest(workflow=name):
+                lock = (self.template / f"{name}.lock.yml").read_text(encoding="utf-8")
+                outputs = lock.split("\n  safe_outputs:", 1)[1]
+                self.assertRegex(outputs, r"(?m)^    timeout-minutes: 45$")
 
     def test_trusted_inputs_are_read_only_in_the_sandbox(self):
         source, lock = self.source(), self.lock()
@@ -1469,7 +1502,7 @@ class TemplateTests(unittest.TestCase):
         source, lock = self.source(), self.lock()
         worker = (self.template / "nfv-source-context.md").read_text(encoding="utf-8")
         self.assertIn("uses: ./.github/workflows/nfv-source-context.lock.yml", source)
-        self.assertIn("needs: [admission, repository_context]", source)
+        self.assertIn("needs: [nfv_admission, repository_context]", source)
         self.assertIn("repository_context", lock.split("  agent:", 1)[1].split("steps:", 1)[0])
         self.assertIn("name: nfv-source-context", source)
         self.assertIn("nfv-workflow enrich", source)

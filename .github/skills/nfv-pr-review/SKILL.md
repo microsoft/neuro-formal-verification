@@ -52,7 +52,7 @@ not `COPILOT_GITHUB_TOKEN`, and never falls back to a PAT. NFV releases are publ
 neither mode needs a separate release credential.
 Guide the user through secure token entry; never receive or display token values.
 Create the installation branch, commit and push it, and open a **draft PR**.
-Use gh-aw v0.88.7 and compile both workflows.
+Use gh-aw v1.2.2 and compile both workflows.
 
 Read back `NFV_MODEL`, both installed package pins, required
 secret names, all three billing permissions and workflow state. Report observed

@@ -21,7 +21,7 @@ An approved mode change requires updating all three and recompiling both locks.
 
 ## What must the installation preserve and check?
 
-Use gh-aw v0.88.7 without automatically replacing a client's compiler. Preserve
+Use gh-aw v1.2.2 without automatically replacing a client's compiler. Preserve
 shared gh-aw skills/maintenance files byte-for-byte and existing action pins;
 reject conflicts and unrelated generated changes.
 
@@ -56,9 +56,13 @@ before re-enabling. Leave NFV disabled if pins or read-back cannot be verified.
 Keep NFV out of required merge checks/CI aggregators. Preserve unrelated CI and
 approval protections. Infrastructure failures remain visible, including failing checks.
 
-Compare generated **job-level** permissions with CI allowlists. In gh-aw v0.88.7,
+Compare generated **job-level** permissions with CI allowlists. In gh-aw v1.2.2,
 the reviewer's `safe_outputs` and `conclusion` request `issues: write` and
-`pull-requests: write`; admission needs `contents: read` and `pull-requests: write`.
+`pull-requests: write`; `conclusion` also reads checks. Activation requests
+`issues: write` for blocked-compiler reporting. The `nfv_admission` job needs
+`contents: read` and `pull-requests: write`. Reusable worker callers need
+`actions: read` and `pull-requests: read`, not issue writes; detection tracking
+issues are disabled in those workers while detection remains enabled.
 Approve any job-specific exceptions and update policy tests/docs, or block setup.
 Do not disable policies, hand-edit locks, grant workflow-wide write access or
 grant inference jobs repository/comment writes.

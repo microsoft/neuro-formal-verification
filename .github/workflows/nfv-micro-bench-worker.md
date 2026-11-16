@@ -41,13 +41,16 @@ network:
   allowed: [defaults]
 tools: {}
 safe-outputs:
+  timeout-minutes: 45
+  threat-detection:
+    report-as-issue: false
   github-token: ${{ secrets.GITHUB_TOKEN }}
   activation-comments: false
   report-failure-as-issue: false
   report-failed-jobs: false
-  missing-data:
+  report-missing-data:
     create-issue: false
-  missing-tool:
+  report-missing-tool:
     create-issue: false
   report-incomplete:
     create-issue: false

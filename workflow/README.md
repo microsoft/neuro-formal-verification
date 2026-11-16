@@ -107,6 +107,11 @@ NFV releases are public and need no separate download credential. Inference uses
 the configured Copilot PAT or explicitly approved organization billing; client
 repository access and publication use the job-scoped Actions token.
 
+The workflow sources and generated locks use gh-aw **v1.2.2**. The reusable
+workers keep threat detection enabled without creating detection tracking
+issues; their diagnostics remain in Actions. Compiler maintenance is described
+in the [maintainer guide](MAINTAINER.md#installer-and-workflow-maintenance).
+
 The workflows must exist in the target branch/PR merge ref; installing NFV does
 not add them to older branches.
 

@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 manifest-version: "1"
-min-version: v0.88.7
+min-version: v1.2.2
 name: NFV PR reviewer
 emoji: 🔎
 description: Prototype PR reviewer that refutes a pull request's intended properties with Dafny models (neuro-formal verification).
