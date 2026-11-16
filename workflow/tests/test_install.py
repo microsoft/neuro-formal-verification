@@ -105,10 +105,11 @@ class FakeCLI:
             if rest[0] == "install":
                 self.extension_installed = True
                 return 0, ""
-            return 0, "gh aw\tgithub/gh-aw\tv0.88.7" if self.extension_installed else ""
+            return 0, "gh aw\tgithub/gh-aw\tv1.2.2" if self.extension_installed else ""
         if command == "aw":
             if rest[0] == "version":
-                return 0, "gh aw version " + ("v0.99.0" if self.case.get("wrong_compiler") else "v0.88.7")
+                return 0, "gh aw version " + ("v0.88.7" if self.case.get("wrong_compiler")
+                                             else self.case.get("installed_compiler", "v1.2.2"))
             if rest[0] == "add":
                 self.installed = True
                 for path in (*INSTALL.WORKFLOW_FILES, ".github/aw/actions-lock.json"):
@@ -118,7 +119,7 @@ class FakeCLI:
                     file.parent.mkdir(parents=True, exist_ok=True)
                     pin = "d" * 40 if self.case.get("wrong_package") else RELEASE
                     text = self.source(path, pin) if path in INSTALL.WORKFLOW_FILES else json.dumps(
-                        {"entries": {"github/gh-aw-actions/setup@v0.88.7": {"sha": "c" * 40}}})
+                        {"entries": {"github/gh-aw-actions/setup@v1.2.2": {"sha": "c" * 40}}})
                     file.write_text(text, encoding="utf-8")
                 for path in INSTALL.SHARED_FILES:
                     file = self.root / path
@@ -224,7 +225,8 @@ class FakeCLI:
                     return 1, "HTTP 404: Not Found"
                 pin = "d" * 40 if self.case.get("wrong_package") else RELEASE
                 path = endpoint.split("/contents/", 1)[1].split("?", 1)[0]
-                text = self.source(path, pin)
+                text = (self.case.get("release_installer", 'COMPILER = "v1.2.2"\n')
+                        if path == "workflow/install.py" else self.source(path, pin))
                 return 0, json.dumps({
                     "type": "file", "encoding": "base64",
                     "content": base64.b64encode(text.encode()).decode(),
@@ -347,7 +349,7 @@ class InstallerTests(unittest.TestCase):
             "dirty": "checkout has local changes", "wrong_remote": "origin fetch and push URLs",
             "wrong_push": "origin fetch and push URLs", "wrong_branch": "Start from the target default branch",
             "missing_secret": "Missing COPILOT_GITHUB_TOKEN",
-            "behind": "local default branch differs", "wrong_compiler": "Use gh-aw v0.88.7",
+            "behind": "local default branch differs", "wrong_compiler": "Use gh-aw v1.2.2",
             "existing_install": "NFV files already exist",
         }
         for option, reason in reasons.items():
@@ -419,13 +421,45 @@ class InstallerTests(unittest.TestCase):
     def test_compiler_is_installed_only_when_absent(self):
         error, calls, _ = self.run_case(missing_extension=True)
         self.assertIsNone(error)
-        self.assertIn(["gh", "extension", "install", "github/gh-aw", "--pin", "v0.88.7"], calls)
+        self.assertIn(["gh", "extension", "install", "github/gh-aw", "--pin", "v1.2.2"], calls)
+
+    def test_selected_release_controls_compiler_not_running_installer(self):
+        for missing in (False, True):
+            with self.subTest(missing=missing):
+                error, calls, _ = self.run_case(
+                    release_tag="v0.1.1", release_installer='COMPILER = "v0.88.7"\n',
+                    installed_compiler="v0.88.7", missing_extension=missing)
+                self.assertIsNone(error)
+                self.assertTrue(any(call[-1] == (
+                    f"repos/{INSTALL.PACKAGE}/contents/workflow/install.py?ref={RELEASE}")
+                    for call in calls))
+                installs = [call for call in calls if call[:3] == ["gh", "extension", "install"]]
+                self.assertEqual(installs, [
+                    ["gh", "extension", "install", "github/gh-aw", "--pin", "v0.88.7"]
+                ] if missing else [])
+        error, calls, _ = self.run_case(release_installer='COMPILER = "v0.88.7"\n')
+        self.assertIn("Use gh-aw v0.88.7", error)
+        self.assertFalse(any(call[:2] == ["gh", "aw"] and call[2] != "version" for call in calls))
+
+    def test_invalid_release_compiler_blocks_before_installation(self):
+        for source in ("", 'COMPILER = "latest"\n', 'COMPILER = "v1.2.2"\n' * 2):
+            with self.subTest(source=source):
+                error, calls, _ = self.run_case(release_installer=source, missing_extension=True)
+                self.assertIn("one exact gh-aw compiler pin", error)
+                self.assertFalse(any(call[:2] in (["gh", "aw"], ["gh", "extension"])
+                                     or call[:2] == ["git", "switch"] for call in calls))
+        for record in (None, {}, {"type": "file", "encoding": "base64", "content": "!"},
+                       {"type": "file", "encoding": "base64", "content": "/w=="}):
+            with self.subTest(record=record):
+                installer = INSTALL.Installer(INSTALL.options(["--repository", "owner/project"]))
+                with patch.object(installer, "api", return_value=record), self.assertRaises(INSTALL.InstallError):
+                    installer.release_compiler(RELEASE)
 
     def test_compiler_version_on_stderr_is_accepted_but_a_different_version_is_not(self):
         error, _, _ = self.run_case(version_stderr=True)
         self.assertIsNone(error)
         error, calls, _ = self.run_case(version_stderr=True, wrong_compiler=True)
-        self.assertIn("Use gh-aw v0.88.7", error)
+        self.assertIn("Use gh-aw v1.2.2", error)
         self.assertFalse(any(call[:2] == ["git", "switch"] for call in calls))
 
     def test_shared_assets_and_existing_action_pins_are_preserved(self):
@@ -435,7 +469,7 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual((self.last_root / path).read_bytes(), b"Existing asset with 2-hour schedule\r\n")
         entries = json.loads((self.last_root / INSTALL.ACTION_LOCK).read_text())["entries"]
         self.assertEqual(entries["existing@v1"], {"sha": "b" * 40})
-        self.assertIn("github/gh-aw-actions/setup@v0.88.7", entries)
+        self.assertIn("github/gh-aw-actions/setup@v1.2.2", entries)
 
     def test_shared_assets_are_restored_on_compile_failure_or_pin_conflict(self):
         for case, reason in (({"compile_failure": True}, "Compilation rejected"),
@@ -466,13 +500,16 @@ class InstallerTests(unittest.TestCase):
         installer = INSTALL.Installer(INSTALL.options(["--repository", "owner/project"]))
         for path in (".github/workflows/nfv-pr-review.md",
                      ".github/workflows/nfv-pr-review.lock.yml"):
-            with self.subTest(path=path):
-                source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
-                installer.check_activation_gate(source, path)
-                before, admission = source.split("\n  admission:\n", 1)
-                unsafe = before + "\n  admission:\n" + admission.replace(INSTALL.ACTIVATION_GATE, "true", 1)
-                with self.assertRaisesRegex(INSTALL.InstallError, "activation gate"):
-                    installer.check_activation_gate(unsafe, path)
+            for job in ("nfv_admission", "admission"):
+                with self.subTest(path=path, job=job):
+                    source = (SOURCE.parents[1] / path).read_text(encoding="utf-8")
+                    source = source.replace("nfv_admission", job)
+                    installer.check_activation_gate(source, path)
+                    marker = f"\n  {job}:\n"
+                    before, admission = source.split(marker, 1)
+                    unsafe = before + marker + admission.replace(INSTALL.ACTIVATION_GATE, "true", 1)
+                    with self.assertRaisesRegex(INSTALL.InstallError, "activation gate"):
+                        installer.check_activation_gate(unsafe, path)
 
     def test_missing_or_invalid_compiled_action_lock_is_not_committed(self):
         for existing in (False, True):
@@ -619,12 +656,12 @@ class InstallerTests(unittest.TestCase):
 
     def test_native_runner_combines_version_output_only_when_requested(self):
         installer = INSTALL.Installer(INSTALL.options(["--repository", "owner/project"]))
-        script = "import sys; print('[]'); sys.stderr.write('gh aw version v0.88.7\\n')"
+        script = "import sys; print('[]'); sys.stderr.write('gh aw version v1.2.2\\n')"
         with redirect_stderr(io.StringIO()):
             result = installer.run(sys.executable, "-c", script)
             combined = installer.run(sys.executable, "-c", script, combined_output=True)
         self.assertEqual(json.loads(result), [])
-        self.assertIn("gh aw version v0.88.7", combined)
+        self.assertIn("gh aw version v1.2.2", combined)
 
 
 if __name__ == "__main__":

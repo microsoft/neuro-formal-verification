@@ -18,7 +18,7 @@ from urllib.parse import quote
 
 PACKAGE = "microsoft/neuro-formal-verification"
 WORKFLOW = "nfv-pr-review.lock.yml"
-COMPILER = "v0.88.7"
+COMPILER = "v1.2.2"
 WORKFLOW_FILES = (
     ".github/workflows/nfv-source-context.md",
     ".github/workflows/nfv-source-context.lock.yml",
@@ -160,6 +160,20 @@ class Installer:
             target = record.get("object") if isinstance(record, dict) else None
         raise InstallError(f"Could not resolve NFV release tag {tag} to a full commit SHA.")
 
+    def release_compiler(self, release):
+        record = self.api(f"repos/{PACKAGE}/contents/workflow/install.py?ref={release}")
+        if (not isinstance(record, dict) or record.get("type") != "file"
+                or record.get("encoding") != "base64" or not isinstance(record.get("content"), str)):
+            raise InstallError("Selected NFV release has no captured installer compiler pin.")
+        try:
+            source = base64.b64decode("".join(record["content"].split()), validate=True).decode("utf-8")
+        except ValueError as error:
+            raise InstallError("Selected NFV release installer could not be decoded.") from error
+        versions = re.findall(r'(?m)^COMPILER = "(v[0-9]+\.[0-9]+\.[0-9]+)"\r?$', source)
+        if len(versions) != 1:
+            raise InstallError("Selected NFV release must specify one exact gh-aw compiler pin.")
+        return versions[0]
+
     def runtime_pin(self):
         variables = json.loads(self.run(
             "gh", "variable", "list", "--repo", self.repository, "--json", "name,value"))
@@ -186,7 +200,8 @@ class Installer:
             conditions = re.findall(r"(?m)^(?:    )?if: (.*)$", frontmatter)
             expected = 1
             if path.endswith("nfv-pr-review.md"):
-                expected = 3 if "\n  admission:\n" in frontmatter else 2
+                expected = 3 if any(f"\n  {job}:\n" in frontmatter
+                                    for job in ("nfv_admission", "admission")) else 2
             if len(conditions) != expected or any(
                     condition != ACTIVATION_GATE and not condition.startswith(ACTIVATION_GATE + " && ")
                     for condition in conditions):
@@ -195,8 +210,8 @@ class Installer:
             activation = "pre_activation" if "\n  pre_activation:\n" in source else "activation"
             jobs = [activation]
             if path.endswith(WORKFLOW):
-                if "\n  admission:\n" in source:
-                    jobs.append("admission")
+                jobs.extend(job for job in ("nfv_admission", "admission")
+                            if f"\n  {job}:\n" in source)
                 jobs.append("repository_context")
             for job in jobs:
                 block = re.search(rf"(?ms)^  {job}:\n(.*?)(?=^  \S|\Z)", source)
@@ -373,11 +388,12 @@ class Installer:
         self.check_secret_names(self.args.billing)
         self.require_inert_bootstrap()
         release = self.resolve_release()
+        compiler = self.release_compiler(release)
         if not re.search(r"github/gh-aw(?:\s|$)", self.run("gh", "extension", "list")):
-            self.run("gh", "extension", "install", "github/gh-aw", "--pin", COMPILER)
+            self.run("gh", "extension", "install", "github/gh-aw", "--pin", compiler)
         version = self.run("gh", "aw", "version", combined_output=True)
-        if re.findall(r"(?m)^gh aw version (v[^\s]+)", version) != [COMPILER]:
-            raise InstallError(f"Use gh-aw {COMPILER}. The installer will not replace a different installed compiler.")
+        if re.findall(r"(?m)^gh aw version (v[^\s]+)", version) != [compiler]:
+            raise InstallError(f"Use gh-aw {compiler}. The installer will not replace a different installed compiler.")
         self.run("git", "fetch", "origin", default_branch)
         base = self.run("git", "rev-parse", "FETCH_HEAD")
         if self.run("git", "rev-parse", "HEAD") != base:

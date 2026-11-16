@@ -24,13 +24,16 @@ network:
 tools:
   edit:
 safe-outputs:
+  timeout-minutes: 45
+  threat-detection:
+    report-as-issue: false
   # Publication must not inherit a shared GH_AW_GITHUB_TOKEN override.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   noop:
     report-as-issue: false
-  missing-data:
+  report-missing-data:
     create-issue: false
-  missing-tool:
+  report-missing-tool:
     create-issue: false
   report-incomplete:
     create-issue: false

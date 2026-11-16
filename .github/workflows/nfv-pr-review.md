@@ -46,7 +46,7 @@ concurrency:
   group: nfv-pr-review-${{ github.repository }}-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 jobs:
-  admission:
+  nfv_admission:
     needs: [activation]
     if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review')
     runs-on: ubuntu-latest
@@ -72,11 +72,11 @@ jobs:
           PYTHONPATH: nfv-plugin/workflow/src
         run: python -m nfv_workflow.admission
   repository_context:
-    needs: [admission]
-    if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review') && needs.admission.outputs.admitted == 'true'
+    needs: [nfv_admission]
+    if: vars.NFV_RELEASE_SHA != '' && github.event.pull_request.draft == false && (github.event.action == 'opened' || github.event.action == 'ready_for_review') && needs.nfv_admission.outputs.admitted == 'true'
     permissions:
-      # gh-aw uses this only to mark an incomplete workflow run failed.
-      actions: write
+      # Required by the reusable workflow's trusted runtime diagnostics.
+      actions: read
       contents: read
       issues: read
       pull-requests: read
@@ -84,11 +84,12 @@ jobs:
     uses: ./.github/workflows/nfv-source-context.lock.yml
     secrets: inherit
   agent:
-    needs: [admission, repository_context]
+    needs: [nfv_admission, repository_context]
 network:
   allowed: [defaults, arxiv.org]
 tools: {}
 safe-outputs:
+  timeout-minutes: 45
   # Publication must not inherit a shared GH_AW_GITHUB_TOKEN override.
   github-token: ${{ secrets.GITHUB_TOKEN }}
   add-comment:
@@ -155,6 +156,13 @@ steps:
       NFV_PROPERTY_SECONDS: ${{ vars.NFV_PROPERTY_SECONDS }}
       NFV_SIMPLIFY_REFUTATIONS: ${{ vars.NFV_SIMPLIFY_REFUTATIONS || 'true' }}
       NFV_CHECK_FIXES: ${{ vars.NFV_CHECK_FIXES || 'true' }}
+      EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      EXPR_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      EXPR_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      EXPR_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+      EXPR_GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+      EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
+      EXPR_VARS_NFV_RELEASE_SHA: ${{ vars.NFV_RELEASE_SHA }}
     run: |
       set -euo pipefail
       bundle="$RUNNER_TEMP/gh-aw/nfv/bundle.json"
@@ -204,13 +212,13 @@ steps:
         echo "NFV_CHECK_FIXES=$NFV_CHECK_FIXES"
         echo "NFV_OUT=/tmp/gh-aw/sandbox/agent/logs/nfv"
         echo "NFV_PYTHON=$(command -v python)"
-        echo "NFV_SUMMARY_REPOSITORY_ID=${{ github.repository_id }}"
-        echo "NFV_SUMMARY_RUN_ID=${{ github.run_id }}"
-        echo "NFV_SUMMARY_RUN_ATTEMPT=${{ github.run_attempt }}"
-        echo "NFV_SUMMARY_PR_NUMBER=${{ github.event.pull_request.number }}"
-        echo "NFV_SUMMARY_HEAD_SHA=${{ github.event.pull_request.head.sha }}"
-        echo "NFV_SUMMARY_BASE_SHA=${{ github.event.pull_request.base.sha }}"
-        echo "NFV_SUMMARY_RELEASE_SHA=${{ vars.NFV_RELEASE_SHA }}"
+        echo "NFV_SUMMARY_REPOSITORY_ID=$EXPR_GITHUB_REPOSITORY_ID"
+        echo "NFV_SUMMARY_RUN_ID=$EXPR_GITHUB_RUN_ID"
+        echo "NFV_SUMMARY_RUN_ATTEMPT=$EXPR_GITHUB_RUN_ATTEMPT"
+        echo "NFV_SUMMARY_PR_NUMBER=$EXPR_GITHUB_EVENT_PULL_REQUEST_NUMBER"
+        echo "NFV_SUMMARY_HEAD_SHA=$EXPR_GITHUB_EVENT_PULL_REQUEST_HEAD_SHA"
+        echo "NFV_SUMMARY_BASE_SHA=$EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA"
+        echo "NFV_SUMMARY_RELEASE_SHA=$EXPR_VARS_NFV_RELEASE_SHA"
       } >> "$GITHUB_ENV"
 post-steps:
   - name: Retain summaries-only dashboard metadata

@@ -40,7 +40,7 @@ for variables, and [PRIVACY](../PRIVACY) for data handling.
    Replace the repository and model; change billing only if approved. You may
    name an explicit published stable release tag instead of `latest stable`.
    The agent follows [release selection](#select-a-release), uses the selected
-   release's `workflow/install.py --ref <SHA>` and gh-aw v0.88.7,
+   release's `workflow/install.py --ref <SHA>` and its required gh-aw version,
    sets `NFV_MODEL` and opens a **draft installation PR**.
    Keep it draft until both source/compiled inference gates and an unset
    `NFV_RELEASE_SHA` are verified. Leave that variable unset through marking
@@ -68,7 +68,8 @@ secrets, budgets and local customizations.
 Follow [release selection](#select-a-release), then replace the package with
 `gh aw add microsoft/neuro-formal-verification/workflow@<SHA> --force`, reapply
 the approved billing permissions, compile both workflows and open an upgrade PR.
-Use gh-aw v0.88.7 and the same [installation checks](FAQ.md#what-must-the-installation-preserve-and-check).
+Use the selected release's required gh-aw version and the same
+[installation checks](FAQ.md#what-must-the-installation-preserve-and-check).
 
 After the approved merge, verify both installed package pins on the client's
 default branch agree. Update and read back `NFV_RELEASE_SHA` **before** enabling
@@ -94,6 +95,9 @@ the default branch, `HEAD` or a moving `latest` ref.
 Show the selected **version tag and resolved SHA** before installation or upgrade.
 Read the installer and release-specific guidance from that SHA, and pass the
 literal SHA explicitly to the installer (`--ref <SHA>`) or package command.
+Use its `workflow/install.py` `COMPILER` pin, not the current development pin:
+NFV v0.1.1 uses gh-aw v0.88.7; the development workflows use v1.2.2.
+Do not silently replace a different installed compiler.
 This also works with older released installers whose omitted `--ref` defaults
 to a branch tip. Keep this release-selection policy when using older copied
 skills or instructions. Pin both workflow packages and, after merged-pin

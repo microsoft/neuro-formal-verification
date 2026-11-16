@@ -181,7 +181,7 @@ under `workflow/tests/.general-scratch/`; never commit them.
 - Edit either `.github/workflows/nfv-pr-review.md` or `nfv-source-context.md`,
   then recompile the affected workflow and commit both the
   `.md` and `.lock.yml`, plus `.github/aw/actions-lock.json` if it changes:
-  `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v0.88.7).
+  `gh aw compile nfv-pr-review --approve` (locks are built with gh aw v1.2.2).
 - Reviews start on non-draft `opened` and `ready_for_review` events targeting any
   branch in the onboarded repository from same-repository branches only.
   Fork PRs are skipped before admission or inference. The `pull_request`
