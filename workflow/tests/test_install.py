@@ -190,8 +190,33 @@ class FakeCLI:
                 return 0, json.dumps({"value": "d" * 40 if self.case.get("wrong_pin") else RELEASE})
             if "/actions/workflows/" in endpoint:
                 return 0, json.dumps({"state": self.state})
+            if "/releases/" in endpoint:
+                if self.case.get("missing_release"):
+                    return 1, "HTTP 404: No published stable release"
+                return 0, json.dumps({
+                    "tag_name": self.case.get("release_tag", "v0.1.0"),
+                    "draft": self.case.get("draft_release", False),
+                    "prerelease": self.case.get("prerelease", False),
+                    "target_commitish": "dev",
+                })
+            if "/git/ref/tags/" in endpoint:
+                if self.case.get("missing_tag"):
+                    return 1, "HTTP 404: Tag not found"
+                annotated = self.case.get("annotated_tag") or self.case.get("tag_cycle")
+                return 0, json.dumps({
+                    "ref": "refs/tags/" + self.case.get("release_tag", "v0.1.0"),
+                    "object": {"type": "tag" if annotated else "commit",
+                               "sha": "c" * 40 if annotated else self.case.get("release_sha", RELEASE)},
+                })
+            if "/git/tags/" in endpoint:
+                nested = self.case.get("nested_tag") and endpoint.endswith("c" * 40)
+                cycle = self.case.get("tag_cycle")
+                return 0, json.dumps({"object": {
+                    "type": "tag" if nested or cycle else self.case.get("tag_type", "commit"),
+                    "sha": "c" * 40 if cycle else "d" * 40 if nested else self.case.get("release_sha", RELEASE),
+                }})
             if "/commits/" in endpoint:
-                return 0, json.dumps({"sha": RELEASE})
+                return 0, json.dumps({"sha": self.case.get("release_sha", RELEASE)})
             if "/compare/" in endpoint:
                 return 0, json.dumps({"status": "diverged" if self.case.get("detached_merge") else "ahead"})
             if "/contents/" in endpoint:
@@ -210,6 +235,7 @@ class FakeCLI:
 class InstallerTests(unittest.TestCase):
     def run_case(self, phase="install", **case):
         trusted_ref = case.pop("trusted_ref", None)
+        release_tag = case.pop("selected_release", None)
         model = case.pop("model", "approved-model")
         billing = case.pop("billing", None)
         root = Path(__file__).parent / ".general-scratch" / uuid.uuid4().hex
@@ -239,6 +265,8 @@ class InstallerTests(unittest.TestCase):
                      "--pull-request", "7"]
         if trusted_ref is not None:
             argv += ["--ref", trusted_ref]
+        if release_tag is not None:
+            argv += ["--release", release_tag]
         if billing is not None:
             argv += ["--billing", billing]
         installer = INSTALL.Installer(INSTALL.options(argv))
@@ -257,11 +285,13 @@ class InstallerTests(unittest.TestCase):
         return error, fake.calls, stdout.getvalue()
 
     def test_install_pins_compiles_and_creates_only_a_guarded_draft(self):
-        error, calls, _ = self.run_case()
+        error, calls, output = self.run_case()
         self.assertIsNone(error)
         self.assertIn(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}"], calls)
         self.assertIn(["gh", "aw", "compile", "nfv-source-context", "nfv-pr-review", "--approve"], calls)
-        self.assertEqual(sum("/commits/HEAD" in " ".join(call) for call in calls), 1)
+        self.assertIn(f"NFV stable release: v0.1.0 -> {RELEASE}", output)
+        self.assertEqual(sum("/releases/latest" in " ".join(call) for call in calls), 1)
+        self.assertFalse(any(f"repos/{INSTALL.PACKAGE}/commits/" in call[-1] for call in calls))
         self.assertIn("--draft", next(call for call in calls if call[:3] == ["gh", "pr", "create"]))
         for name, value in (("NFV_MODEL", "approved-model"),):
             self.assertIn(["gh", "variable", "set", name, "--repo", "owner/project", "--body", value], calls)
@@ -327,7 +357,7 @@ class InstallerTests(unittest.TestCase):
                 self.assertFalse(any(call[0] == "git" and call[1] in ("switch", "add", "commit", "push")
                                      or call[:3] == ["gh", "variable", "set"] for call in calls))
 
-    def test_explicit_trusted_revision_overrides_default_branch(self):
+    def test_explicit_trusted_revision_bypasses_release_selection(self):
         for ref, encoded in (("release/candidate", "release%2Fcandidate"), ("b" * 40, "b" * 40)):
             with self.subTest(ref=ref):
                 error, calls, _ = self.run_case(trusted_ref=ref)
@@ -336,6 +366,55 @@ class InstallerTests(unittest.TestCase):
                                and f"repos/{INSTALL.PACKAGE}/commits/" in call[-1]]
                 self.assertEqual([f"repos/{INSTALL.PACKAGE}/commits/{encoded}"], resolutions)
                 self.assertIn(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}"], calls)
+                self.assertFalse(any("/releases/" in call[-1] for call in calls))
+
+    def test_explicit_stable_release_uses_exact_tag_not_latest_or_target_branch(self):
+        error, calls, output = self.run_case(selected_release="stable/1.0", release_tag="stable/1.0")
+        self.assertIsNone(error)
+        for endpoint in ("releases/tags/stable%2F1.0", "git/ref/tags/stable%2F1.0"):
+            self.assertTrue(any(call[-1] == f"repos/{INSTALL.PACKAGE}/{endpoint}" for call in calls))
+        self.assertIn(f"stable/1.0 -> {RELEASE}", output)
+        self.assertFalse(any("/releases/latest" in call[-1] or "/commits/" in call[-1] for call in calls))
+
+    def test_annotated_release_tags_are_peeled_to_commit(self):
+        for nested in (False, True):
+            with self.subTest(nested=nested):
+                error, calls, output = self.run_case(annotated_tag=True, nested_tag=nested)
+                self.assertIsNone(error)
+                self.assertIn(f"v0.1.0 -> {RELEASE}", output)
+                self.assertIn(["gh", "aw", "add", f"{INSTALL.PACKAGE}/workflow@{RELEASE}"], calls)
+                self.assertEqual(sum("/git/tags/" in call[-1] for call in calls), 2 if nested else 1)
+
+    def test_invalid_or_unavailable_stable_release_never_falls_back_or_installs(self):
+        for case, reason in (
+            ({"missing_release": True}, "No published stable release"),
+            ({"draft_release": True}, "published stable"),
+            ({"prerelease": True}, "published stable"),
+            ({"release_tag": ""}, "exact tag"),
+            ({"selected_release": "v9", "release_tag": "v0.1.0"}, "exact tag"),
+            ({"missing_tag": True}, "Tag not found"),
+            ({"release_sha": "abc"}, "full commit SHA"),
+            ({"annotated_tag": True, "tag_type": "tree"}, "full commit SHA"),
+            ({"tag_cycle": True}, "full commit SHA"),
+            ({"trusted_ref": "bad", "release_sha": None}, "immutable NFV revision"),
+        ):
+            with self.subTest(case=case):
+                error, calls, _ = self.run_case(**case)
+                self.assertIn(reason, error)
+                self.assertFalse(any(call[:2] == ["gh", "aw"] or call[:2] == ["git", "switch"]
+                                     or call[:3] == ["gh", "variable", "set"] for call in calls))
+                if "trusted_ref" not in case:
+                    self.assertFalse(any(f"repos/{INSTALL.PACKAGE}/commits/" in call[-1] for call in calls))
+
+    def test_malformed_release_and_tag_records_fail_explicitly(self):
+        release = {"draft": False, "prerelease": False, "tag_name": "v1"}
+        reference = {"ref": "refs/tags/v1", "object": {"type": "tag", "sha": RELEASE}}
+        for records in ([None], [release, []], [release, {"ref": "refs/tags/v1"}],
+                        [release, reference, None]):
+            with self.subTest(records=records):
+                installer = INSTALL.Installer(INSTALL.options(["--repository", "owner/project"]))
+                with patch.object(installer, "api", side_effect=records), self.assertRaises(INSTALL.InstallError):
+                    installer.resolve_release()
 
     def test_compiler_is_installed_only_when_absent(self):
         error, calls, _ = self.run_case(missing_extension=True)
@@ -523,6 +602,9 @@ class InstallerTests(unittest.TestCase):
             ["--repository", "owner/project", "--enable-after-merge", "--pull-request", "7",
              "--billing", "organization"],
             ["--repository", "owner/project", "--billing", "automatic"],
+            ["--repository", "owner/project", "--release", "v0.1.0", "--ref", "HEAD"],
+            ["--repository", "owner/project", "--release", ""],
+            ["--repository", "owner/project", "--ref", ""],
         ):
             with self.subTest(argv=argv), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
                 INSTALL.options(argv)

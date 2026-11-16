@@ -163,6 +163,11 @@ under `workflow/tests/.general-scratch/`; never commit them.
   Keep its offline tests in `workflow/tests/test_install.py`
   aligned with the draft/gate/post-merge bootstrap rules. Never run the
   installer against a live client repository just to test changes.
+- Installation and upgrades select the latest published stable NFV release
+  unless an explicit published stable tag is requested. Follow
+  [release selection](workflow/ONBOARDING.md#select-a-release); resolve the exact
+  tag once to a full commit SHA, show version/SHA and pass that SHA explicitly
+  to older installers. Never silently substitute a development/default-branch tip.
 - Client bootstrap: never run NFV against its own initial installation PR or
   require an NFV check for it. Keep that PR draft until both source/compiled
   inference gates are verified and `NFV_RELEASE_SHA` is confirmed unset; leave
