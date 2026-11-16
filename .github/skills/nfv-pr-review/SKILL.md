@@ -43,8 +43,14 @@ its setup and verification checks. If this skill was copied, retrieve
 installation procedure here.
 
 Confirm the target repository. Use `gpt-5.6-sol` unless the user approves another
-model; confirm the account has access. Default to the latest commit on NFV's
-default branch, resolved once for both the package and runtime.
+model; confirm the account has access. Follow the onboarding guide's
+[release selection](../../../workflow/ONBOARDING.md#select-a-release): default
+to the latest published stable release, or an explicit published stable tag.
+Resolve its exact tag (including annotated tags) once to a full commit SHA,
+show both version and SHA, and use that SHA for the package and runtime.
+Missing/invalid releases or tags block setup; never substitute a branch tip.
+Pass `--ref <SHA>` explicitly even with older released installers, and retain
+this policy if older release guidance defaults to `HEAD`.
 Keep PAT billing as the default. Use installer `--billing organization` only
 when explicitly approved for an organization-owned target with the CLI billing
 policy and selected model allowed. That mode uses the Actions token for inference,
@@ -75,7 +81,8 @@ generated comment and completed native evidence rather than a green job alone.
 Follow the [onboarding guide's upgrade section](../../../workflow/ONBOARDING.md#upgrade-an-existing-installation).
 Pause new reviews, wait for active/queued runs to finish and keep the model,
 billing mode, secrets and budgets. Update the package and runtime together,
-verify merged configuration, then re-enable and check a separately approved pilot.
+using the same release-selection policy as installation; verify merged
+configuration, then re-enable and check a separately approved pilot.
 For the post-merge client handoff, inspect both installed package pins on the
 client's default branch and confirm the same full 40-character SHA. Print
 copy/paste-ready `gh variable set NFV_RELEASE_SHA` and `gh variable get

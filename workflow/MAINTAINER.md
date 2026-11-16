@@ -16,6 +16,12 @@ The Linux-first [installer](install.py) needs Python 3.10+, Git and authenticate
 python install.py --help
 ```
 
+The installer defaults to the latest published stable release; `--release TAG`
+selects an explicit stable release. `--ref` remains an explicit trusted-revision
+override, not the default. Client setup follows the single
+[release-selection policy](ONBOARDING.md#select-a-release), passing the resolved
+SHA explicitly for compatibility with older released installers.
+
 Use **gh-aw v0.88.7**. After editing either workflow, compile it and retain the
 source, compiled lock and changed package/action records under `.github/aw/`:
 

@@ -102,6 +102,8 @@ Not every refutation includes a model-checked candidate fix.
 ![Annotated P1 verification: intended property, verified model outcome, quoted intention, assumptions, environment models and complete checked postcondition](images/nfv-report-verification.png)
 
 **Installation:** [Onboarding](ONBOARDING.md).
+Installation and upgrades default to the latest published stable NFV release,
+resolved once to an immutable commit SHA.
 
 NFV releases are public and need no separate download credential. Inference uses
 the configured Copilot PAT or explicitly approved organization billing; client
