@@ -702,6 +702,24 @@ class BenchmarkTests(unittest.TestCase):
         with self.assertRaises(Abstain):
             benchmark.credit_usage(self.directory / "usage", 1)
 
+    def test_single_downloaded_usage_artifact_can_be_flattened(self):
+        artifact = self.write_credit_usage()
+        expected = benchmark.credit_usage(artifact.parent, 1)
+        usage = artifact.parent
+        for stage in ("agent", "detection"):
+            shutil.move(str(artifact / stage), str(usage / stage))
+        artifact.rmdir()
+        self.assertEqual(benchmark.credit_usage(usage, 1), expected)
+        partial = benchmark.credit_usage(usage, 2)
+        self.assertFalse(partial["complete"])
+        self.assertEqual(partial["shards_observed"], 1)
+        self.assertIsNone(partial["total"])
+        (usage / "detection" / "token_usage.jsonl").unlink()
+        self.assertIsNone(benchmark.credit_usage(usage, 1)["threat_detection"])
+        self.write_credit_usage(1)
+        with self.assertRaisesRegex(Abstain, "Mixed flattened and named"):
+            benchmark.credit_usage(usage, 2)
+
     def test_missing_credit_fields_and_shards_are_unavailable_not_zero(self):
         self.write_credit_usage(inference=(None,))
         credits = benchmark.credit_usage(self.directory / "usage", 1)

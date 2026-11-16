@@ -179,6 +179,10 @@ changing predictions, acceptance or completion:
 python -m nfv_workflow.benchmark account --summary <saved-summary.json> --usage <downloaded-usage-artifacts> --out <accounting-directory>
 ```
 
+Usage accounting accepts named `*-usage` artifact directories or the flattened
+contents produced when `download-artifact` matches exactly one artifact.
+Do not mix these layouts in one accounting directory.
+
 Workers checkpoint after each entry. Evidence uploads get two bounded attempts;
 the trusted publisher can recover a matching native checkpoint from the main
 agent artifact. Recovered shards are identified and never double-counted.

@@ -263,6 +263,11 @@ def worker(payload_path, output):
 def credit_usage(directory, shards):
     """Sum per-response proxy credits, never cumulative counters or cache snapshots."""
     artifacts = sorted(path for path in Path(directory).glob("*-usage") if path.is_dir())
+    # download-artifact flattens a single match even with merge-multiple disabled.
+    if any((Path(directory) / stage).is_dir() for stage in ("agent", "detection")):
+        if artifacts:
+            raise Abstain("Mixed flattened and named benchmark credit-accounting artifacts")
+        artifacts = [Path(directory)]
     if len(artifacts) > shards:
         raise Abstain("Too many benchmark credit-accounting artifacts")
     values = {"inference": [], "threat_detection": []}
