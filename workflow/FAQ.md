@@ -21,7 +21,8 @@ An approved mode change requires updating all three and recompiling both locks.
 
 ## What must the installation preserve and check?
 
-Use gh-aw v1.2.2 without automatically replacing a client's compiler. Preserve
+Use the [selected release's compiler pin](ONBOARDING.md#select-a-release),
+without automatically replacing a client's compiler. Preserve
 shared gh-aw skills/maintenance files byte-for-byte and existing action pins;
 reject conflicts and unrelated generated changes.
 

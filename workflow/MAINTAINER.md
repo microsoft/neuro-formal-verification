@@ -16,7 +16,18 @@ The Linux-first [installer](install.py) needs Python 3.10+, Git and authenticate
 python install.py --help
 ```
 
-Use **gh-aw v1.2.2**. After editing either workflow, compile it and retain the
+The installer defaults to the latest published stable release; `--release TAG`
+selects an explicit stable release. `--ref` remains an explicit trusted-revision
+override, not the default. Client setup follows the single
+[release-selection policy](ONBOARDING.md#select-a-release), passing the resolved
+SHA explicitly for compatibility with older released installers.
+The installer reads the compiler pin as data from the selected immutable
+release's installer; it never executes that captured source or falls back to
+the development pin if it is unavailable or invalid.
+
+Use **gh-aw v1.2.2** for this checkout's workflows. Client installation uses
+the compiler pinned in the selected release, not this development version.
+After editing either workflow, compile it and retain the
 source, compiled lock and changed package/action records under `.github/aw/`:
 
 ```text

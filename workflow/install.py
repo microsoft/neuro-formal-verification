@@ -74,7 +74,10 @@ def options(argv=None):
     parser.add_argument("--model", help="Approved Copilot model ID (installation default: gpt-5.6-sol)")
     parser.add_argument("--billing", choices=("pat", "organization"),
                         help="Inference billing (installation default: pat; organization requires an enabled org policy)")
-    parser.add_argument("--ref", default="HEAD", help="Trusted NFV ref (default: latest commit on NFV's default branch)")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--release", metavar="TAG",
+                           help="Published stable NFV release tag (default: GitHub's latest stable release)")
+    selection.add_argument("--ref", help="Explicit trusted NFV revision override; use the resolved release SHA for onboarding")
     phase = parser.add_mutually_exclusive_group()
     phase.add_argument("--verify-bootstrap", action="store_true", help="Verify inference stays gated off for the draft installation PR")
     phase.add_argument("--enable-after-merge", action="store_true", help="Enable NFV after the installation PR merges")
@@ -92,8 +95,10 @@ def options(argv=None):
             args.model = "gpt-5.6-sol"
         if not re.fullmatch(MODEL, args.model) or args.pull_request:
             parser.error("Installation requires a valid --model, without --pull-request")
-    if not args.ref or any(ord(char) < 32 for char in args.ref):
-        parser.error("--ref must be a nonempty trusted NFV revision")
+    for name in ("ref", "release"):
+        value = getattr(args, name)
+        if value is not None and (not value or any(ord(char) < 32 for char in value)):
+            parser.error(f"--{name} must be nonempty and contain no control characters")
     return args
 
 
@@ -116,6 +121,58 @@ class Installer:
 
     def api(self, endpoint):
         return json.loads(self.run("gh", "api", "--hostname", "github.com", endpoint))
+
+    def resolve_release(self):
+        if self.args.ref is not None:
+            record = self.api(f"repos/{PACKAGE}/commits/{quote(self.args.ref, safe='')}")
+            release = record.get("sha") if isinstance(record, dict) else None
+            if not isinstance(release, str) or not re.fullmatch(SHA, release):
+                raise InstallError("Could not resolve an immutable NFV revision.")
+            print(f"NFV explicit revision: {self.args.ref} -> {release}")
+            return release
+        endpoint = (f"tags/{quote(self.args.release, safe='')}"
+                    if self.args.release is not None else "latest")
+        record = self.api(f"repos/{PACKAGE}/releases/{endpoint}")
+        if not isinstance(record, dict):
+            raise InstallError("Expected a published stable NFV release record.")
+        tag = record.get("tag_name")
+        if (record.get("draft") is not False or record.get("prerelease") is not False
+                or not isinstance(tag, str) or not tag or any(ord(char) < 32 for char in tag)
+                or self.args.release is not None and tag != self.args.release):
+            raise InstallError("Expected a published stable NFV release with an exact tag.")
+        encoded = quote(tag, safe="")
+        reference = self.api(f"repos/{PACKAGE}/git/ref/tags/{encoded}")
+        if not isinstance(reference, dict) or reference.get("ref") != f"refs/tags/{tag}":
+            raise InstallError(f"NFV release tag is missing or mismatched: {tag}")
+        target = reference.get("object")
+        seen = set()
+        while isinstance(target, dict):
+            sha, kind = target.get("sha"), target.get("type")
+            if not isinstance(sha, str) or not re.fullmatch(SHA, sha):
+                break
+            if kind == "commit":
+                print(f"NFV stable release: {tag} -> {sha}")
+                return sha
+            if kind != "tag" or sha in seen or len(seen) >= 16:
+                break
+            seen.add(sha)
+            record = self.api(f"repos/{PACKAGE}/git/tags/{sha}")
+            target = record.get("object") if isinstance(record, dict) else None
+        raise InstallError(f"Could not resolve NFV release tag {tag} to a full commit SHA.")
+
+    def release_compiler(self, release):
+        record = self.api(f"repos/{PACKAGE}/contents/workflow/install.py?ref={release}")
+        if (not isinstance(record, dict) or record.get("type") != "file"
+                or record.get("encoding") != "base64" or not isinstance(record.get("content"), str)):
+            raise InstallError("Selected NFV release has no captured installer compiler pin.")
+        try:
+            source = base64.b64decode("".join(record["content"].split()), validate=True).decode("utf-8")
+        except ValueError as error:
+            raise InstallError("Selected NFV release installer could not be decoded.") from error
+        versions = re.findall(r'(?m)^COMPILER = "(v[0-9]+\.[0-9]+\.[0-9]+)"\r?$', source)
+        if len(versions) != 1:
+            raise InstallError("Selected NFV release must specify one exact gh-aw compiler pin.")
+        return versions[0]
 
     def runtime_pin(self):
         variables = json.loads(self.run(
@@ -330,14 +387,13 @@ class Installer:
             raise InstallError("NFV files already exist. Use the documented upgrade procedure instead.")
         self.check_secret_names(self.args.billing)
         self.require_inert_bootstrap()
-        release = self.api(f"repos/{PACKAGE}/commits/{quote(self.args.ref, safe='')}")["sha"]
-        if not re.fullmatch(SHA, release):
-            raise InstallError("Could not resolve an immutable NFV release.")
+        release = self.resolve_release()
+        compiler = self.release_compiler(release)
         if not re.search(r"github/gh-aw(?:\s|$)", self.run("gh", "extension", "list")):
-            self.run("gh", "extension", "install", "github/gh-aw", "--pin", COMPILER)
+            self.run("gh", "extension", "install", "github/gh-aw", "--pin", compiler)
         version = self.run("gh", "aw", "version", combined_output=True)
-        if re.findall(r"(?m)^gh aw version (v[^\s]+)", version) != [COMPILER]:
-            raise InstallError(f"Use gh-aw {COMPILER}. The installer will not replace a different installed compiler.")
+        if re.findall(r"(?m)^gh aw version (v[^\s]+)", version) != [compiler]:
+            raise InstallError(f"Use gh-aw {compiler}. The installer will not replace a different installed compiler.")
         self.run("git", "fetch", "origin", default_branch)
         base = self.run("git", "rev-parse", "FETCH_HEAD")
         if self.run("git", "rev-parse", "HEAD") != base:

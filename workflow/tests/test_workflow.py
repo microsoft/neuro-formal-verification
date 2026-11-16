@@ -1197,6 +1197,23 @@ class TemplateTests(unittest.TestCase):
         self.assertNotIn("REFERENCE.md#upgrade-an-existing-installation", onboarding)
         self.assertIn("REFERENCE.md#configure-github-agentic-workflows", onboarding)
 
+    def test_onboarding_and_copied_skill_keep_release_selection_immutable(self):
+        onboarding = (self.package / "ONBOARDING.md").read_text(encoding="utf-8")
+        skill = (self.package.parent / ".github" / "skills" / "nfv-pr-review" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("NFV release: latest stable", onboarding)
+        for value in ("releases/latest", "releases/tags/<TAG>", "git/ref/tags/<TAG>",
+                      "git/tags/<OBJECT_SHA>", "`draft: false`", "`prerelease: false`",
+                      "`target_commitish`", "`--ref <SHA>`", "version tag and resolved SHA"):
+            self.assertIn(value, onboarding)
+        for source in (onboarding, skill):
+            self.assertNotIn("latest commit on NFV's", source)
+            self.assertIn("older", source)
+            self.assertIn("--ref <SHA>", source)
+        self.assertIn("ONBOARDING.md#select-a-release", skill)
+        self.assertIn("NFV v0.1.1 uses gh-aw v0.88.7", onboarding)
+        for source in (onboarding, skill):
+            self.assertIn("`COMPILER` pin", source)
+
     def test_aw_package_installs_the_template(self):
         manifest = (self.package / "aw.yml").read_text(encoding="utf-8")
         self.assertIn('manifest-version: "1"', manifest)
