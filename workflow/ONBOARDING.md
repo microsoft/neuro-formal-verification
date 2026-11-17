@@ -7,8 +7,9 @@ Already installed? Use [upgrades](#upgrade-an-existing-installation).
 See [FAQ](FAQ.md) for access and troubleshooting, [configuration](REFERENCE.md#configure-github-agentic-workflows)
 for variables, and [PRIVACY](../PRIVACY) for data handling.
 
-1. **Prepare.** Install Git, GitHub CLI, Copilot CLI and Python 3.10+.
-   Authenticate both CLIs and choose an approved model available to your account.
+1. **Prepare.** Install Git, GitHub CLI and Python 3.10+.
+   Authenticate GitHub CLI and choose an approved Copilot model available to your account.
+   Use any coding agent (e.g. Copilot CLI).
    Start in a clean checkout of the target repository's default branch, with
    permission to manage Actions, secrets and variables. NFV releases are publicly
    downloadable; no separate release credential is needed.
@@ -25,7 +26,7 @@ for variables, and [PRIVACY](../PRIVACY) for data handling.
 
    Skip the inference PAT in organization mode. Do not paste token values into chat.
 
-3. **Install.** Start `copilot` in the target checkout and paste:
+3. **Install.** Open your coding agent in the target checkout and paste:
 
    ```text
    Install NFV following:
