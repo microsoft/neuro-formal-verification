@@ -866,9 +866,14 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("2026-11-13 UTC", labels)
         self.assertIn(summary["run"]["model"], labels)
         self.assertIn("Accuracy: 72.82%", labels)
-        self.assertIn("Decisive accuracy: 93.75%", labels)
-        self.assertIn("Coverage: 77.67%", labels)
-        self.assertIn("Model-conditional", labels)
+        self.assertIn("Precision (decisive accuracy): 93.75%", labels)
+        self.assertNotIn("Coverage", labels)
+        displayed = root.findall("{http://www.w3.org/2000/svg}text")
+        self.assertEqual(len(displayed), 3)
+        self.assertEqual(displayed[-1].text,
+                         "Accuracy: 72.82%    Precision (decisive accuracy): 93.75%")
+        self.assertNotIn("Model-conditional", labels)
+        self.assertEqual(root.attrib["viewBox"], "0 0 800 112")
         self.assertEqual(len(root.findall(".//{http://www.w3.org/2000/svg}script")), 0)
         self.assertIn("&lt;script&gt;", first.decode())
         self.assertEqual((api.discussions, api.comments, api.mutations), original)
@@ -922,7 +927,7 @@ class BenchmarkTests(unittest.TestCase):
         summary.update(completed=True, evaluated=206, errors=[])
         benchmark.publish(summary, api, REPO, "General")
         benchmark.benchmark_card(api, REPO, target)
-        self.assertIn("Decisive accuracy: N/A", target.read_text())
+        self.assertIn("Precision (decisive accuracy): N/A", target.read_text())
         original = target.read_bytes()
         api.comments["discussion-1"][-1]["author"] = {"login": "human", "__typename": "User"}
         with self.assertRaisesRegex(Abstain, "non-Actions"):

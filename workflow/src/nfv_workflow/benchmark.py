@@ -737,17 +737,15 @@ def benchmark_card(api, repo, output):
         ("nfv-micro-bench | Latest completed full run", 24, 21, "#f0f6fc"),
         (f"{date} UTC | Model: {run['model']} | {TOTAL} entries", 55, 15, "#c9d1d9"),
         (f"Accuracy: {percentage(summary['accuracy'])}    "
-         f"Decisive accuracy: {percentage(summary['answered_accuracy'])}    "
-         f"Coverage: {percentage(summary['coverage'])}", 86, 15, "#79c0ff"),
-        ("Model-conditional results under stated assumptions; not source-correctness proofs.",
-         118, 13, "#c9d1d9"),
+         f"Precision (decisive accuracy): {percentage(summary['answered_accuracy'])}",
+         86, 15, "#79c0ff"),
     ]
     svg = [
-        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="144" viewBox="0 0 800 144"'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="112" viewBox="0 0 800 112"'
         ' role="img" aria-labelledby="title description">',
         "<title id=\"title\">nfv-micro-bench: latest completed full run</title>",
         '<desc id="description">' + escape(". ".join(line[0] for line in lines)) + "</desc>",
-        '<rect width="800" height="144" rx="8" fill="#0d1117"/>',
+        '<rect width="800" height="112" rx="8" fill="#0d1117"/>',
     ]
     for label, y, size, color in lines:
         svg.append(f'<text x="20" y="{y + 10}" fill="{color}" font-family="sans-serif"'
