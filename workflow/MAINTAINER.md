@@ -223,3 +223,42 @@ Non-cancelling coordinator concurrency serializes publication. A failed
 publication may already have written the archive: **retry only publication**
 while evidence is available, not paid inference. Retrying a failed worker
 reruns that shard; there is no automatic best-of search.
+
+### README statistics card (GitHub Pages)
+
+The root README links a deterministic SVG to the dashboard. The separate
+`nfv-benchmark-pages.yml` workflow reads the same validated, Actions-owned monthly
+archives and uses the dashboard's latest completed full 206-entry run selection.
+Pilots, partial failures, old attempts and backfills cannot downgrade that result.
+Missing or invalid archived statistics fail the build without deploying.
+It makes no inference calls, needs no PAT, edits no Discussions and pushes no
+repository changes. Archive statistics survive evidence-artifact expiry.
+
+For `microsoft/neuro-formal-verification`, a repository administrator must enable
+**Settings > Pages > Build and deployment > Source: GitHub Actions**. The existing
+`github-pages` environment permits the `dev` branch; preserve that restriction
+and any required approvals. Organization Actions/Pages policy must permit Pages,
+the pinned official upload/deploy actions, and deployment-job `pages: write` /
+`id-token: write`. A maintainer account without admin access cannot enable the
+Pages resource; resolve policy blocks with an administrator, not another token
+or a broader environment.
+
+Before enabling, confirm no other workflow/site owns Pages: a deployment replaces
+the entire site, not just one file. This workflow owns the card-only Pages site;
+integrate other content into its artifact before sharing that site. After merging
+to `dev` and configuring Pages, activate and bootstrap without inference:
+
+```text
+gh variable set NFV_BENCH_PAGES_ENABLED --body true --repo microsoft/neuro-formal-verification
+gh workflow run nfv-benchmark-pages.yml --ref dev --repo microsoft/neuro-formal-verification
+gh run list --workflow nfv-benchmark-pages.yml --repo microsoft/neuro-formal-verification --limit 5
+gh api repos/microsoft/neuro-formal-verification/pages --jq .html_url
+curl --fail https://microsoft.github.io/neuro-formal-verification/benchmark.svg
+```
+
+The URL is **proposed until the first deployment succeeds**. Successful benchmark
+workflow completions on `dev` refresh it; relevant merged generator/workflow
+changes also refresh it. Manual dispatch rebuilds from persistent archives and
+does not restart a benchmark. GitHub image caching can delay README refreshes.
+To stop future deployments, set `NFV_BENCH_PAGES_ENABLED=false`; the last deployed
+card remains available until an administrator disables the site.

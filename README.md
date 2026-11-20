@@ -49,6 +49,13 @@ of correctness.
 Verification likewise applies to the translated model under its assumptions,
 not automatically to the source code.
 
+## Latest completed full run
+
+[![nfv-micro-bench: latest completed full 206-entry run](https://microsoft.github.io/neuro-formal-verification/benchmark.svg)](https://github.com/microsoft/neuro-formal-verification/discussions/76)
+
+The card refreshes from archived benchmark statistics without repository commits.
+See the linked dashboard's newest snapshot for evidence and metric definitions.
+
 ## Citation
 
 If you use this work, please cite the [NFV paper](https://arxiv.org/abs/2608.21516):
