@@ -12,6 +12,7 @@ from collections import Counter
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
 import hashlib
+from html import escape
 import json
 import math
 import os
@@ -23,7 +24,6 @@ import time
 import uuid
 
 from .cli import audit, audit_limits, load, save
-from .followups import Options
 from .general import Limits, select_properties, validate_finding, validate_verification
 from .github import Abstain, GitHub, repository, sha
 from .outcomes import EXHAUSTED, INVALID, REFUTED, VERIFIED
@@ -209,6 +209,8 @@ def prediction(report, case):
 
 
 def worker(payload_path, output):
+    from .followups import Options
+
     env = os.environ
     if (env.get("GITHUB_AW") != "true" or env.get("AWF_REFLECT_ENABLED") != "1"
             or not env.get("COPILOT_SDK_URI") or not env.get("COPILOT_CONNECTION_TOKEN")
@@ -612,7 +614,7 @@ def saved_statistics(comment, repo):
     return summary
 
 
-def dashboard_body(repo, records, archives, legacy):
+def selected_records(records):
     latest = {}
     for record in records:
         summary = record[0]
@@ -628,10 +630,22 @@ def dashboard_body(repo, records, archives, legacy):
         summary = record[0]
         return utc_date(summary["publication_run_created_at"]), int(summary["run"]["run_id"])
 
-    records = sorted(records, key=order, reverse=True)
-    complete = [record for record in records if record[0]["completed"] is True
-                and record[0]["run"]["total"] == TOTAL
-                and record[0]["evaluated"] == TOTAL and not record[0]["errors"]]
+    return sorted(records, key=order, reverse=True)
+
+
+def completed_full_records(records):
+    return [record for record in selected_records(records) if record[0]["completed"] is True
+            and record[0]["run"]["total"] == TOTAL
+            and record[0]["evaluated"] == TOTAL and not record[0]["errors"]]
+
+
+def percentage(value):
+    return "N/A" if value is None else f"{value:.2%}"
+
+
+def dashboard_body(repo, records, archives, legacy):
+    records = selected_records(records)
+    complete = completed_full_records(records)
     lines = [f"<!-- nfv-benchmark-dashboard:{repo} -->", f"# {DASHBOARD_TITLE}", "",
              "Latest completed full **206-entry** run; pilots and partial/failed sweeps never replace it.",
              "Precision means accuracy among decisive results, not incorrect-class precision.", ""]
@@ -646,7 +660,7 @@ def dashboard_body(repo, records, archives, legacy):
         credits = summary.get("ai_credits")
         aic = credits.get("total") if credits is not None else None
         return (f"| [{date}]({url}) | {status} | {summary['accuracy']:.2%} | "
-                + ("N/A" if precision is None else f"{precision:.2%}")
+                + percentage(precision)
                 + f" | {summary['coverage']:.2%} | "
                 + ("unavailable" if aic is None else f"{aic:.5f}")
                 + f" | {text(run['model'])} | [{revision[:10]}](https://github.com/{repo}/commit/{revision})"
@@ -671,10 +685,8 @@ def dashboard_body(repo, records, archives, legacy):
     return "\n".join(lines) + "\n"
 
 
-def publish(summary, api, repo, category):
-    if summary["run"]["repository"] != repository(repo):
-        raise Abstain("Benchmark publication repository changed")
-    repo_id, category_id = publication_target(api, repo, category)
+def archived_statistics(api, repo):
+    repo = repository(repo)
     owner, name = repo.split("/")
     discussions = publication_pages(api, """
           query($owner:String!,$name:String!,$cursor:String){
@@ -685,18 +697,6 @@ def publish(summary, api, repo, category):
               }
             }
           }""", {"owner": owner, "name": name}, "discussions")
-    dashboard = marked_item(discussions, f"<!-- nfv-benchmark-dashboard:{repo} -->")
-    run = summary["run"]
-    run_id = run["run_id"]
-    if not re.fullmatch(r"[1-9]\d*", str(run_id)):
-        raise Abstain("Invalid benchmark Actions run ID")
-    publication_attempt(summary)
-    created = api.request(f"repos/{repo}/actions/runs/{run_id}")["created_at"]
-    date = utc_date(created)
-    summary = {**summary, "publication_run_created_at": date.isoformat()}
-    month = date.strftime("%Y-%m")
-    archive_marker = f"<!-- nfv-benchmark-archive:{repo}:{month} -->"
-    archive = marked_item(discussions, archive_marker)
     archives, records, archived = {}, [], set()
     legacy = []
     for discussion in discussions:
@@ -722,6 +722,59 @@ def publish(summary, api, repo, category):
         elif discussion["body"].startswith(f"<!-- nfv-micro-bench:{repo}:"):
             actions_owned(discussion)
             legacy.append(discussion)
+    return discussions, archives, records, archived, legacy
+
+
+def benchmark_card(api, repo, output):
+    _, _, records, _, _ = archived_statistics(api, repo)
+    complete = completed_full_records(records)
+    if not complete:
+        raise Abstain("No completed full benchmark run is archived; refusing to replace the card")
+    summary, _ = complete[0]
+    run = summary["run"]
+    date = utc_date(summary["publication_run_created_at"]).strftime("%Y-%m-%d")
+    lines = [
+        ("nfv-micro-bench | Latest completed full run", 24, 21, "#f0f6fc"),
+        (f"{date} UTC | Model: {run['model']} | {TOTAL} entries", 55, 15, "#c9d1d9"),
+        (f"Accuracy: {percentage(summary['accuracy'])}    "
+         f"Decisive accuracy: {percentage(summary['answered_accuracy'])}    "
+         f"Coverage: {percentage(summary['coverage'])}", 86, 15, "#79c0ff"),
+        ("Model-conditional results under stated assumptions; not source-correctness proofs.",
+         118, 13, "#c9d1d9"),
+    ]
+    svg = [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="144" viewBox="0 0 800 144"'
+        ' role="img" aria-labelledby="title description">',
+        "<title id=\"title\">nfv-micro-bench: latest completed full run</title>",
+        '<desc id="description">' + escape(". ".join(line[0] for line in lines)) + "</desc>",
+        '<rect width="800" height="144" rx="8" fill="#0d1117"/>',
+    ]
+    for label, y, size, color in lines:
+        svg.append(f'<text x="20" y="{y + 10}" fill="{color}" font-family="sans-serif"'
+                   f' font-size="{size}">{escape(label)}</text>')
+    svg.append("</svg>")
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(svg) + "\n", encoding="utf-8", newline="\n")
+
+
+def publish(summary, api, repo, category):
+    if summary["run"]["repository"] != repository(repo):
+        raise Abstain("Benchmark publication repository changed")
+    repo_id, category_id = publication_target(api, repo, category)
+    discussions, archives, records, archived, legacy = archived_statistics(api, repo)
+    dashboard = marked_item(discussions, f"<!-- nfv-benchmark-dashboard:{repo} -->")
+    run = summary["run"]
+    run_id = run["run_id"]
+    if not re.fullmatch(r"[1-9]\d*", str(run_id)):
+        raise Abstain("Invalid benchmark Actions run ID")
+    publication_attempt(summary)
+    created = api.request(f"repos/{repo}/actions/runs/{run_id}")["created_at"]
+    date = utc_date(created)
+    summary = {**summary, "publication_run_created_at": date.isoformat()}
+    month = date.strftime("%Y-%m")
+    archive_marker = f"<!-- nfv-benchmark-archive:{repo}:{month} -->"
+    archive = marked_item(discussions, archive_marker)
     if archive is None:
         archive = create_discussion(
             api, repo_id, category_id,
@@ -768,6 +821,9 @@ def main(argv=None):
     p = commands.add_parser("account")
     for flag in ("summary", "usage", "out"):
         p.add_argument("--" + flag, required=True)
+    p = commands.add_parser("card", help="Render archived statistics without inference or publication")
+    p.add_argument("--repository", required=True)
+    p.add_argument("--out", required=True)
     for name in ("check-publication", "publish"):
         p = commands.add_parser(name)
         p.add_argument("--repository", required=True)
@@ -796,6 +852,8 @@ def main(argv=None):
         elif args.command == "account":
             summary = account(args.summary, args.usage, args.out)
             print(json.dumps(summary["ai_credits"]))
+        elif args.command == "card":
+            benchmark_card(GitHub(), args.repository, args.out)
         elif args.command == "check-publication":
             publication_target(GitHub(), args.repository, args.category)
         elif args.command == "publish":

@@ -1,0 +1,67 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+name: NFV benchmark README card
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["NFV nightly micro-benchmark"]
+    types: [completed]
+    branches: [dev]
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/nfv-benchmark-pages.yml
+      - workflow/src/nfv_workflow/benchmark.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nfv-benchmark-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: >-
+      github.repository == 'microsoft/neuro-formal-verification' &&
+      github.ref == 'refs/heads/dev' &&
+      vars.NFV_BENCH_PAGES_ENABLED == 'true' &&
+      (github.event_name != 'workflow_run' ||
+       github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      discussions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: dev
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Render latest accepted full statistics from persistent archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: workflow/src
+        run: python -m nfv_workflow.benchmark card --repository "$GITHUB_REPOSITORY" --out _site/benchmark.svg
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy benchmark card
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

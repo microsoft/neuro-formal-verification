@@ -12,11 +12,15 @@ import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
+import sys
 import unittest
 import uuid
 from unittest.mock import AsyncMock, patch
+from xml.etree import ElementTree
 
 from nfv_workflow import benchmark, cli, sandbox
+from nfv_workflow.followups import Options
 from nfv_workflow.general import Limits, run, select_properties
 from nfv_workflow.github import Abstain
 from nfv_workflow.outcomes import EXHAUSTED, INVALID, REFUTED, VERIFIED, InferenceFailure
@@ -399,7 +403,7 @@ class BenchmarkTests(unittest.TestCase):
                 patch.object(cli, "run_general", new=AsyncMock(return_value=report)), \
                 patch.object(cli, "refresh_presentation") as present:
             result = cli.audit(self.directory / "properties.json", Limits(),
-                               benchmark.Options(False, False), render_report=False)
+                               Options(False, False), render_report=False)
         self.assertEqual(result["outcomes"][REFUTED], 1)
         present.assert_not_called()
         self.assertNotIn("comment", result)
@@ -842,6 +846,117 @@ class BenchmarkTests(unittest.TestCase):
                     "**Accuracy among decisive results:** "
                     + ("N/A." if precision == "N/A" else f"{precision}."), body)
                 self.assertIn(f"| {accuracy} | {precision} |", api.dashboard_body())
+
+    def test_card_renders_archived_metrics_safely_without_writes_or_inference(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        summary.update(completed=True, evaluated=206, not_evaluated=0, errors=[],
+                       accuracy=150 / 206, answered_accuracy=150 / 160, coverage=160 / 206)
+        summary["run"]["model"] = 'model <script>alert("x")</script> & "test"'
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        original = copy.deepcopy((api.discussions, api.comments, api.mutations))
+        target = self.directory / "site" / "benchmark.svg"
+        with patch.object(benchmark, "GitHub", return_value=api), redirect_stdout(io.StringIO()):
+            self.assertEqual(benchmark.main(["card", "--repository", REPO, "--out", str(target)]), 0)
+        first = target.read_bytes()
+        benchmark.benchmark_card(api, REPO, target)
+        self.assertEqual(target.read_bytes(), first)
+        root = ElementTree.fromstring(first)
+        labels = " ".join(root.itertext())
+        self.assertIn("2026-11-13 UTC", labels)
+        self.assertIn(summary["run"]["model"], labels)
+        self.assertIn("Accuracy: 72.82%", labels)
+        self.assertIn("Decisive accuracy: 93.75%", labels)
+        self.assertIn("Coverage: 77.67%", labels)
+        self.assertIn("Model-conditional", labels)
+        self.assertEqual(len(root.findall(".//{http://www.w3.org/2000/svg}script")), 0)
+        self.assertIn("&lt;script&gt;", first.decode())
+        self.assertEqual((api.discussions, api.comments, api.mutations), original)
+
+    def test_card_preserves_full_success_across_pilots_failures_attempts_and_replays(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        summary.update(completed=True, evaluated=206, not_evaluated=0, errors=[])
+        summary["run"]["sweep_id"] = "123-2"
+        summary["run"]["model"] = "retained-full-success"
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        target = self.directory / "benchmark.svg"
+        benchmark.benchmark_card(api, REPO, target)
+        original = target.read_bytes()
+        for run_id, attempt, total, completed in (
+                ("123", 1, 206, True), ("123", 3, 206, False),
+                ("124", 1, 5, True), ("125", 1, 206, False),
+                ("122", 1, 206, True)):
+            newer = copy.deepcopy(summary)
+            newer["run"].update(run_id=run_id, sweep_id=f"{run_id}-{attempt}",
+                                total=total, model="must-not-replace")
+            newer.update(completed=completed, evaluated=total)
+            api.created_at[run_id] = (
+                "2026-11-01T00:00:00Z" if run_id == "122" else
+                "2026-11-13T03:00:00Z" if run_id == "123" else "2026-11-14T00:00:00Z")
+            benchmark.publish(newer, api, REPO, "General")
+            benchmark.benchmark_card(api, REPO, target)
+            self.assertEqual(target.read_bytes(), original)
+        refreshed = copy.deepcopy(summary)
+        refreshed["run"].update(sweep_id="123-4", model="new-success")
+        benchmark.publish(refreshed, api, REPO, "General")
+        benchmark.publish(summary, api, REPO, "General")
+        benchmark.benchmark_card(api, REPO, target)
+        self.assertIn("new-success", target.read_text())
+        self.assertIn("new-success", api.dashboard_body().split("## Recent runs")[0])
+
+    def test_card_handles_no_decisive_results_and_fails_closed_on_missing_or_invalid_archives(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        api = PublicationAPI()
+        target = self.directory / "benchmark.svg"
+        target.write_text("last deployed card")
+        for total, completed in ((206, False), (5, True)):
+            summary["run"]["total"] = total
+            summary["completed"] = completed
+            summary["evaluated"] = total
+            benchmark.publish(summary, api, REPO, "General")
+            with self.assertRaisesRegex(Abstain, "No completed full"):
+                benchmark.benchmark_card(api, REPO, target)
+            self.assertEqual(target.read_text(), "last deployed card")
+        summary["run"]["total"] = 206
+        summary.update(completed=True, evaluated=206, errors=[])
+        benchmark.publish(summary, api, REPO, "General")
+        benchmark.benchmark_card(api, REPO, target)
+        self.assertIn("Decisive accuracy: N/A", target.read_text())
+        original = target.read_bytes()
+        api.comments["discussion-1"][-1]["author"] = {"login": "human", "__typename": "User"}
+        with self.assertRaisesRegex(Abstain, "non-Actions"):
+            benchmark.benchmark_card(api, REPO, target)
+        self.assertEqual(target.read_bytes(), original)
+
+    def test_pages_workflow_is_default_branch_only_and_separates_deployment_privileges(self):
+        workflow = (ROOT / ".github/workflows/nfv-benchmark-pages.yml").read_text(encoding="utf-8")
+        build, deploy = workflow.split("\n  deploy:", 1)
+        self.assertIn('workflows: ["NFV nightly micro-benchmark"]', build)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'", build)
+        self.assertIn("github.ref == 'refs/heads/dev'", build)
+        self.assertIn("vars.NFV_BENCH_PAGES_ENABLED == 'true'", build)
+        self.assertIn("ref: dev", build)
+        self.assertIn("persist-credentials: false", build)
+        self.assertIn('card --repository "$GITHUB_REPOSITORY" --out _site/benchmark.svg', build)
+        self.assertIn("discussions: read", build)
+        self.assertNotIn("pages: write", build)
+        self.assertNotIn("id-token: write", build)
+        self.assertIn("needs: build", deploy)
+        self.assertIn("pages: write", deploy)
+        self.assertIn("id-token: write", deploy)
+        self.assertIn("name: github-pages", deploy)
+        self.assertNotIn("checkout", deploy)
+        self.assertNotIn("pull_request", workflow)
+        self.assertNotIn("secrets.", workflow)
+        self.assertNotIn("contents: write", workflow)
+        for action in re.findall(r"uses: ([^\s]+)", workflow):
+            self.assertRegex(action, r"^actions/[\w-]+@[0-9a-f]{40}$")
+        result = subprocess.run(
+            [sys.executable, "-S", "-m", "nfv_workflow.benchmark", "card", "--help"],
+            cwd=ROOT, env={**os.environ, "PYTHONPATH": str(ROOT / "workflow" / "src")},
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_publication_preserves_custom_titles_and_bodies_and_appends_dashboard(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")

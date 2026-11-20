@@ -127,4 +127,5 @@ For expired tokens and other common problems, see the [FAQ](FAQ.md).
 Maintainers: see the [maintenance and local CLI guide](MAINTAINER.md).
 The independent [micro-benchmark](MAINTAINER.md#nightly-nfv-micro-bench) does not
 run in client repositories; its Discussion dashboard receives append-only
-snapshot comments.
+snapshot comments. Its [README statistics card](MAINTAINER.md#readme-statistics-card-github-pages)
+refreshes from persistent archives through GitHub Pages without per-run commits.
