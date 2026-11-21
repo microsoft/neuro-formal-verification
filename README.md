@@ -3,6 +3,8 @@ Licensed under the MIT License. -->
 
 # Neuro-Formal Verification
 
+Read the blog: [Neuro-Formal Code Review: Can Proofs Help Enforce Intent at Scale?](https://risemsr.github.io/blog/2026-11-18-neuro-formal-code-review/).
+
 Neuro-Formal Verification (NFV) is a set of techniques to answer questions about code with high
 empirical accuracy and proof-based verdicts (verification as well as refutation)
 by combining neuro-symbolic agents that translate intent, code and environment
