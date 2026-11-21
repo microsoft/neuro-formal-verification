@@ -3,9 +3,9 @@ Licensed under the MIT License. -->
 
 # Neuro-Formal Verification
 
-Read the blog: [Neuro-Formal Code Review: Can Proofs Help Enforce Intent at Scale?](https://risemsr.github.io/blog/2026-11-18-neuro-formal-code-review/).
-
 [![nfv-micro-bench: latest completed full 206-entry run](https://microsoft.github.io/neuro-formal-verification/benchmark.svg)](https://github.com/microsoft/neuro-formal-verification/discussions/76)
+
+Read the blog: [Neuro-Formal Code Review: Can Proofs Help Enforce Intent at Scale?](https://risemsr.github.io/blog/2026-11-18-neuro-formal-code-review/).
 
 Neuro-Formal Verification (NFV) is a set of techniques to answer questions about code with high
 empirical accuracy and proof-based verdicts (verification as well as refutation)
