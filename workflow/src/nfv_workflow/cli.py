@@ -190,10 +190,10 @@ def audit_limits(env=None):
         raise Abstain(str(exc)) from exc
 
 
-def audit(proposals_path, limits, followup_options=None, *, render_report=True):
+def audit(proposals_path, limits, followup_options=None, *, render_report=True, local=False):
     """Audit entry point: all inputs are fixed by trusted collection/extraction steps."""
     from .general import Limits
-    from .publish import comment
+    from .publish import comment, local_comment
     bundle_path, model = os.environ.get("NFV_BUNDLE"), os.environ.get("NFV_MODEL", "")
     output = Path(os.environ.get("NFV_OUT") or "nfv-evidence")
     if not bundle_path:
@@ -235,16 +235,24 @@ def audit(proposals_path, limits, followup_options=None, *, render_report=True):
             save(output / "presentation.json", presentation)
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     evidence = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
-    (output / "comment.md").write_text(
-        comment(report, bundle, evidence, len(proposals), presentation=presentation,
-                followups=optional_artifact(output / "report.json", "followups.json")), encoding="utf-8")
+    saved_followups = optional_artifact(output / "report.json", "followups.json")
+    body = (local_comment(report, bundle, presentation, saved_followups) if local else
+            comment(report, bundle, evidence, len(proposals), presentation=presentation,
+                    followups=saved_followups))
+    (output / "comment.md").write_text(body, encoding="utf-8", newline="\n")
     summary["comment"] = str(output / "comment.md")
     return summary
 
 
 def main(argv=None):
+    import sys
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "local":
+        from .local import main as local_main
+        return local_main(argv[1:])
     parser = argparse.ArgumentParser(description="Conditional Dafny model analysis; no source execution")
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("local", help="Asynchronous local reviews/benchmarks; see local --help")
     p = commands.add_parser("collect", help="Capture merged-PR event source and commentary using read-only API")
     p.add_argument("--event", required=True)
     p.add_argument("--event-snapshot", action="store_true",

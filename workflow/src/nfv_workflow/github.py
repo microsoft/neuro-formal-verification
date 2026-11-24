@@ -284,6 +284,18 @@ def collect(event, api, side="head", *, event_snapshot=False):
                                 "truncated": len(body) > 12000,
                                 "url": item.get("html_url", ""),
                                 "path": item.get("path"), "line": item.get("line")})
+    captured = collect_sources(ident, files, api, side=side, preferred=preferred)
+    latest = api.request(f"{prefix}/pulls/{number}")
+    if not unchanged(latest, ident) and not event_snapshot:
+        raise Superseded("PR changed during collection", ident)
+    return {"schema": 1, "identity": ident, "signals": signals, **captured}
+
+
+def collect_sources(ident, files, api, *, side="head", preferred=None):
+    """Capture bounded source context from an immutable tree, without executing it."""
+    preferred = preferred or {}
+    repo = repository(ident["repository"])
+    prefix = f"repos/{repo}"
     tree = api.request(f"{prefix}/git/trees/{ident['source_sha']}?recursive=1")
     if tree.get("truncated"):
         raise Abstain("Source tree truncated")
@@ -436,10 +448,7 @@ def collect(event, api, side="head", *, event_snapshot=False):
             if re.search(r"\b(requires|assert|SASSERT|VERIFY|class|struct|typedef|def|func|function|interface|namespace|public|private)\b", text):
                 declarations.append({"path": path, "line": line, "text": text[:500]})
             calls.update(re.findall(r"\b([A-Za-z_]\w*)\s*\(", text))
-    latest = api.request(f"{prefix}/pulls/{number}")
-    if not unchanged(latest, ident) and not event_snapshot:
-        raise Superseded("PR changed during collection", ident)
-    bundle = {"schema": 1, "identity": ident, "signals": signals, "changed": changed,
+    bundle = {"changed": changed,
               "sources": sources, "declarations_and_preconditions": declarations[:500],
               "callee_names": sorted(calls)[:500], "context_omissions": omissions,
               "source_inventory": sorted(blobs), "source_inventory_complete": True}
