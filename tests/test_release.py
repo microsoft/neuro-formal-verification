@@ -30,6 +30,8 @@ class ReleaseTests(unittest.TestCase):
     def test_readme_opens_with_description_and_two_components(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         opening = readme.split("# Neuro-Formal Verification\n\n", 1)[1]
+        while opening.startswith(("[![nfv-micro-bench:", "Read the blog: ")):
+            opening = opening.split("\n\n", 1)[1]
         description, components = opening.split("\n\n", 1)
         self.assertTrue(description.startswith("Neuro-Formal Verification (NFV) "))
         components = components.split("This repository provides two artefacts:\n\n", 1)[1]
