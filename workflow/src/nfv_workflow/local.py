@@ -57,7 +57,11 @@ def diagnostic(exc):
 
 
 def command(args, *, cwd=None, env=None, timeout=60):
-    result = subprocess.run(args, cwd=cwd, env=env, capture_output=True, timeout=timeout)
+    try:
+        result = subprocess.run(args, cwd=cwd, env=env, capture_output=True, timeout=timeout)
+    except FileNotFoundError as exc:
+        raise Abstain(f"Cannot launch {args[0]!r}; install it and ensure its executable "
+                      "is on this terminal's PATH") from exc
     if result.returncode:
         raise Abstain(diagnostic(result.stderr.decode("utf-8", errors="replace").strip()
                                  or f"{args[0]} exited with {result.returncode}"))

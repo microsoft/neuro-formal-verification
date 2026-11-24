@@ -44,7 +44,10 @@ class LocalTests(unittest.TestCase):
         shutil.rmtree(self.directory, onerror=remove_readonly)
 
     def git(self, *args):
-        return subprocess.check_output(["git", "-C", str(self.directory), *args],
+        executable = shutil.which("git")
+        if executable is None:
+            self.skipTest("Requires Git executable on this terminal's PATH")
+        return subprocess.check_output([executable, "-C", str(self.directory), *args],
                                        stderr=subprocess.STDOUT).decode().strip()
 
     def committed_change(self):
@@ -297,6 +300,11 @@ class LocalTests(unittest.TestCase):
         for run_id in ("..", "..\\elsewhere", "../elsewhere", "not-a-run"):
             with self.assertRaises(Abstain):
                 local.run_directory(self.directory, run_id)
+
+    def test_missing_executable_reports_terminal_path_prerequisite(self):
+        with patch.object(subprocess, "run", side_effect=FileNotFoundError), \
+                self.assertRaisesRegex(Abstain, "Cannot launch 'git'.*terminal's PATH"):
+            local.command(["git", "--version"])
 
 
 if __name__ == "__main__":

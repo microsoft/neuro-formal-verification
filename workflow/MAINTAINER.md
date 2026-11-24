@@ -143,6 +143,13 @@ environment and, when account/API lookup needs it, `GH_TOKEN`; pass environment
 variable names, never token values in commands. Tokens are not saved in run
 metadata. No home directory or inspected checkout is mounted into the worker.
 Git and the trusted Python CLI still run on the host to capture the inputs.
+Git must be an executable on the invoking terminal's `PATH`; an app-managed
+Git available to the agent is not necessarily available in a user terminal.
+Check with `python -c "import shutil; print(shutil.which('git'))"` and
+`git --version`. If discovery prints `None`, install Git or add its executable
+directory to that terminal's `PATH` before reviewing committed changes.
+The Git-dependent offline tests skip when Git is unavailable; other tests
+can still run, but those skips do not validate source capture.
 
 The following commands are **billable**. `--authorize-inference` records the
 caller's explicit authorization; it is not a billing cap. Native compute avoids
