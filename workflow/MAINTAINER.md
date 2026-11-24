@@ -151,6 +151,64 @@ directory to that terminal's `PATH` before reviewing committed changes.
 The Git-dependent offline tests skip when Git is unavailable; other tests
 can still run, but those skips do not validate source capture.
 
+### Add the skill to a coding agent
+
+Installing the Python CLI does not install the agent skill, and copying the
+skill does not install its runtime dependencies. Set up both from the same
+trusted NFV revision. Until a stable release includes this feature, use an
+explicitly approved development checkout for testing.
+
+For GitHub Copilot, copy the complete `.github\skills\nfv-local` folder into
+the target repository's `.github\skills` directory (project scope), or into
+`$HOME\.copilot\skills` (personal scope across repositories). For example,
+from the trusted NFV checkout, install a personal skill without overwriting
+an existing installation:
+
+```powershell
+$nfv = (Get-Location).Path
+$skills = Join-Path $HOME '.copilot\skills'
+$target = Join-Path $skills 'nfv-local'
+if (Test-Path -LiteralPath $target) {
+  throw 'nfv-local is already installed; review it before replacing it.'
+}
+New-Item -ItemType Directory -Force -Path $skills | Out-Null
+Copy-Item -LiteralPath (Join-Path $nfv '.github\skills\nfv-local') `
+  -Destination $target -Recurse
+```
+
+For a project installation, set `$skills` to the target repository's absolute
+`.github\skills` path instead. Commit the copied skill only if you intend to
+share it with that repository's contributors. Other coding agents supporting
+the Agent Skills standard may use `.agents\skills` or `.claude\skills`; follow
+the agent's documented discovery location rather than assuming all hosts
+support the same directories.
+See [Copilot's supported skill locations](https://docs.github.com/en/copilot/concepts/customizations/agent-skills).
+
+Open or restart the coding-agent session in the target repository so it can
+discover `nfv-local`. Ensure the agent's execution environment can run
+`nfv-workflow local --help` and `git --version`. Activating a virtual environment
+in a separate user terminal does not necessarily activate it for the agent.
+If necessary, give the agent the absolute path to the trusted environment's
+`Scripts\nfv-workflow.exe` on Windows, or `bin\nfv-workflow` on Linux.
+For copied skills, also provide the trusted checkout's absolute
+`workflow\MAINTAINER.md` path: the skill's repository-relative documentation
+link no longer points to NFV after copying. Keep that checkout available or
+retrieve the guide from the same pinned NFV revision.
+
+Invoke it by name in an agent prompt, for example:
+
+> Use nfv-local to review the committed change from dev to HEAD. Intent:
+> retries must not duplicate writes. Use my approved model and Docker runtime.
+> Show the scope and billing requirements before starting; keep the report local.
+
+The agent should load the skill, check prerequisites and obtain authorization,
+then return an asynchronous run ID. A later request such as "Check the status
+of NFV run RUN_ID" retrieves progress without restarting inference. Skill
+discovery is not authorization to spend credits or publish results. Personal
+skills and local runtime installations are not automatically available to
+cloud agents; a cloud session needs its own setup and is not this local
+compute experience.
+
 The following commands are **billable**. `--authorize-inference` records the
 caller's explicit authorization; it is not a billing cap. Native compute avoids
 Actions usage but does not provide free Copilot inference or organization billing.

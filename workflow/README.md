@@ -128,6 +128,8 @@ Maintainers: see the [maintenance and local CLI guide](MAINTAINER.md).
 For asynchronous local reviews or benchmarks without GitHub Actions, use the
 [local NFV skill](../.github/skills/nfv-local/SKILL.md) and
 [local runtime guide](MAINTAINER.md#local-skill-and-asynchronous-runs).
+See [adding the skill to a coding agent](MAINTAINER.md#add-the-skill-to-a-coding-agent)
+for project/personal installation and invocation.
 The independent [micro-benchmark](MAINTAINER.md#nightly-nfv-micro-bench) does not
 run in client repositories; its Discussion dashboard receives append-only
 snapshot comments. Its [README statistics card](MAINTAINER.md#readme-statistics-card-github-pages)
