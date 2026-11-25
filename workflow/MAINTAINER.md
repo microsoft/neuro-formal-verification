@@ -137,8 +137,11 @@ docker run --rm nfv-local:latest local --help
 docker run --rm --entrypoint python nfv-local:latest -m nfv.shared.config
 ```
 
-Build only from the trusted NFV checkout. The build context excludes Git
-metadata, local credentials, datasets and retained results. The base image and
+Build only from a trusted NFV revision. The image copies only runtime packages
+and required licensing metadata, not datasets, retained results, tests or
+credentials. The local-directory build context also excludes those files;
+remote Git contexts can contain more files, so image contents use an explicit
+copy allowlist independent of context filtering. The base image and
 OS packages are not a fully reproducible dependency lock; the Dafny archive is
 checksum-verified. Runtime image tags are resolved to image IDs before launch.
 For container inference, securely set `COPILOT_GITHUB_TOKEN` in the host
@@ -375,7 +378,7 @@ specific finished run/container you intend to clean up.
 
 ### Local nfv-micro-bench
 
-Use the frozen dataset from the trusted NFV checkout and its exact release SHA:
+Use the frozen dataset from the trusted NFV revision and its exact release SHA:
 
 ```powershell
 nfv-workflow local start --benchmark `
@@ -397,6 +400,15 @@ summary when native evidence can be validated. Interrupted/cancelled runs
 cannot be returned as completed results. Proxy AI-credit accounting is not
 available locally; recorded model usage is not an invoice or a monetary cap.
 No GitHub publication or nightly dashboard update occurs.
+
+An NFV checkout is not required: ask the setup agent to download the unchanged
+`paper/data/nl2post_safe.json` from the approved NFV SHA through GitHub's
+read-only contents API into `~/.local/share/nfv/APPROVED_NFV_SHA/dataset.json`.
+The dependency image deliberately excludes this dataset. For Docker, add
+`--runtime docker --image nfv-local:APPROVED_NFV_SHA` and use that downloaded
+file for `--dataset`, with the same approved SHA for `--release-sha`.
+Ask the skill to prepare a five-entry pilot, confirm the model and billing
+account, and obtain explicit inference authorization before starting.
 
 ## Nightly nfv-micro-bench
 

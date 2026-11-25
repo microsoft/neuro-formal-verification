@@ -23,7 +23,13 @@ ENV NFV_DAFNY_PATH=/opt/nfv-verifier/dafny/dafny \
     PYTHONUNBUFFERED=1
 
 WORKDIR /opt/nfv
-COPY . .
+COPY pyproject.toml README.md LICENSE LICENSE.TXT NOTICE.txt PRIVACY ./
+COPY nfv/ ./nfv/
+COPY workflow/pyproject.toml workflow/README.md workflow/LICENSE ./workflow/
+COPY workflow/src/ ./workflow/src/
+COPY workflow/licenses/ ./workflow/licenses/
+COPY paper/DATA_LICENSE.md paper/DATA_PROVENANCE.md ./paper/
+COPY paper/licenses/ ./paper/licenses/
 RUN python -m pip install --no-cache-dir ".[inference]" "./workflow[local]" \
     && python -c "from copilot import CopilotClient; import subprocess; subprocess.run([CopilotClient()._connection.path, '--version'], check=True)" \
     && python -m nfv.shared.config \

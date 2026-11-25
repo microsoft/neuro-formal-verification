@@ -113,7 +113,9 @@ Do not publish, open a PR, or upload evidence unless the user separately asks.
 Benchmarks require separate explicit authorization: a five-entry random pilot
 or the complete 206-entry nfv-micro-bench dataset. The default is five, not a
 full sweep. Use the unchanged checksum-pinned dataset from the trusted NFV
-checkout and supply that checkout's exact release SHA.
+revision and supply its exact release SHA. Without an NFV checkout, retrieve
+`paper/data/nl2post_safe.json` through the read-only GitHub API at that same
+approved SHA, keeping it unchanged in the personal NFV installation directory.
 
 ```powershell
 nfv-workflow local start --benchmark `
