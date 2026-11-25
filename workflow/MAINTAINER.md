@@ -156,8 +156,8 @@ can still run, but those skips do not validate source capture.
 
 ### Use the Dockerized skill from your repository
 
-For a LiteBox developer, the working directory is the existing `microsoft/litebox`
-checkout. The same procedure applies to any `github.com/OWNER/REPO` checkout.
+For a developer, the working directory is the existing `OWNER/REPO` checkout.
+This procedure applies to any `github.com/OWNER/REPO` repository.
 The skill and trusted launcher live in personal directories; only the
 dependency container contains Dafny, Z3 and the inference SDK. The inspected
 repository is never mounted, checked out at the PR head, imported or executed.
@@ -231,7 +231,7 @@ The Docker worker receives environment credentials, not your home directory.
 
 Now ask Copilot, replacing the PR number, SHA and model:
 
-> Use nfv-local to review https://github.com/microsoft/litebox/pull/NUMBER.
+> Use nfv-local to review https://github.com/OWNER/REPO/pull/NUMBER.
 > Use the launcher at ~/.local/share/nfv/APPROVED_NFV_SHA/venv/bin/nfv-workflow,
 > the matching guide at ~/.local/share/nfv/APPROVED_NFV_SHA/MAINTAINER.md,
 > Docker image nfv-local:APPROVED_NFV_SHA and model APPROVED_MODEL.
@@ -240,9 +240,8 @@ Now ask Copilot, replacing the PR number, SHA and model:
 > Return the asynchronous run ID and keep the generated Markdown report local.
 > Do not execute PR code or publish anything.
 
-Change the URL to `https://github.com/OWNER/REPO/pull/NUMBER` for another
-repository. A target clone is not required for PR capture; the URL identifies
-the source. The PR description, discussion and immutable comparison commit
+A target clone is not required for PR capture; the URL identifies the source.
+The PR description, discussion and immutable comparison commit
 messages supply intent; `--intent-file` can add explicit intent.
 
 After authorizing the chosen scope and model, the underlying launch command is:
