@@ -465,7 +465,8 @@ class BenchmarkTests(unittest.TestCase):
         async def offline_provider(bundle, proposals, directory, model, actual_limits, **kwargs):
             return await run(bundle, proposals, directory, chat, actual_limits)
         environment = {**self.environment, **{key: os.environ[key] for key in (
-            "PATH", "SYSTEMROOT", "USERPROFILE", "NFV_DAFNY_PATH", "NFV_Z3_PATH") if key in os.environ}}
+            "PATH", "SYSTEMROOT", "USERPROFILE", "NFV_DAFNY_PATH", "NFV_Z3_PATH",
+            "PYTHONPATH") if key in os.environ}}
         output = self.directory / "worker"
         with patch.dict(os.environ, environment, clear=True), \
                 patch.object(cli, "run_general", side_effect=offline_provider) as provider, \
