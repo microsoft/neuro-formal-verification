@@ -28,7 +28,7 @@ from nfv_workflow import cli
 from nfv_workflow import admission
 from nfv_workflow.cli import audit, audit_limits, awf_provider, submission, write_sources
 from nfv_workflow.github import (Abstain, GitHub, Superseded, added_lines, change_blocks, collect, identity,
-                                 reanchor, removed_lines, sha, source_path)
+                                 collect_pull_request, reanchor, removed_lines, sha, source_path)
 from nfv_workflow.model import expression, render_model, select_candidates
 from nfv_workflow.publish import comment, marker, publication_allowed, publish, render
 from nfv_workflow.source_binding import bind_source, Parser
@@ -885,6 +885,81 @@ class CollectionTests(unittest.TestCase):
                 api.request = request
                 with self.assertRaisesRegex(Abstain, "inventory"):
                     collect(captured, api, event_snapshot=True)
+
+    def test_pr_url_freezes_open_or_merged_metadata_before_later_changes(self):
+        for merged in (False, True):
+            with self.subTest(merged=merged):
+                captured = event()
+                captured["pull_request"].update(changed_files=1, body="Captured intent")
+                if not merged:
+                    captured["action"] = "opened"
+                    captured["pull_request"].update(state="open", merged=False, merge_commit_sha=None)
+                else:
+                    captured["pull_request"]["head"]["repo"] = None
+                api = self.api()
+                request, pages = api.request, api.pages
+                calls = []
+                def frozen_request(path):
+                    calls.append(path)
+                    if path.lower().endswith("/pulls/7"):
+                        if len(calls) == 1:
+                            return copy.deepcopy(captured["pull_request"])
+                        return {**captured["pull_request"], "state": "closed", "merged": False,
+                                "body": "Later intent", "changed_files": 999,
+                                "head": {"sha": "f" * 40}, "base": {"sha": "e" * 40}}
+                    result = request(path)
+                    if "/compare/" in path:
+                        return {**result, "commits": pages("fixture/commits"), "total_commits": 1}
+                    return result
+                def frozen_pages(path):
+                    self.assertFalse(path.endswith("/pulls/7/commits"))
+                    return pages(path)
+                api.request, api.pages = frozen_request, frozen_pages
+                result = collect_pull_request("https://github.com/Owner/Project/pull/7/?tab=files#discussion", api)
+                self.assertEqual(result["identity"], identity(captured))
+                self.assertEqual(result["signals"][0]["text"], "Captured intent")
+                self.assertEqual({x["kind"] for x in result["signals"]}, {"description", "comment", "commit"})
+                self.assertEqual(result["changed"], {"src/f.cpp": [1]})
+                self.assertIn("src/f.h", result["sources"])
+                self.assertIn("repos/owner/project/compare/" + "b" * 40 + "..." + "a" * 40, calls)
+                self.assertIn("repos/owner/project/git/trees/" + "a" * 40 + "?recursive=1", calls)
+
+    def test_pr_url_rejects_unsupported_urls_before_api_access(self):
+        urls = ("http://github.com/owner/project/pull/7", "https://example.com/owner/project/pull/7",
+                "https://github.com.example.com/owner/project/pull/7",
+                "https://user@github.com/owner/project/pull/7", "https://github.com:443/owner/project/pull/7",
+                "https://github.com/owner/project/issues/7", "https://github.com/owner/project/pull/0",
+                "https://github.com/owner/project/pull/7/files", "https://github.com/../project/pull/7",
+                "https://github.com/owner/%2e%2e/pull/7", " https://github.com/owner/project/pull/7",
+                "https://github.com/owner/project/pull/7\n")
+        api = self.api()
+        with patch.object(api, "request") as request:
+            for url in urls:
+                with self.subTest(url=url), self.assertRaisesRegex(Abstain, "PR URL|pull/NUMBER"):
+                    collect_pull_request(url, api)
+        request.assert_not_called()
+
+    def test_pr_url_rejects_wrong_identity_closed_unmerged_and_incomplete_inventory(self):
+        for change, diagnostic in (
+                ({"number": 8}, "PR number"),
+                ({"base": {"sha": "b" * 40, "repo": {"full_name": "other/project"}}}, "PR base"),
+                ({"head": {"sha": "main"}}, "immutable"),
+                ({"merged": False}, "closed without merging"),
+                ({"changed_files": None}, "invalid PR snapshot"),
+                ({"changed_files": 2}, "inventory")):
+            with self.subTest(change=change):
+                api = self.api()
+                request, pages = api.request, api.pages
+                def invalid_request(path):
+                    result = request(path)
+                    if path.endswith("/pulls/7"):
+                        return {**result, **change}
+                    if "/compare/" in path:
+                        return {**result, "commits": pages("fixture/commits"), "total_commits": 1}
+                    return result
+                api.request = invalid_request
+                with self.assertRaisesRegex(Abstain, diagnostic):
+                    collect_pull_request("https://github.com/owner/project/pull/7", api)
 
     def test_malformed_current_identity_is_not_a_successful_superseded_skip(self):
         for field, value in (("head", {"sha": "moving-ref"}), ("state", "unknown"), ("merged", None)):

@@ -21,7 +21,7 @@ import threading
 import time
 import uuid
 
-from .github import Abstain, collect, collect_sources, repository, sha, source_path
+from .github import Abstain, collect, collect_pull_request, collect_sources, repository, sha, source_path
 
 TERMINAL = {"completed", "failed", "cancelled"}
 TOKEN_VARIABLES = ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")
@@ -238,7 +238,7 @@ def start(args):
     else:
         image = json.loads(command(["docker", "image", "inspect", args.image]))[0]["Id"]
     if args.benchmark:
-        if args.event or args.base or args.head or args.intent_file or args.context_manifest:
+        if args.pr or args.event or args.base or args.head or args.intent_file or args.context_manifest:
             raise Abstain("Benchmark mode uses the frozen supplied specifications, not change/intent options")
         if not args.dataset or not args.release_sha:
             raise Abstain("Benchmark mode requires --dataset and the trusted NFV --release-sha")
@@ -246,12 +246,13 @@ def start(args):
     else:
         if args.dataset or args.release_sha:
             raise Abstain("Dataset and release options require --benchmark")
-        if args.event:
+        if args.pr or args.event:
             if args.base or args.head:
-                raise Abstain("Choose a PR event or local base/head commits, not both")
+                raise Abstain("Choose a PR URL/event or local base/head commits, not both")
             from .github import GitHub
             api = GitHub()
-            bundle = collect(load(args.event), api, event_snapshot=True)
+            bundle = (collect_pull_request(args.pr, api) if args.pr else
+                      collect(load(args.event), api, event_snapshot=True))
             if args.intent_file:
                 intent = read_intent(args.intent_file)
                 bundle["signals"].append({"id": "local-intent", "kind": "explicit-intent",
@@ -530,7 +531,9 @@ def main(argv=None):
     p.add_argument("--base")
     p.add_argument("--head")
     p.add_argument("--intent-file")
-    p.add_argument("--event", help="PR event JSON; collect immutable GitHub source through read-only API")
+    inputs = p.add_mutually_exclusive_group()
+    inputs.add_argument("--pr", help="HTTPS GitHub PR URL; capture an immutable snapshot through read-only API")
+    inputs.add_argument("--event", help="PR event JSON; collect immutable GitHub source through read-only API")
     p.add_argument("--context-manifest", help="Optional captured-source hints: files with path/symbols only")
     p.add_argument("--benchmark", action="store_true")
     p.add_argument("--dataset")

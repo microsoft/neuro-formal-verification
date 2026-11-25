@@ -128,6 +128,10 @@ Maintainers: see the [maintenance and local CLI guide](MAINTAINER.md).
 For asynchronous local reviews or benchmarks without GitHub Actions, use the
 [local NFV skill](../.github/skills/nfv-local/SKILL.md) and
 [local runtime guide](MAINTAINER.md#local-skill-and-asynchronous-runs).
+To review a PR by URL while staying in your own checkout, follow
+[Dockerized skill setup for repository developers](MAINTAINER.md#use-the-dockerized-skill-from-your-repository).
+No separate NFV checkout or webhook file is required; the trusted launcher and
+dependency image are installed from one pinned NFV revision.
 See [adding the skill to a coding agent](MAINTAINER.md#add-the-skill-to-a-coding-agent)
 for project/personal installation and invocation.
 The independent [micro-benchmark](MAINTAINER.md#nightly-nfv-micro-bench) does not

@@ -132,17 +132,24 @@ OPEN_ACTIONS = ("opened", "synchronize", "reopened", "ready_for_review")
 
 def identity(event):
     pr = event.get("pull_request", {})
-    if event.get("action") == "closed" and pr.get("state") == "closed":
+    if not ((event.get("action") == "closed" and pr.get("state") == "closed")
+            or (event.get("action") in OPEN_ACTIONS and pr.get("state") == "open")):
+        raise Abstain("Only open or merged pull requests are supported")
+    return pull_request_identity(event["repository"]["full_name"], pr)
+
+
+def pull_request_identity(repo, pr):
+    if pr.get("state") == "closed":
         if pr.get("merged") is not True or not pr.get("merge_commit_sha"):
             raise Abstain("Only merged pull requests are supported; closed without merging")
         merged = True
-    elif event.get("action") in OPEN_ACTIONS and pr.get("state") == "open":
+    elif pr.get("state") == "open":
         merged = False
     else:
         raise Abstain("Only open or merged pull requests are supported")
-    repo = repository(event["repository"]["full_name"])
+    repo = repository(repo)
     if pr["base"]["repo"]["full_name"] != repo:
-        raise Abstain("Event repository does not match PR base")
+        raise Abstain("Snapshot repository does not match PR base")
     head_repo = (pr["head"].get("repo") or {}).get("full_name")
     # Commit objects of merged/fork PRs are also reachable via the base repo API.
     return {"repository": repo, "number": int(pr["number"]),
@@ -151,6 +158,37 @@ def identity(event):
             "head_repository": head_repo, "merged": merged,
             "merge_sha": sha(pr["merge_commit_sha"]) if merged else None,
             "source_kind": "pull-request-head", "closed_at": pr.get("closed_at")}
+
+
+def pull_request_url(value):
+    if (not isinstance(value, str) or value != value.strip()
+            or any(ord(c) < 32 or ord(c) == 127 for c in value)):
+        raise Abstain("Expected an HTTPS GitHub PR URL")
+    try:
+        parsed = urllib.parse.urlsplit(value)
+    except ValueError as exc:
+        raise Abstain("Expected an HTTPS GitHub PR URL") from exc
+    match = re.fullmatch(r"/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/pull/([1-9][0-9]*)/?", parsed.path)
+    if (parsed.scheme != "https" or parsed.netloc.lower() != "github.com" or not match
+            or any(part in (".", "..") for part in match[1].split("/"))):
+        raise Abstain("Expected https://github.com/OWNER/REPO/pull/NUMBER; other hosts are unsupported")
+    return repository(match[1]), int(match[2])
+
+
+def collect_pull_request(url, api):
+    """Freeze API metadata and collect immutable PR sources without inventing an event."""
+    repo, number = pull_request_url(url)
+    pr = api.request(f"repos/{repo}/pulls/{number}")
+    if not isinstance(pr, dict) or type(pr.get("number")) is not int or pr["number"] != number:
+        raise Abstain("GitHub returned a different or invalid PR number")
+    canonical_repo = repository(pr["base"]["repo"]["full_name"])
+    if canonical_repo.lower() != repo.lower():
+        raise Abstain("Snapshot repository does not match PR base")
+    ident = pull_request_identity(canonical_repo, pr)
+    if (not unchanged(pr, ident) or type(pr.get("changed_files")) is not int
+            or pr["changed_files"] < 0):
+        raise Abstain("GitHub returned an invalid PR snapshot")
+    return _collect(pr, ident, api, event_snapshot=True)
 
 
 def unchanged(latest, ident):
@@ -228,13 +266,18 @@ def reanchor(properties, base_bundle):
 
 
 def collect(event, api, side="head", *, event_snapshot=False):
+    ident = identity(event)
+    return _collect(event["pull_request"], ident, api, side=side,
+                    event_snapshot=event_snapshot)
+
+
+def _collect(pr, ident, api, side="head", *, event_snapshot=False):
     if side not in ("head", "base"):
         raise Abstain("Collection side must be head or base")
     # Base snapshots reuse the head snapshot's context order so before/after runs see the
     # same surrounding files and differ only in the changed code.
     preferred = {p: i for i, p in enumerate(
-        collect(event, api, event_snapshot=event_snapshot)["sources"])} if side == "base" else {}
-    ident = identity(event)
+        _collect(pr, ident, api, event_snapshot=event_snapshot)["sources"])} if side == "base" else {}
     if side == "base":
         # Pre-merge snapshot of the same PR, anchored on removed lines; never publishable.
         ident = dict(ident, source_sha=ident["base_sha"], source_kind="pull-request-base")
@@ -247,7 +290,7 @@ def collect(event, api, side="head", *, event_snapshot=False):
     comparison = api.request(
         f"{prefix}/compare/{ident['base_sha']}...{ident['head_sha']}")
     files = comparison.get("files", [])
-    expected_files = event["pull_request"].get("changed_files") if event_snapshot else latest["changed_files"]
+    expected_files = pr.get("changed_files") if event_snapshot else latest["changed_files"]
     if (len(files) > 300 or (expected_files is not None and len(files) != expected_files)
             or (expected_files is None and len(files) >= 300)):
         raise Abstain("Changed-file inventory incomplete or exceeds 300-file budget")
@@ -260,7 +303,7 @@ def collect(event, api, side="head", *, event_snapshot=False):
     signals, signal_bytes = [], 0
     # Intent comes from the PR description, conversation (issue) comments, and
     # commit messages; review comments and reviews are not collected.
-    description_pr = event["pull_request"] if event_snapshot else latest
+    description_pr = pr if event_snapshot else latest
     description = {"id": number, "body": description_pr.get("body"),
                    "html_url": description_pr.get("html_url", "")}
     for kind, items in (("description", [description]),

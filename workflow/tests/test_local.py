@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 import asyncio
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict
 import copy
 import hashlib
@@ -132,10 +132,59 @@ class LocalTests(unittest.TestCase):
 
     def test_start_requires_authorization_before_capture_or_launch(self):
         with patch.object(local, "capture") as capture, patch.object(local, "launch") as launch, \
+                patch.object(local, "collect_pull_request") as collect_pr, \
                 redirect_stdout(io.StringIO()) as output:
-            self.assertEqual(cli.main(["local", "start", "--model", "test-model"]), 1)
+            self.assertEqual(cli.main(["local", "start", "--pr", "https://github.com/owner/project/pull/7",
+                                       "--model", "test-model"]), 1)
         self.assertIn("authorize-inference", output.getvalue())
         capture.assert_not_called()
+        collect_pr.assert_not_called()
+        launch.assert_not_called()
+
+    def test_pr_url_start_captures_bundle_and_optional_intent_for_docker_worker(self):
+        data, _, _ = fixture()
+        data["identity"]["source_kind"] = "pull-request-head"
+        intent_path = self.directory / "intent.txt"
+        intent_path.write_text("Additional intent.", encoding="utf-8")
+        url = "https://github.com/owner/project/pull/7"
+        with patch("nfv_workflow.github.GitHub") as api, \
+                patch.object(local, "collect_pull_request", return_value=data) as collect_pr, \
+                patch.object(local, "capture") as capture, \
+                patch.object(local, "command", return_value=b'[{"Id":"sha256:trusted-image"}]'), \
+                patch.object(local, "launch") as launch, redirect_stdout(io.StringIO()) as output:
+            code = cli.main(["local", "--runs-dir", str(self.directory), "start", "--pr", url,
+                             "--intent-file", str(intent_path), "--runtime", "docker",
+                             "--model", "test-model", "--authorize-inference"])
+        self.assertEqual(code, 0, output.getvalue())
+        collect_pr.assert_called_once_with(url, api.return_value)
+        capture.assert_not_called()
+        directory = Path(json.loads(output.getvalue())["directory"])
+        saved = local.load(directory / "inputs" / "bundle.json")
+        self.assertEqual(saved["identity"], data["identity"])
+        self.assertEqual(saved["signals"][-1]["text"], "Additional intent.")
+        self.assertEqual(saved["signals"][-1]["kind"], "explicit-intent")
+        launch.assert_called_once()
+        self.assertEqual(launch.call_args.args[1]["image"], "sha256:trusted-image")
+        self.assertEqual(launch.call_args.args[1]["bundle_sha256"], hashlib.sha256(
+            (directory / "inputs" / "bundle.json").read_bytes()).hexdigest())
+
+    def test_pr_url_conflicts_and_api_failures_do_not_launch_workers(self):
+        options = ["local", "start", "--pr", "https://github.com/owner/project/pull/7",
+                   "--runtime", "docker", "--model", "test-model", "--authorize-inference"]
+        with patch.object(local, "launch") as launch, patch("nfv_workflow.github.GitHub"), \
+                patch.object(local, "command", return_value=b'[{"Id":"sha256:trusted-image"}]'), \
+                patch.object(local, "collect_pull_request", side_effect=Abstain("GitHub API: HTTP 403")) as collect_pr:
+            for extra, message in ((["--base", "dev"], "not both"),
+                                    (["--benchmark"], "Benchmark mode"),
+                                    ([], "HTTP 403")):
+                with self.subTest(extra=extra), redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(cli.main([*options, *extra]), 1)
+                self.assertIn(message, output.getvalue())
+            self.assertEqual(collect_pr.call_count, 1)
+            with redirect_stderr(io.StringIO()) as output, self.assertRaises(SystemExit) as raised:
+                cli.main([*options, "--event", "event.json"])
+            self.assertEqual(raised.exception.code, 2)
+            self.assertIn("not allowed", output.getvalue())
         launch.assert_not_called()
 
     def test_review_worker_reuses_extraction_and_audit_and_preserves_input(self):

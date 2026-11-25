@@ -23,7 +23,7 @@ the repository being inspected.
 ## Before starting
 
 1. Confirm the requested mode: committed base/head change plus explicit intent,
-   an existing PR event snapshot, or the frozen benchmark. Committed changes
+   a GitHub PR URL or existing PR event snapshot, or the frozen benchmark. Committed changes
    exclude staged, unstaged and untracked files; do not claim otherwise.
 2. Use a trusted NFV release containing this CLI. Follow NFV's stable-release
    selection policy, pinning the exact release SHA. A development checkout is
@@ -58,11 +58,26 @@ Optional `--context-manifest` is a bounded JSON `files` list, each item containi
 only `path` and `symbols`; the runtime binds and recaptures those hints.
 Never use agent-authored context prose as a contract.
 
-For a PR, use `--event .\event.json` instead of base/head; this is an actual
-GitHub PR event JSON, collected through the read-only API. An optional
-`--intent-file` supplies additional explicit intent. Do not fabricate PR
-identities, check out PR-head code or bypass automatic-review admission records.
-A local manual review is separate from the installed Actions workflow.
+For a PR, use its GitHub URL instead of base/head:
+
+```powershell
+nfv-workflow local start --pr https://github.com/OWNER/REPO/pull/NUMBER `
+  --runtime docker --image TRUSTED_IMAGE `
+  --model APPROVED_MODEL --authorize-inference
+```
+
+The read-only API captures the PR's base/head commits and description before
+collecting immutable comparison commits and source blobs. Later pushes, closure
+or merge do not replace that snapshot. No target checkout or webhook file is
+needed. Open (including draft) and merged PRs are supported; closed-unmerged PRs
+and hosts other than `github.com` fail explicitly. Manual local reviews can
+inspect fork PRs as data; this does not change the Actions workflow's fork
+exclusion or its automatic-review admission records.
+
+`--event .\event.json` remains available for an actual saved GitHub PR event.
+Choose only one of `--pr`, `--event`, or base/head. An optional `--intent-file`
+supplies additional explicit intent. Never fabricate PR identities or check out
+PR-head code. A local manual review is separate from the installed Actions workflow.
 
 `start` returns JSON with the run ID, output directory and log path. Record
 those exact values and return control to the user; do not keep an outer model
