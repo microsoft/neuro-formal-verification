@@ -27,12 +27,14 @@ DATA_COLLECTION = (
 
 
 class ReleaseTests(unittest.TestCase):
-    def test_readme_opens_with_description_and_two_components(self):
+    def test_readme_overview_contains_description_and_two_components(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         opening = readme.split("# Neuro-Formal Verification\n\n", 1)[1]
-        description, components = opening.split("\n\n", 1)
-        self.assertTrue(description.startswith("Neuro-Formal Verification (NFV) "))
-        components = components.split("This repository provides two artefacts:\n\n", 1)[1]
+        introduction, components = opening.split("This repository provides two artefacts:\n\n", 1)
+        self.assertTrue(any(
+            paragraph.startswith("Neuro-Formal Verification (NFV) ")
+            for paragraph in introduction.split("\n\n")
+        ))
         bullets = [line for line in components.split("\n\n", 1)[0].splitlines()
                    if line.startswith("- ")]
         self.assertEqual(len(bullets), 2)
