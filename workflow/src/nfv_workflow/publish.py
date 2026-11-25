@@ -94,7 +94,7 @@ def fenced(language, body):
 
 def source_link(path, low, high, repo, commit, linked=True):
     label = f"{code_span(path)} lines {low}-{high}"
-    if not linked:
+    if not linked or repo is None:
         return label
     url = f"https://github.com/{repo}/blob/{commit}/{quote(path, safe='/')}#L{low}-L{high}"
     return f"[{label}]({url})"
@@ -190,7 +190,7 @@ def relevant_code(claim, translation, finding, bundle, repo, commit, display_pro
     return out
 
 
-def followup_lines(followup, compact=False):
+def followup_lines(followup, compact=False, artifact="linked run artifact"):
     if not followup:
         return []
     lines = []
@@ -203,7 +203,7 @@ def followup_lines(followup, compact=False):
             "**Suggested fix:** " + text(fix["description"]),
         ])
         if compact:
-            lines.append("The suggested source patch and model checks are retained in the linked run artifact.")
+            lines.append(f"The suggested source patch and model checks are retained in the {artifact}.")
         else:
             lines.append(fenced("diff", fix["patch"]))
         lines.extend([
@@ -216,7 +216,8 @@ def followup_lines(followup, compact=False):
     return lines
 
 
-def general_section(index, finding, bundle, repo, commit, presentation=None, compact=False, followup=None):
+def general_section(index, finding, bundle, repo, commit, presentation=None, compact=False, followup=None,
+                    artifact="linked run artifact"):
     from .general import validate_finding
     validate_finding(finding, bundle)
     claim, translation = finding["candidate"], finding["translation"]
@@ -266,7 +267,7 @@ def general_section(index, finding, bundle, repo, commit, presentation=None, com
         "> " + text(" ".join(str(claim["quote"]).split())),
         f"**Input on which it fails:** {inputs}",
         f"**Sketch of the failure:** {text(explanation)}",
-        *followup_lines(followup, compact),
+        *followup_lines(followup, compact, artifact),
     ]
     if compact:
         conditions = [translation["assumptions"][i]["description"]
@@ -279,7 +280,7 @@ def general_section(index, finding, bundle, repo, commit, presentation=None, com
             "**Source:** " + source_link(claim["path"], *span, repo, commit),
             *mapping_details,
             f"Evidence: {code_span(finding['evidence'])}; SHA-256 {code_span(finding['dafny_sha256'])}.",
-            "Source, specifications and full Dafny are retained in the linked run artifact.",
+            f"Source, specifications and full Dafny are retained in the {artifact}.",
         ]
     lines.extend([
         "<details><summary>Details</summary>\n",
@@ -466,17 +467,32 @@ def comment(report, bundle, evidence_url, proposed, presentation=None, followups
     return body
 
 
-def analysis_comment(report, bundle, evidence_url, presentation=None, followups=None):
+def local_comment(report, bundle, presentation=None, followups=None):
+    """Render the same whole-property report locally, without permitting publication."""
+    if report.get("schema") != 3 or report.get("mode") != "general-model-analysis":
+        raise Abstain("Local reports require whole-property general analysis evidence")
+    return analysis_comment(report, bundle, None, presentation, followups, local=True)
+
+
+def analysis_comment(report, bundle, evidence_url, presentation=None, followups=None, *, local=False):
     from .general import validate_verification
     from .outcomes import OUTCOMES, REFUTED, VERIFIED
 
-    if report.get("completed") is False:
+    if report.get("completed") is False or (local and report.get("completed") is not True):
         raise Abstain("Analysis is incomplete; publication stopped")
-    checked_findings(report, bundle, evidence_url)
+    if local:
+        if report.get("identity") != bundle["identity"]:
+            raise Abstain("Report and source identity mismatch")
+        if bundle["identity"].get("source_kind") not in ("local-change", "benchmark", "pull-request-head"):
+            raise Abstain("Unsupported local source identity")
+        sha(bundle["identity"]["base_sha"])
+        sha(bundle["identity"]["head_sha"])
+    else:
+        checked_findings(report, bundle, evidence_url)
     if report.get("errors"):
         raise Abstain("Analysis contains infrastructure errors; publication stopped")
     ident = report["identity"]
-    if (report["findings"] or report.get("verified")) and ident.get("source_kind") != "pull-request-head":
+    if not local and (report["findings"] or report.get("verified")) and ident.get("source_kind") != "pull-request-head":
         raise Abstain("Synthetic or non-PR source identities cannot be published")
     mappings = {}
     if presentation is not None:
@@ -487,6 +503,9 @@ def analysis_comment(report, bundle, evidence_url, presentation=None, followups=
         from .followups import validate_artifact as validate_followups
         enrichments = validate_followups(followups, report, bundle)
     repo, commit = repository(ident["repository"]), sha(ident["source_sha"])
+    artifact = "local evidence directory" if local else "linked run artifact"
+    if local:
+        repo = None
     verified = {item["candidate"]["id"]: item for item in report.get("verified", [])}
     for item in verified.values():
         validate_verification(item, bundle)
@@ -501,11 +520,16 @@ def analysis_comment(report, bundle, evidence_url, presentation=None, followups=
         raise Abstain("Unrecognized property outcome")
     counts = {status: sum(item["status"] == status for item in properties) for status in OUTCOMES}
     lines = [
-        marker(ident),
+        "<!-- nfv-local-report -->" if local else marker(ident),
+        f"[Neuro-formal verification (NFV)]({PAPER}) selects nontrivial properties "
+        "from intent and source, tries verification, then tries refutation." if local else
         f"[Neuro-formal verification (NFV)]({PAPER}) selects nontrivial properties "
         "from PR intent and source, tries verification, then tries refutation.",
-        f"# NFV: {counts[REFUTED]} refuted, {counts[VERIFIED]} verified in PR #{ident['number']}",
-        *preamble(ident, evidence_url),
+        f"# NFV: {counts[REFUTED]} refuted, {counts[VERIFIED]} verified"
+        + (" in local review" if local else f" in PR #{ident['number']}"),
+        *([f"Captured source `{commit}`, base `{ident['base_sha']}`.",
+           "Evidence: `bundle.json`, `report.json` and property directories beside this file."]
+          if local else preamble(ident, evidence_url)),
         "**These are results for translated models under their stated assumptions, "
         "not proofs of source-code correctness or confirmed source bugs.**",
         " · ".join(f"{status}: {counts[status]}" for status in OUTCOMES),
@@ -532,9 +556,11 @@ def analysis_comment(report, bundle, evidence_url, presentation=None, followups=
                 raise Abstain("Displayed refuted property differs from its checked evidence")
             mapping = mappings.get(evidence["candidate"]["id"])
             compact_sections.append((status, len(lines), "\n\n".join(
-                general_section(index, evidence, bundle, repo, commit, mapping, compact=True, followup=extra)[2:])))
+                general_section(index, evidence, bundle, repo, commit, mapping, compact=True,
+                                followup=extra, artifact=artifact)[2:])))
             lines.append("\n\n".join(
-                general_section(index, evidence, bundle, repo, commit, mapping, followup=extra)[2:]))
+                general_section(index, evidence, bundle, repo, commit, mapping,
+                                followup=extra, artifact=artifact)[2:]))
         elif status == VERIFIED:
             evidence = verified.get(item["id"])
             if evidence is None:
@@ -561,23 +587,24 @@ def analysis_comment(report, bundle, evidence_url, presentation=None, followups=
                 "**Checked property:**\n\n" + dafny_block(
                     "\n".join("ensures " + clause for clause in translation["original_ensures"])),
                 evidence_line,
-                "The full verified Dafny is retained in the linked run artifact.",
+                f"The full verified Dafny is retained in the {artifact}.",
                 "</details>",
             ])
             compact_sections.append((status, len(lines), "\n\n".join([
                 assumptions, evidence_line,
-                "Full verification details and the full verified Dafny are retained in the linked run artifact.",
+                f"Full verification details and the full verified Dafny are retained in the {artifact}.",
             ])))
             lines.append("\n\n".join(details))
         elif item.get("diagnostic"):
             diagnostic = re.sub("reachability", "input-domain check", item["diagnostic"], flags=re.I)
             excerpt = text(diagnostic[:300])
             if len(diagnostic) > 300:
-                excerpt += "\n\nFull diagnostic is retained in the linked run artifact."
+                excerpt += f"\n\nFull diagnostic is retained in the {artifact}."
             compact_sections.append((status, len(lines),
-                                     "The full diagnostic is retained in the linked run artifact."))
+                                     f"The full diagnostic is retained in the {artifact}."))
             lines.append("<details><summary>Diagnostic</summary>\n\n" + excerpt + "\n\n</details>")
-    lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
+    if not local:
+        lines.append("<!-- gh-aw-workflow-id: nfv-pr-review -->")
     body = "\n\n".join(lines)
     for _, index, compact in sorted(
             compact_sections,

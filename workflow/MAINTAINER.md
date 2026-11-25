@@ -112,6 +112,304 @@ Discussion when applied; it is separate from the installed PR-comment reviewer.
 `presentation.json` are read beside the report, or supplied with `--followups`
 and `--presentation`; rendering does not rerun proofs.
 
+## Local skill and asynchronous runs
+
+The [local NFV skill](../.github/skills/nfv-local/SKILL.md) wraps the existing
+review and benchmark engine without requiring GitHub Actions. Install from a
+trusted NFV release containing the local CLI, not from the inspected repository:
+
+Developers can [install and invoke it from their own repository](#use-the-dockerized-skill-from-your-repository)
+without maintaining an NFV source checkout.
+
+```powershell
+python -m pip install ".[inference]" "./workflow[local]"
+nfv-workflow local --help
+```
+
+Native execution needs Dafny 4.11.0, bundled Z3 4.12.1 and an authenticated
+Copilot account with access to the explicitly selected model. Containers are
+optional. The Linux amd64 dependency image includes Python, the pinned SDK,
+Dafny/Z3 and the trusted NFV packages; CBMC is not needed by this reviewer:
+
+```powershell
+docker build --platform linux/amd64 -t nfv-local:latest .
+docker run --rm nfv-local:latest local --help
+docker run --rm --entrypoint python nfv-local:latest -m nfv.shared.config
+```
+
+Build only from a trusted NFV revision. The image copies only runtime packages
+and required licensing metadata, not datasets, retained results, tests or
+credentials. The local-directory build context also excludes those files;
+remote Git contexts can contain more files, so image contents use an explicit
+copy allowlist independent of context filtering. The base image and
+OS packages are not a fully reproducible dependency lock; the Dafny archive is
+checksum-verified. Runtime image tags are resolved to image IDs before launch.
+For container inference, securely set `COPILOT_GITHUB_TOKEN` in the host
+environment and, when account/API lookup needs it, `GH_TOKEN`; pass environment
+variable names, never token values in commands. Tokens are not saved in run
+metadata. No home directory or inspected checkout is mounted into the worker.
+Git and the trusted Python CLI still run on the host to capture the inputs.
+Git must be an executable on the invoking terminal's `PATH`; an app-managed
+Git available to the agent is not necessarily available in a user terminal.
+Check with `python -c "import shutil; print(shutil.which('git'))"` and
+`git --version`. If discovery prints `None`, install Git or add its executable
+directory to that terminal's `PATH` before reviewing committed changes.
+The Git-dependent offline tests skip when Git is unavailable; other tests
+can still run, but those skips do not validate source capture.
+
+### Use the Dockerized skill from your repository
+
+For a developer, the working directory is the existing `OWNER/REPO` checkout.
+This procedure applies to any `github.com/OWNER/REPO` repository.
+The skill and trusted launcher live in personal directories; only the
+dependency container contains Dafny, Z3 and the inference SDK. The inspected
+repository is never mounted, checked out at the PR head, imported or executed.
+You do not need to clone NFV or add its packages to your project's environment.
+
+Use Bash on Linux or WSL, with Python 3.11+ and venv support, Git, GitHub CLI,
+Copilot CLI and a running Docker daemon with Linux amd64 container support.
+Check these in the same terminal from which you launch Copilot:
+
+```bash
+python3 --version
+git --version
+gh auth status
+copilot --version
+docker info
+```
+
+Authenticate GitHub CLI with `gh auth login` if necessary. Do not run Copilot
+as root. Docker access is required for the launcher, not just image builds;
+the Docker group grants effectively root-level access and requires approval
+on managed machines. In WSL, use a Linux virtualenv rather than a Windows one.
+Paste commands without Markdown code-fence lines.
+
+**Choose a trusted revision.** Use the latest published stable NFV release that
+contains `nfv-workflow local start --pr`, resolved once to a full commit SHA,
+following [release selection](ONBOARDING.md#select-a-release). If no such release
+exists, stop or explicitly authorize testing a maintainer-provided development
+SHA. Never substitute the default branch tip. Replace `APPROVED_NFV_SHA` in the
+following prompt with that exact 40-character SHA.
+
+Start `copilot` from your own repository checkout and ask it:
+
+> Install the personal nfv-local skill and its Docker runtime from
+> microsoft/neuro-formal-verification at APPROVED_NFV_SHA. Download that exact
+> revision's `.github/skills/nfv-local/SKILL.md` and `workflow/MAINTAINER.md`.
+> Install the skill under `~/.copilot/skills/nfv-local`; stop if an installation
+> already exists rather than overwriting it. Keep the matching guide and an
+> isolated launcher virtualenv under `~/.local/share/nfv/APPROVED_NFV_SHA`.
+> Install both NFV packages from that revision, using only the workflow's
+> `[local]` extra on the host. Build the Docker image from the same pinned remote
+> Git context, tagged `nfv-local:APPROVED_NFV_SHA`. Check host and container
+> `local start --help`. Do not clone NFV into my checkout, install my repository's
+> dependencies, change repository files, start inference or publish anything.
+
+The setup agent can use GitHub's read-only contents API to download the skill
+and guide at the selected SHA. The launcher installation is:
+
+```bash
+NFV_SHA=APPROVED_NFV_SHA
+NFV_HOME="$HOME/.local/share/nfv/$NFV_SHA"
+python3 -m venv "$NFV_HOME/venv"
+"$NFV_HOME/venv/bin/python" -m pip install \
+  "neuro-formal-verification @ git+https://github.com/microsoft/neuro-formal-verification.git@$NFV_SHA" \
+  "neuro-formal-verification-workflow[local] @ git+https://github.com/microsoft/neuro-formal-verification.git@$NFV_SHA#subdirectory=workflow"
+docker build --platform linux/amd64 -t "nfv-local:$NFV_SHA" \
+  "https://github.com/microsoft/neuro-formal-verification.git#$NFV_SHA"
+```
+
+These package installs and the image build download trusted NFV source
+temporarily; they do not require a user-maintained NFV checkout. No prebuilt
+registry image is assumed. Installation and image building do not run inference.
+Keep the SHA-pinned launcher, skill, guide and image together when upgrading.
+
+Restart Copilot so it discovers the skill. Before launching the new session,
+configure `COPILOT_GITHUB_TOKEN` securely in its terminal environment for the
+approved inference account; use `GH_TOKEN` for authenticated source API access.
+Never paste tokens into agent chat, shell command arguments or files. Copilot
+CLI sign-in or `gh auth login` alone does not configure these container
+environment variables. Do not let the agent print or retrieve token values.
+The Docker worker receives environment credentials, not your home directory.
+
+Now ask Copilot, replacing the PR number, SHA and model:
+
+> Use nfv-local to review https://github.com/OWNER/REPO/pull/NUMBER.
+> Use the launcher at ~/.local/share/nfv/APPROVED_NFV_SHA/venv/bin/nfv-workflow,
+> the matching guide at ~/.local/share/nfv/APPROVED_NFV_SHA/MAINTAINER.md,
+> Docker image nfv-local:APPROVED_NFV_SHA and model APPROVED_MODEL.
+> Keep runs under ~/.local/share/nfv/runs. Confirm the PR scope and billing
+> account and obtain my explicit authorization before starting inference.
+> Return the asynchronous run ID and keep the generated Markdown report local.
+> Do not execute PR code or publish anything.
+
+A target clone is not required for PR capture; the URL identifies the source.
+The PR description, discussion and immutable comparison commit
+messages supply intent; `--intent-file` can add explicit intent.
+
+After authorizing the chosen scope and model, the underlying launch command is:
+
+```bash
+"$NFV_HOME/venv/bin/nfv-workflow" local --runs-dir "$HOME/.local/share/nfv/runs" \
+  start --pr https://github.com/OWNER/REPO/pull/NUMBER \
+  --runtime docker --image "nfv-local:$NFV_SHA" \
+  --model APPROVED_MODEL --authorize-inference
+```
+
+The worker is detached. Later ask Copilot to check the recorded run ID or
+retrieve its report; it must reuse the same launcher and runs directory, not
+restart inference. No report is posted to GitHub automatically. Local compute
+avoids Actions minutes, not Copilot inference charges.
+
+### Add the skill to a coding agent
+
+Installing the Python CLI does not install the agent skill, and copying the
+skill does not install its runtime dependencies. Set up both from the same
+trusted NFV revision. Until a stable release includes this feature, use an
+explicitly approved development checkout for testing.
+
+For GitHub Copilot, copy the complete `.github\skills\nfv-local` folder into
+the target repository's `.github\skills` directory (project scope), or into
+`$HOME\.copilot\skills` (personal scope across repositories). For example,
+from the trusted NFV checkout, install a personal skill without overwriting
+an existing installation:
+
+```powershell
+$nfv = (Get-Location).Path
+$skills = Join-Path $HOME '.copilot\skills'
+$target = Join-Path $skills 'nfv-local'
+if (Test-Path -LiteralPath $target) {
+  throw 'nfv-local is already installed; review it before replacing it.'
+}
+New-Item -ItemType Directory -Force -Path $skills | Out-Null
+Copy-Item -LiteralPath (Join-Path $nfv '.github\skills\nfv-local') `
+  -Destination $target -Recurse
+```
+
+For a project installation, set `$skills` to the target repository's absolute
+`.github\skills` path instead. Commit the copied skill only if you intend to
+share it with that repository's contributors. Other coding agents supporting
+the Agent Skills standard may use `.agents\skills` or `.claude\skills`; follow
+the agent's documented discovery location rather than assuming all hosts
+support the same directories.
+See [Copilot's supported skill locations](https://docs.github.com/en/copilot/concepts/customizations/agent-skills).
+
+Open or restart the coding-agent session in the target repository so it can
+discover `nfv-local`. Ensure the agent's execution environment can run
+`nfv-workflow local --help` and `git --version`. Activating a virtual environment
+in a separate user terminal does not necessarily activate it for the agent.
+If necessary, give the agent the absolute path to the trusted environment's
+`Scripts\nfv-workflow.exe` on Windows, or `bin\nfv-workflow` on Linux.
+For copied skills, also provide the trusted checkout's absolute
+`workflow\MAINTAINER.md` path: the skill's repository-relative documentation
+link no longer points to NFV after copying. Keep that checkout available or
+retrieve the guide from the same pinned NFV revision.
+
+Invoke it by name in an agent prompt, for example:
+
+> Use nfv-local to review the committed change from dev to HEAD. Intent:
+> retries must not duplicate writes. Use my approved model and Docker runtime.
+> Show the scope and billing requirements before starting; keep the report local.
+
+For a developer starting in their own repository rather than an NFV checkout,
+use the [Dockerized setup prompt](#use-the-dockerized-skill-from-your-repository).
+
+The agent should load the skill, check prerequisites and obtain authorization,
+then return an asynchronous run ID. A later request such as "Check the status
+of NFV run RUN_ID" retrieves progress without restarting inference. Skill
+discovery is not authorization to spend credits or publish results. Personal
+skills and local runtime installations are not automatically available to
+cloud agents; a cloud session needs its own setup and is not this local
+compute experience.
+
+The following commands are **billable**. `--authorize-inference` records the
+caller's explicit authorization; it is not a billing cap. Native compute avoids
+Actions usage but does not provide free Copilot inference or organization billing.
+From the repository being inspected:
+
+```powershell
+nfv-workflow local start --base dev --head HEAD `
+  --intent-file .\intent.md --model APPROVED_MODEL --authorize-inference
+```
+
+Use `--runtime docker --image nfv-local:latest` for a detached container instead
+of a detached native process. Only committed base/head trees are captured,
+not staged, unstaged or untracked changes. A PR can instead use
+`--pr https://github.com/OWNER/REPO/pull/NUMBER`, optionally with extra explicit
+intent, without a target checkout or webhook file. The read-only API freezes
+the initial base/head commits and PR description, then captures comparison
+commits and source blobs at those immutable SHAs, even if the PR later changes.
+Open (including draft) and merged PRs are supported, including fork PRs for
+manual local review. Closed-unmerged PRs and non-`github.com` hosts fail
+explicitly. The installed Actions workflow's fork/admission policy is unchanged.
+`--event .\event.json` remains available for a saved PR event; choose only one
+PR input or local base/head. Collection is inspection-only; no subject
+dependencies, hooks, diff drivers, imports or tests are executed.
+`--context-manifest` can name bounded additional paths/symbols recaptured from
+the same immutable snapshot.
+
+`start` returns JSON with a run ID, directory and log path. The default output
+root is `.nfv-work\runs` under the invoking directory. Use the same directory
+on later calls, or set `--runs-dir ABSOLUTE_PATH` before each subcommand:
+
+```powershell
+nfv-workflow local status RUN_ID
+nfv-workflow local result RUN_ID
+nfv-workflow local cancel RUN_ID
+```
+
+Workers continue after the conversation closes while the machine/runtime stays
+running. `status` reports phases and failure diagnostics; `worker.log` includes
+per-property progress. `result` requires a completed error-free report and
+returns `evidence\comment.md`, generated by the PR's whole-property renderer
+with local source/evidence references. It is not manually edited or published.
+Input bundles are hash-bound; container input/config mounts are read-only.
+Native evidence checkpoints remain incremental and writable.
+
+Cancellation kills only the recorded worker process tree or its identified
+container and preserves interrupted evidence. Native PID reuse is checked
+against process creation time. An unexpected exit is failed, not completed.
+The default wall-clock limit is six hours; `--timeout-seconds` sets an explicitly
+authorized run budget. Repair limits are at most six syntax and ten proof
+rounds; verifier/property timeouts are configurable. There is no automatic
+resume or notification integration. Retained containers and run directories
+are not deleted automatically; stop/retrieve first and remove only the
+specific finished run/container you intend to clean up.
+
+### Local nfv-micro-bench
+
+Use the frozen dataset from the trusted NFV revision and its exact release SHA:
+
+```powershell
+nfv-workflow local start --benchmark `
+  --dataset TRUSTED_NFV_CHECKOUT\paper\data\nl2post_safe.json `
+  --release-sha TRUSTED_NFV_SHA --entries 5 `
+  --model APPROVED_MODEL --authorize-inference
+```
+
+Five random entries are the default pilot; `--entries 206` requests a full sweep
+and needs explicit approval and an appropriate wall-clock budget. Local shards
+run sequentially, using the nightly benchmark's label-blinded supplied
+properties, native acceptance revalidation and scoring. Labels are excluded
+from model requests. This is the PR-review benchmark, not the paper runner;
+context collection, minimization and optional fix follow-ups remain disabled.
+
+The final output is `summary\report.md`, `summary\summary.json` and
+`benchmark-evidence\` with the native models/checkpoints. Errors retain a partial
+summary when native evidence can be validated. Interrupted/cancelled runs
+cannot be returned as completed results. Proxy AI-credit accounting is not
+available locally; recorded model usage is not an invoice or a monetary cap.
+No GitHub publication or nightly dashboard update occurs.
+
+An NFV checkout is not required: ask the setup agent to download the unchanged
+`paper/data/nl2post_safe.json` from the approved NFV SHA through GitHub's
+read-only contents API into `~/.local/share/nfv/APPROVED_NFV_SHA/dataset.json`.
+The dependency image deliberately excludes this dataset. For Docker, add
+`--runtime docker --image nfv-local:APPROVED_NFV_SHA` and use that downloaded
+file for `--dataset`, with the same approved SHA for `--release-sha`.
+Ask the skill to prepare a five-entry pilot, confirm the model and billing
+account, and obtain explicit inference authorization before starting.
+
 ## Nightly nfv-micro-bench
 
 For NFV maintainers operating the benchmark in this repository or a maintained

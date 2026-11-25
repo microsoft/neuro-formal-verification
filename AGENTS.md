@@ -26,7 +26,7 @@ benchmark runs spend credits and require explicit authorization.
 ## Build and test
 
 ```
-python -m pip install -e ".[inference]" -e ./workflow
+python -m pip install -e ".[inference]" -e "./workflow[local]"
 python -m unittest discover -s tests
 python -m unittest discover -s workflow/tests        # ~3 min; -p test_workflow.py for a fast subset
 python -m paper.smoke --timeout 60                  # replays saved verdicts, no inference

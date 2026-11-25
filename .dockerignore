@@ -1,0 +1,38 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+# Allow only trusted runtime packages and their required licensing metadata.
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!README.md
+!LICENSE
+!LICENSE.TXT
+!NOTICE.txt
+!PRIVACY
+!nfv/
+nfv/**
+!nfv/**/*.py
+!workflow/
+workflow/**
+!workflow/pyproject.toml
+!workflow/README.md
+!workflow/LICENSE
+!workflow/licenses/
+!workflow/licenses/**
+!workflow/src/
+workflow/src/**
+!workflow/src/**/*.py
+!workflow/src/**/*.txt
+!paper/
+paper/**
+!paper/DATA_LICENSE.md
+!paper/DATA_PROVENANCE.md
+!paper/licenses/
+!paper/licenses/**
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/
+nfv/work/
+nfv/results/

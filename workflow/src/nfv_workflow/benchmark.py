@@ -84,7 +84,10 @@ def make_case(entry, release, repo):
     return {"id": "case-" + uuid.uuid4().hex, "bundle": bundle, "properties": [proposal]}
 
 
-def prepare(dataset, output, release, model, repo, run_id, attempt, limits=None, *, count=TOTAL):
+def prepare(dataset, output, release, model, repo, run_id, attempt, limits=None, *, count=TOTAL,
+            execution="actions"):
+    if execution not in ("actions", "local"):
+        raise Abstain("Unsupported benchmark execution location")
     release, repo = sha(release), repository(repo)
     if type(count) is not int or count not in ENTRY_COUNTS:
         raise Abstain("Choose a five-entry pilot or the complete 206-entry benchmark")
@@ -107,6 +110,8 @@ def prepare(dataset, output, release, model, repo, run_id, attempt, limits=None,
            "release_sha": release, "model": model, "limits": asdict(limits),
            "dataset_sha256": hashlib.sha256(Path(dataset).read_bytes()).hexdigest(),
            "started_at": now(), "total": count, "shards": shards, "billing": "personal-pat"}
+    if execution == "local":
+        run["execution"] = "local"
     # Frozen dataset order alternates reference/mutant; do not expose that order.
     entries = list(entries)
     random.SystemRandom().shuffle(entries)
@@ -209,8 +214,6 @@ def prediction(report, case):
 
 
 def worker(payload_path, output):
-    from .followups import Options
-
     env = os.environ
     if (env.get("GITHUB_AW") != "true" or env.get("AWF_REFLECT_ENABLED") != "1"
             or not env.get("COPILOT_SDK_URI") or not env.get("COPILOT_CONNECTION_TOKEN")
@@ -218,6 +221,17 @@ def worker(payload_path, output):
         raise Abstain("Benchmark inference requires the gh-aw AWF SDK runtime")
     if any(env.get(key) for key in ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN")):
         raise Abstain("Do not expose GitHub credentials to the benchmark driver")
+    result = run_cases(payload_path, output)
+    from .sandbox import submit
+    submit(output, "benchmark_checkpoint", {})
+    return result
+
+
+def run_cases(payload_path, output):
+    """Shared inference/checkpoint loop; Actions admission remains in worker()."""
+    from .followups import Options
+
+    env = os.environ
     payload = load(payload_path)
     run = payload["run"]
     limits = Limits(**run["limits"])
@@ -257,8 +271,6 @@ def worker(payload_path, output):
                           "status": report["properties"][0]["status"]}), flush=True)
     result["completed"] = True
     save(target, result)
-    from .sandbox import submit
-    submit(output, "benchmark_checkpoint", {})
     return result
 
 
@@ -428,12 +440,14 @@ def render(summary):
     run = summary["run"]
     total = run["total"]
     kind = "five-entry pilot" if total == 5 else "sweep"
+    local = run.get("execution") == "local"
     url = f"https://github.com/{run['repository']}/actions/runs/{run['run_id']}"
     answered = summary["answered_accuracy"]
     lines = [f"<!-- nfv-micro-bench:{run['repository']}:{run['run_id']} -->",
-             "# nfv-micro-bench " + ("five-entry pilot" if total == 5 else "nightly") + " statistics", "",
+             "# nfv-micro-bench " + ("five-entry pilot" if total == 5 else "local" if local else "nightly") + " statistics", "",
              f"**Complete {kind}.**" if summary["completed"] else f"**PARTIAL {kind}; operational failures or unevaluated entries remain.**",
-             f"Evaluated **{summary['evaluated']}/{total}** entries. [Run and evidence artifacts]({url}).", "",
+             f"Evaluated **{summary['evaluated']}/{total}** entries. "
+             + ("Evidence is retained in the local run directory." if local else f"[Run and evidence artifacts]({url})."), "",
              f"NFV `{text(run['release_sha'])}`; model `{text(run['model'])}`; personal PAT billing.",
              f"Dataset SHA-256: `{text(run['dataset_sha256'])}`.",
              f"Started: {text(run['started_at'])}; finished: {text(summary['finished_at'])}.", "",
