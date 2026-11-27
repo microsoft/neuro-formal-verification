@@ -86,10 +86,13 @@ class Limits:
     model_timeout: int = 240
     entry_seconds: int = 1800
     minimize_assumptions: bool = True
+    repair_model_validation: bool = True
 
     def __post_init__(self):
         if type(self.minimize_assumptions) is not bool:
             raise ValueError("Assumption minimization must be a boolean")
+        if type(self.repair_model_validation) is not bool:
+            raise ValueError("Model-validation repair must be a boolean")
         if not 0 <= self.syntax_rounds <= 20 or not 0 <= self.proof_rounds <= 30:
             raise ValueError("Repair limits must be syntax 0..20 and proof 0..30")
         if min(self.verifier_timeout, self.model_timeout, self.entry_seconds) <= 0:
@@ -299,6 +302,10 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
             break
         if result.get("outcome") == "timeout":
             raise ResourcesExhausted("Type checking exceeded its time budget")
+        if result.get("outcome") == "audit_failure" and not limits.repair_model_validation:
+            detail = result.get("stderr") or result.get("stdout", "")
+            raise Abstain("Draft model validation failed; model-validation-triggered repair is disabled: "
+                          + detail[:1000])
         if attempt == limits.syntax_rounds:
             detail = result.get("stderr") or result.get("stdout", "")
             raise Abstain(f"Type checking failed after {limits.syntax_rounds} syntax repairs: {detail[:1000]}")

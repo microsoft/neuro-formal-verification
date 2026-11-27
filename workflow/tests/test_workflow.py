@@ -1780,9 +1780,18 @@ class AuditTests(ScratchTest):
             with self.assertRaises(Abstain):
                 audit_limits(bad)
 
+    def test_validation_repair_policy_comes_from_trusted_environment(self):
+        for raw, enabled in (("", True), (" ", True), ("true", True), ("false", False),
+                             (" FALSE ", False)):
+            with self.subTest(raw=raw):
+                self.assertIs(audit_limits({"NFV_REPAIR_MODEL_VALIDATION": raw}).repair_model_validation, enabled)
+        with self.assertRaises(Abstain):
+            audit_limits({"NFV_REPAIR_MODEL_VALIDATION": "disabled"})
+
     def test_workflow_exports_budget_variables(self):
         text = (Path(__file__).parents[2] / ".github" / "workflows" / "nfv-pr-review.md").read_text(encoding="utf-8")
-        for name in ("NFV_SYNTAX_ROUNDS", "NFV_PROOF_ROUNDS", "NFV_VERIFIER_TIMEOUT", "NFV_PROPERTY_SECONDS"):
+        for name in ("NFV_SYNTAX_ROUNDS", "NFV_PROOF_ROUNDS", "NFV_VERIFIER_TIMEOUT",
+                     "NFV_PROPERTY_SECONDS", "NFV_REPAIR_MODEL_VALIDATION"):
             self.assertIn(f"{name}: ${{{{ vars.{name} }}}}", text)
             self.assertIn(f'echo "{name}=${name}"', text)
 

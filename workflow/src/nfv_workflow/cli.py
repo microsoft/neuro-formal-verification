@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from dataclasses import replace
 import json
 import os
 from pathlib import Path
@@ -122,6 +123,11 @@ def followup_arguments(parser):
                         help="Check candidate repairs against the complete property (default: true)")
 
 
+def repair_arguments(parser):
+    parser.add_argument("--repair-model-validation", action=argparse.BooleanOptionalAction, default=None,
+                        help="Repair draft model-validation failures; checks always remain enabled (default: true)")
+
+
 def followup_options(args):
     from .followups import Options
     if args.simplify_refutations is None and args.check_fixes is None:
@@ -184,6 +190,11 @@ def audit_limits(env=None):
             if not raw.isdigit():
                 raise Abstain(f"{variable} must be a non-negative integer")
             values[field] = int(raw)
+    raw = (env.get("NFV_REPAIR_MODEL_VALIDATION") or "").strip().lower()
+    if raw:
+        if raw not in ("true", "false"):
+            raise Abstain("NFV_REPAIR_MODEL_VALIDATION must be true or false")
+        values["repair_model_validation"] = raw == "true"
     try:
         return Limits(**values)
     except ValueError as exc:
@@ -285,6 +296,7 @@ def main(argv=None):
     p.add_argument("--syntax-rounds", type=int, default=6)
     p.add_argument("--proof-rounds", type=int, default=10)
     p.add_argument("--verifier-timeout", type=int, default=60)
+    repair_arguments(p)
     followup_arguments(p)
     p = commands.add_parser("check", help="Offline strict scalar-path checking; no inference or publication")
     p.add_argument("--bundle", required=True)
@@ -299,9 +311,11 @@ def main(argv=None):
     p.add_argument("--syntax-rounds", type=int, default=6)
     p.add_argument("--proof-rounds", type=int, default=10)
     p.add_argument("--verifier-timeout", type=int, default=60)
+    repair_arguments(p)
     followup_arguments(p)
     p = commands.add_parser("audit", help="Agent-sandbox run on the trusted bundle; writes a PR review")
     p.add_argument("--proposals", required=True)
+    repair_arguments(p)
     followup_arguments(p)
     p = commands.add_parser("present", help="Agent reverse-mapping of accepted evidence; no proof rerun or publication")
     p.add_argument("--bundle", required=True)
@@ -362,7 +376,8 @@ def main(argv=None):
                                               output=Path(args.out).parent)))
         elif args.command == "run":
             from .general import Limits
-            limits = Limits(args.syntax_rounds, args.proof_rounds, args.verifier_timeout)
+            limits = Limits(args.syntax_rounds, args.proof_rounds, args.verifier_timeout,
+                            repair_model_validation=args.repair_model_validation is not False)
             options = followup_options(args)
             extra = {"followup_options": options} if options is not None else {}
             report = asyncio.run(run_general(load(args.bundle), load(args.properties), args.out, args.model, limits, **extra))
@@ -383,7 +398,8 @@ def main(argv=None):
             save(output / "proposals.json", proposals)
             if args.mode == "general":
                 from .general import Limits
-                limits = Limits(args.syntax_rounds, args.proof_rounds, args.verifier_timeout)
+                limits = Limits(args.syntax_rounds, args.proof_rounds, args.verifier_timeout,
+                                repair_model_validation=args.repair_model_validation is not False)
                 options = followup_options(args)
                 extra = {"followup_options": options} if options is not None else {}
                 report = asyncio.run(run_general(bundle, proposals, output, args.model, limits, **extra))
@@ -397,7 +413,10 @@ def main(argv=None):
             if report["errors"]:
                 return 1
         elif args.command == "audit":
-            summary = audit(args.proposals, audit_limits(), followup_options(args))
+            limits = audit_limits()
+            if args.repair_model_validation is not None:
+                limits = replace(limits, repair_model_validation=args.repair_model_validation)
+            summary = audit(args.proposals, limits, followup_options(args))
             print(json.dumps(summary))
             if summary["errors"]:
                 return 1

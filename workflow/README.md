@@ -37,6 +37,11 @@ contracts, allowing bounded draft repairs before freezing. It then tries Dafny
 verification first, followed, if needed, by witnessed refutation on the same
 frozen model.
 
+An optional [model-validation repair setting](REFERENCE.md#repository-variables)
+stops at a rejected draft instead of retrying it. Validation gates remain
+enabled, as do ordinary syntax/type and proof repairs; lower time and credit
+use may come with reduced coverage. The default retains draft repairs.
+
 For refutations, it tries to **minimize the failure condition** by removing
 dispensable assumptions with rechecks and seeking a shorter, separately proved
 statement that still fails on the accepted counterexample. Independently, it

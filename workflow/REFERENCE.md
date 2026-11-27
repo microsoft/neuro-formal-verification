@@ -15,6 +15,7 @@ checks and the [reviewer guide](README.md) for results and limitations.
 | `NFV_RELEASE_SHA` | Full trusted 40-character NFV commit matching both installed package pins; unset until first-install post-merge activation |
 | `NFV_MODEL` | Approved Copilot model ID |
 | `NFV_SYNTAX_ROUNDS` | 6 repairs, maximum 20 |
+| `NFV_REPAIR_MODEL_VALIDATION` | `true`; retry rejected draft model validation within the syntax-repair budget |
 | `NFV_PROOF_ROUNDS` | 10 repairs, maximum 30 |
 | `NFV_VERIFIER_TIMEOUT` | 60 seconds per Dafny call |
 | `NFV_PROPERTY_SECONDS` | 1800 seconds per property |
@@ -24,6 +25,14 @@ checks and the [reviewer guide](README.md) for results and limitations.
 Unset budgets retain defaults. Boolean flags accept `true` or `false`;
 unset or empty enables them. Properties run sequentially within a 360-minute
 job timeout. Model and budget changes require approval.
+
+Set `NFV_REPAIR_MODEL_VALIDATION=false` to stop a property's draft formalization at
+its first model-validation failure, including source mapping, contract metadata,
+backend translation and well-definedness checks. All checks remain enabled;
+the property records a type-check/model-validation failure, never an accepted
+proof or refutation. Ordinary Dafny syntax/type repairs and annotation-only
+proof repairs keep their existing budgets. This can reduce time and credits
+at the cost of coverage; it does not disable optional candidate-fix follow-ups.
 
 ```text
 gh variable set NFV_MODEL --repo OWNER/repo --body MODEL

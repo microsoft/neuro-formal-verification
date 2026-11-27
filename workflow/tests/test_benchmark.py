@@ -337,6 +337,28 @@ class BenchmarkTests(unittest.TestCase):
         with self.assertRaises(Abstain):
             benchmark.select(self.prepared, 26, selected, RELEASE, "test-model", "123-1")
 
+    def test_validation_repair_policy_is_frozen_and_used_by_worker(self):
+        prepared = self.directory / "no-validation-repair"
+        with patch.dict(os.environ, {"NFV_REPAIR_MODEL_VALIDATION": "false"}):
+            benchmark.prepare(self.dataset, prepared, RELEASE, "test-model", REPO, 123, 1, count=5)
+        manifest, _ = benchmark.prepared_cases(prepared)
+        self.assertIs(manifest["run"]["limits"]["repair_model_validation"], False)
+        with self.assertRaises(ValueError):
+            Limits(repair_model_validation="false")
+        seen = []
+        def fake_audit(path, limits, options, *, render_report):
+            seen.append(limits.repair_model_validation)
+            case = cli.load(Path(path).with_name("input.json"))
+            report = self.abstention_report(case)
+            report["limits"] = manifest["run"]["limits"]
+            cli.save(Path(path).with_name("report.json"), report)
+        with patch.dict(os.environ, {**self.environment, "NFV_REPAIR_MODEL_VALIDATION": "true"}, clear=True), \
+                patch.object(benchmark, "audit", side_effect=fake_audit), \
+                patch.object(sandbox, "submit"):
+            result = benchmark.worker(prepared / "shards" / "0.json", self.evidence)
+        self.assertTrue(result["completed"])
+        self.assertEqual(seen, [False] * 5)
+
     def test_prepared_input_tampering_is_rejected(self):
         copied = self.directory / "copied"
         shutil.copytree(self.prepared, copied)
@@ -1251,6 +1273,9 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("options: [\"206\", \"5\"]", coordinator)
         self.assertIn("inputs.entries || '206'", coordinator)
         self.assertIn('--entries "$NFV_BENCH_ENTRIES"', coordinator)
+        self.assertIn('options: ["repository", "true", "false"]', coordinator)
+        self.assertIn("inputs.repair_model_validation != 'repository'", coordinator)
+        self.assertIn("inputs.repair_model_validation || vars.NFV_REPAIR_MODEL_VALIDATION", coordinator)
         self.assertIn('pattern: "*-usage"', coordinator)
         self.assertIn("--usage usage", coordinator)
         self.assertIn('--fallback agent-backups', coordinator)
