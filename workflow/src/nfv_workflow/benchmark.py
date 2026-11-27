@@ -252,6 +252,8 @@ def worker(payload_path, output):
         result["rows"].append({"id": case["id"], "prediction": label,
                                "status": report["properties"][0]["status"],
                                "elapsed_seconds": time.monotonic() - started})
+        if "experimental_search" in report["properties"][0]:
+            result["rows"][-1]["experimental_search"] = report["properties"][0]["experimental_search"]
         save(target, result)
         print(json.dumps({"event": "benchmark_case_completed", "id": case["id"],
                           "status": report["properties"][0]["status"]}), flush=True)
@@ -374,6 +376,8 @@ def summarize(prepared, evidence, output, workers_succeeded=True, usage_director
             label = prediction(report, inputs[key])
             if row["prediction"] != label or row["status"] != report["properties"][0]["status"]:
                 raise Abstain("Recorded prediction disagrees with native proof evidence")
+            if row.get("experimental_search") != report["properties"][0].get("experimental_search"):
+                raise Abstain("Recorded experimental search disagrees with native report")
             rows[key] = {**expected[key], **row}
         assigned = {key for key, case in expected.items() if case["shard"] == shard}
         if result.get("completed") is not True or shard_ids != assigned:
@@ -416,6 +420,13 @@ def summarize(prepared, evidence, output, workers_succeeded=True, usage_director
                "errors": errors, "rows": list(rows.values())}
     if recovered:
         summary["recovered_shards"] = sorted(recovered)
+    experimental = [row["experimental_search"] for row in rows.values() if "experimental_search" in row]
+    if experimental:
+        summary["experimental_search"] = {
+            "accepted": False, "entries": len(experimental),
+            "outcomes": dict(Counter(item["search_outcome"] for item in experimental)),
+            "included_in_decisive_predictions": False,
+        }
     if usage_directory is not None:
         summary["ai_credits"] = credit_usage(usage_directory, run["shards"])
     output = Path(output)
@@ -455,6 +466,12 @@ def render(summary):
         lines += [f"Actions run created (UTC): {text(summary['publication_run_created_at'])}.", ""]
     if total == 5:
         lines += ["Five-entry pilot only; this is not a full-dataset accuracy estimate.", ""]
+    if summary.get("experimental_search"):
+        experimental = summary["experimental_search"]
+        outcomes = ", ".join(f"{text(outcome)}={count}" for outcome, count in experimental["outcomes"].items())
+        lines += [f"**Unvalidated experimental search:** {experimental['entries']} entries ({outcomes}).",
+                  "These search results are not accepted NFV proofs/refutations and are excluded from "
+                  "decisive predictions; their benchmark predictions abstain.", ""]
     if summary.get("recovered_shards"):
         lines += [f"Recovered **{len(summary['recovered_shards'])} shard checkpoints** from backup agent artifacts "
                   "without rerunning inference; the same native evidence checks apply.", ""]

@@ -157,7 +157,7 @@ class BenchmarkTests(unittest.TestCase):
         cli.save(directory / "results.json", result)
         return directory
 
-    def native_report(self, positive=False, negative=True, optional=False, real=False):
+    def native_report(self, positive=False, negative=True, optional=False, real=False, invalid_metadata=False):
         bundle, _, translation = fixture("python")
         code = next(iter(bundle["sources"].values()))["text"]
         property_text = "assert return_value == n + 1" if positive else "assert return_value == n"
@@ -182,9 +182,12 @@ class BenchmarkTests(unittest.TestCase):
             verifier = Dafny(30)
         else:
             verifier = ProofVerifier(positive, negative)
+        if invalid_metadata:
+            translation.pop("correspondence")
         with redirect_stdout(io.StringIO()):
             report = asyncio.run(run(case["bundle"], case["properties"], self.directory / uuid.uuid4().hex,
-                                     Chat([translation]), Limits(proof_rounds=0, minimize_assumptions=False),
+                                     Chat([translation]), Limits(proof_rounds=0, minimize_assumptions=False,
+                                                                 repair_model_validation=not invalid_metadata),
                                      verifier))
         return case, report, verifier
 
@@ -351,6 +354,11 @@ class BenchmarkTests(unittest.TestCase):
             case = cli.load(Path(path).with_name("input.json"))
             report = self.abstention_report(case)
             report["limits"] = manifest["run"]["limits"]
+            report["properties"][0]["experimental_search"] = {
+                "accepted": False, "search_outcome": "verified",
+                "validation_diagnostic": "Missing source correspondence",
+                "evidence": "experimental-search.json",
+            }
             cli.save(Path(path).with_name("report.json"), report)
         with patch.dict(os.environ, {**self.environment, "NFV_REPAIR_MODEL_VALIDATION": "true"}, clear=True), \
                 patch.object(benchmark, "audit", side_effect=fake_audit), \
@@ -358,6 +366,21 @@ class BenchmarkTests(unittest.TestCase):
             result = benchmark.worker(prepared / "shards" / "0.json", self.evidence)
         self.assertTrue(result["completed"])
         self.assertEqual(seen, [False] * 5)
+        summary = benchmark.summarize(prepared, self.evidence, self.directory / "stats")
+        self.assertTrue(summary["completed"])
+        self.assertEqual(summary["decisive"], 0)
+        self.assertEqual(summary["accuracy"], 0)
+        self.assertEqual(summary["coverage"], 0)
+        self.assertEqual(summary["experimental_search"], {
+            "accepted": False, "entries": 5, "outcomes": {"verified": 5},
+            "included_in_decisive_predictions": False,
+        })
+        self.assertIn("Unvalidated experimental search", benchmark.render(summary))
+        self.assertIn("excluded from decisive predictions", benchmark.render(summary))
+        result["rows"][0]["experimental_search"]["search_outcome"] = "refuted"
+        cli.save(self.evidence / "results.json", result)
+        with self.assertRaisesRegex(Abstain, "experimental search disagrees"):
+            benchmark.summarize(prepared, self.evidence, self.directory / "tampered-stats")
 
     def test_prepared_input_tampering_is_rejected(self):
         copied = self.directory / "copied"
@@ -391,6 +414,18 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(benchmark.prediction(report, case), "abstain")
         self.assertEqual(report["properties"][0]["status"], EXHAUSTED)
         self.assertFalse(report["findings"])
+
+    def test_experimental_success_is_not_an_accepted_prediction(self):
+        for positive in (True, False):
+            with self.subTest(positive=positive):
+                case, report, verifier = self.native_report(positive=positive, invalid_metadata=True)
+                self.assertEqual(benchmark.prediction(report, case), "abstain")
+                self.assertEqual(report["properties"][0]["status"], INVALID)
+                self.assertEqual(report["properties"][0]["experimental_search"]["search_outcome"],
+                                 "verified" if positive else "refuted")
+                self.assertIn("verification", verifier.calls)
+                self.assertFalse(report["findings"])
+                self.assertFalse(report["verified"])
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_real_dafny_accepts_both_branches_with_assumption_minimization_disabled(self):

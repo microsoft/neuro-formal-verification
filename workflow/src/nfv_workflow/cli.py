@@ -125,7 +125,8 @@ def followup_arguments(parser):
 
 def repair_arguments(parser):
     parser.add_argument("--repair-model-validation", action=argparse.BooleanOptionalAction, default=None,
-                        help="Repair draft model-validation failures; checks always remain enabled (default: true)")
+                        help="Repair draft model-validation failures; disabling continues experimental search "
+                             "without accepting invalid results (default: true)")
 
 
 def followup_options(args):

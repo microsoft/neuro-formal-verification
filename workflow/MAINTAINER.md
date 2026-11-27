@@ -87,8 +87,11 @@ nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\propertie
 `evaluate` collects fresh source and checks an AW submission; `check` is the
 offline, restricted scalar path. Use each command's `--help` for arguments.
 
-`--no-repair-model-validation` stops rejected draft model validation without
-skipping any checks or changing syntax/type and proof-repair budgets. The
+`--no-repair-model-validation` retains failed source/metadata validation and
+continues experimental proof/refutation search without requesting validation
+repairs. Integrity and Dafny checks remain mandatory; invalid experiments cannot
+be accepted as NFV proofs/refutations. Syntax/type and proof-repair budgets are
+unchanged. The
 sandbox reviewer command also accepts it; otherwise that command uses
 `NFV_REPAIR_MODEL_VALIDATION` (default `true`).
 
@@ -157,6 +160,10 @@ frozen in the prepared inputs and native reports under
 an unmerged NFV branch, use its branch name for `--ref`. Compare coverage,
 accuracy, per-entry elapsed time and AIC as well as total run time; five-entry
 random pilots are not paired comparisons or full-dataset estimates.
+
+For invalid drafts, `summary.json` records separate `experimental_search`
+counts and outcomes, excluded from decisive predictions and accuracy/coverage.
+Native evidence retains the diagnostics and unvalidated search artifacts.
 
 Pilots report a denominator of five, not full-dataset accuracy. A full sweep
 uses 26 shards of at most eight entries, with up to ten active six-hour workers.

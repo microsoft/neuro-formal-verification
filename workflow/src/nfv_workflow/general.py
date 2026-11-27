@@ -14,7 +14,7 @@ from pathlib import Path
 
 from . import read_prompt
 from .check import Dafny, accepted
-from .general_gates import (BACKEND, annotate, clauses, clean_code, final_gate,
+from .general_gates import (BACKEND, annotate, audit, clauses, clean_code, final_gate,
                             remove_requirement, validate_translation, with_postconditions, witness_bridge)
 from .github import Abstain
 from .model import normalize, validate_claim
@@ -247,26 +247,48 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     current = translation["model"]
     type_log = []
     positive = None
+    validation_diagnostic = None
+
+    def experimental_result(outcome, **evidence):
+        result = {"schema": 1, "accepted": False, "search_outcome": outcome,
+                  "validation_diagnostic": validation_diagnostic, "counters": counters, **evidence}
+        save(directory / "experimental-search.json", result)
+        return result
+
     for attempt in range(limits.syntax_rounds + 1):
         budget()
+        validation_diagnostic = None
+        if not limits.repair_model_validation:
+            # Continuing an experiment must not admit verification escapes.
+            audit(current, translation["entry_point"])
         try:
             translation = {**translation,
                            "original_ensures": clauses(current, translation["entry_point"], "ensures")}
-            mapped = validate_translation(translation, claim, bundle, current)
-            scope = context["source_scope"]
-            if not scope["first"] <= translation["source_span"][0] <= translation["source_span"][1] <= scope["last"]:
-                raise Abstain("Translation source span escapes the scoped changed function")
-            if any(path not in context["sources"] for path in translation["required_context"]):
-                raise Abstain("Translation requires source outside the supplied scoped context")
-            for row in mapped:
-                ranges = context["sources"].get(row["path"], {}).get("ranges", [])
-                if not any(low <= row["line"] <= high for low, high in ranges):
-                    raise Abstain("Translation cites computation outside the supplied scoped context")
-            for item in translation.get("environment", []):
-                ranges = context["sources"].get(item["source"]["path"], {}).get("ranges", [])
-                if not all(any(low <= line <= high for low, high in ranges)
-                           for line in item["source"]["lines"]):
-                    raise Abstain("Environment contract cites source outside the supplied scoped context")
+            try:
+                mapped = validate_translation(translation, claim, bundle, current)
+                scope = context["source_scope"]
+                if not scope["first"] <= translation["source_span"][0] <= translation["source_span"][1] <= scope["last"]:
+                    raise Abstain("Translation source span escapes the scoped changed function")
+                if any(path not in context["sources"] for path in translation["required_context"]):
+                    raise Abstain("Translation requires source outside the supplied scoped context")
+                for row in mapped:
+                    ranges = context["sources"].get(row["path"], {}).get("ranges", [])
+                    if not any(low <= row["line"] <= high for low, high in ranges):
+                        raise Abstain("Translation cites computation outside the supplied scoped context")
+                for item in translation.get("environment", []):
+                    ranges = context["sources"].get(item["source"]["path"], {}).get("ranges", [])
+                    if not all(any(low <= line <= high for low, high in ranges)
+                               for line in item["source"]["lines"]):
+                        raise Abstain("Environment contract cites source outside the supplied scoped context")
+                (directory / "experimental-search.json").unlink(missing_ok=True)
+            except (Abstain, KeyError, TypeError, ValueError) as exc:
+                if limits.repair_model_validation:
+                    raise
+                validation_diagnostic = str(exc)
+                mapped = []
+                save(directory / "drafts" / f"{attempt}-validation.json",
+                     {"accepted": False, "diagnostic": validation_diagnostic})
+                experimental_result("in_progress")
             result = verifier.resolve(current, directory / f"syntax-{attempt}")
             require_tool(result)
             if (result.get("outcome") == "verified" and result.get("exit_code") == 0
@@ -347,7 +369,9 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
         translation = {**translation, **repair}
     original = current
     translation = {**translation, "model": original}
-    save(directory / "translation.json", translation)
+    translation_path = directory / ("experimental-translation.json" if validation_diagnostic
+                                    else "translation.json")
+    save(translation_path, translation)
     budget()
     if positive is None:
         raise Abstain("Original property lacks its recorded verification attempt")
@@ -357,6 +381,11 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
             if domain.get("outcome") == "timeout":
                 raise ResourcesExhausted("Input-domain check exceeded its time budget")
             raise Abstain("No feasible returning input was established for the recorded assumptions")
+        if validation_diagnostic:
+            experimental_result("verified", translation=translation, result=positive,
+                                input_domain_result=domain, dafny=original)
+            raise Abstain("Experimental verification search succeeded, but model validation failed: "
+                          + validation_diagnostic[:2000])
         verified = {
             "kind": "conditional-model-verification", "candidate": claim,
             "translation": translation, "source_map": mapped, "result": positive,
@@ -379,7 +408,7 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
                 or set(witness) - {"witness", "explanation", "presentation"}):
             raise Abstain("Counterexample response attempted to replace frozen translation metadata")
         translation = {**translation, **witness}
-        save(directory / "translation.json", translation)
+        save(translation_path, translation)
     inverse = refute.invert_entry_spec(original, translation["entry_point"], BACKEND)
     if not inverse.ok:
         raise Abstain("Cannot mechanically negate original property: " + inverse.reason)
@@ -421,7 +450,7 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
         raise Abstain("No feasible returning input was established for the counterexample")
     minimization = []
     for index, condition in enumerate(translation["assumptions"]):
-        if not limits.minimize_assumptions or not condition["optional"]:
+        if validation_diagnostic or not limits.minimize_assumptions or not condition["optional"]:
             continue
         budget()
         trial = remove_requirement(current, translation["entry_point"], condition["clause"])
@@ -453,6 +482,12 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     gates.update({"witness_consistency": True, "reachability": True,
                   "source_correspondence": "not established"})
     final_source = current + "\n" + driver
+    if validation_diagnostic:
+        experimental_result("refuted", translation=translation, result=final,
+                            reachability_result=reach_result, dafny=final_source,
+                            frozen_negative_model=frozen, annotation_plan=plan, proof_log=proof_log)
+        raise Abstain("Experimental refutation search succeeded, but model validation failed: "
+                      + validation_diagnostic[:2000])
     finding = {
         "kind": "conditional-model-refutation", "candidate": claim, "translation": translation,
         "frozen_negative_model": frozen, "checked_model": current, "annotation_plan": plan,
@@ -518,6 +553,17 @@ async def run(bundle, properties, output, chat, limits=None, verifier=None):
             translation = output / claim["id"] / "translation.json"
             if translation.exists():
                 entry["formalized"] = json.loads(translation.read_text(encoding="utf-8")).get("original_ensures")
+            experimental = output / claim["id"] / "experimental-search.json"
+            if experimental.exists():
+                search = json.loads(experimental.read_text(encoding="utf-8"))
+                if search["search_outcome"] == "in_progress":
+                    search.update(search_outcome=entry["status"], diagnostic=entry.get("diagnostic", ""))
+                    save(experimental, search)
+                entry["experimental_search"] = {
+                    "accepted": False, "search_outcome": search["search_outcome"],
+                    "validation_diagnostic": search["validation_diagnostic"],
+                    "evidence": f"{claim['id']}/experimental-search.json",
+                }
             save(output / "report.json", report)
         if report["errors"]:
             return report

@@ -26,13 +26,19 @@ Unset budgets retain defaults. Boolean flags accept `true` or `false`;
 unset or empty enables them. Properties run sequentially within a 360-minute
 job timeout. Model and budget changes require approval.
 
-Set `NFV_REPAIR_MODEL_VALIDATION=false` to stop a property's draft formalization at
-its first model-validation failure, including source mapping, contract metadata,
-backend translation and well-definedness checks. All checks remain enabled;
-the property records a type-check/model-validation failure, never an accepted
-proof or refutation. Ordinary Dafny syntax/type repairs and annotation-only
-proof repairs keep their existing budgets. This can reduce time and credits
-at the cost of coverage; it does not disable optional candidate-fix follow-ups.
+Set `NFV_REPAIR_MODEL_VALIDATION=false` to retain source-mapping, contract/helper
+metadata and source-scope diagnostics without requesting repairs, then continue
+Dafny verification/refutation search experimentally. Integrity checks, syntax/type
+checking, backend translation and well-definedness remain mandatory. Ordinary
+syntax/type and annotation-only proof repairs keep their existing budgets.
+
+If validation still fails after syntax/type repairs, experimental models and
+search results are retained separately as `experimental-translation.json` and
+`experimental-search.json` with `accepted: false`. They are not accepted NFV
+proofs/refutations: the official property outcome remains a failure or exhausted
+search, and benchmark predictions abstain. Validated models follow normal
+acceptance. This can reduce repair time and credits, but may reduce accepted
+coverage; it does not disable candidate-fix follow-ups for accepted refutations.
 
 ```text
 gh variable set NFV_MODEL --repo OWNER/repo --body MODEL
