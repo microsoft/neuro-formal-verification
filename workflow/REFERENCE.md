@@ -15,6 +15,7 @@ checks and the [reviewer guide](README.md) for results and limitations.
 | `NFV_RELEASE_SHA` | Full trusted 40-character NFV commit matching both installed package pins; unset until first-install post-merge activation |
 | `NFV_MODEL` | Approved Copilot model ID |
 | `NFV_SYNTAX_ROUNDS` | 6 repairs, maximum 20 |
+| `NFV_REPAIR_MODEL_VALIDATION` | `true`; retry rejected draft model validation within the syntax-repair budget |
 | `NFV_PROOF_ROUNDS` | 10 repairs, maximum 30 |
 | `NFV_VERIFIER_TIMEOUT` | 60 seconds per Dafny call |
 | `NFV_PROPERTY_SECONDS` | 1800 seconds per property |
@@ -24,6 +25,29 @@ checks and the [reviewer guide](README.md) for results and limitations.
 Unset budgets retain defaults. Boolean flags accept `true` or `false`;
 unset or empty enables them. Properties run sequentially within a 360-minute
 job timeout. Model and budget changes require approval.
+
+Set `NFV_REPAIR_MODEL_VALIDATION=false` to retain source-mapping, contract/helper
+metadata and source-scope diagnostics without requesting repairs, then continue
+Dafny verification/refutation search experimentally. Integrity checks, syntax/type
+checking, backend translation and well-definedness remain mandatory. Ordinary
+syntax/type and annotation-only proof repairs keep their existing budgets.
+
+The same flag controls benchmark success: `true` requires source/metadata
+validation and repairs failures; `false` counts successful frozen-model searches
+without requiring those validations. There is no separate scoring flag.
+
+If validation still fails after syntax/type repairs, experimental models and
+search results are retained separately as `experimental-translation.json` and
+`experimental-search.json` with `accepted: false`. They are not accepted NFV
+proofs/refutations: the official property outcome remains a failure or exhausted
+search. Validation-disabled benchmark scoring includes successful experimental
+searches as predictions after rechecking native proofs, hashes, frozen
+computation/contracts, witnesses and input-domain evidence. Its metrics are
+identified in detailed statistics, not accepted NFV results. Completed full
+runs use the same latest-run selection in the dashboard and README card,
+without a scoring-mode status tag. Validated models follow normal
+acceptance. This can reduce repair time and credits, but may reduce accepted
+coverage; it does not disable candidate-fix follow-ups for accepted refutations.
 
 ```text
 gh variable set NFV_MODEL --repo OWNER/repo --body MODEL

@@ -82,9 +82,18 @@ nfv-workflow run --bundle .nfv-work\bundle.json --properties .nfv-work\propertie
 ```
 
 `run` and general `evaluate` accept `--syntax-rounds`, `--proof-rounds`,
-`--verifier-timeout`, `--[no-]simplify-refutations` and `--[no-]check-fixes`.
+`--verifier-timeout`, `--[no-]repair-model-validation`,
+`--[no-]simplify-refutations` and `--[no-]check-fixes`.
 `evaluate` collects fresh source and checks an AW submission; `check` is the
 offline, restricted scalar path. Use each command's `--help` for arguments.
+
+`--no-repair-model-validation` retains failed source/metadata validation and
+continues experimental proof/refutation search without requesting validation
+repairs. Integrity and Dafny checks remain mandatory; invalid experiments cannot
+be accepted as NFV proofs/refutations. Syntax/type and proof-repair budgets are
+unchanged. The
+sandbox reviewer command also accepts it; otherwise that command uses
+`NFV_REPAIR_MODEL_VALIDATION` (default `true`).
 
 To refresh an accepted report's source presentation without rerunning proofs
 or publishing, use this **billable** command:
@@ -142,6 +151,24 @@ entries. A billable five-entry random pilot uses:
 ```text
 gh workflow run nfv-micro-bench.yml --ref dev -f entries=5 --repo OWNER/REPO
 ```
+
+Manual sweeps can override only this run's draft model-validation repair policy
+with `-f repair_model_validation=false` (or `true`). The default `repository`
+uses `NFV_REPAIR_MODEL_VALIDATION`, as scheduled sweeps do. The selected boolean is
+frozen in the prepared inputs and native reports under
+`limits.repair_model_validation`; repository settings are unchanged. To evaluate
+an unmerged NFV branch, use its branch name for `--ref`. Compare coverage,
+accuracy, per-entry elapsed time and AIC as well as total run time; five-entry
+random pilots are not paired comparisons or full-dataset estimates.
+
+For invalid drafts, `summary.json` records separate `experimental_search`
+counts and outcomes. With validation repairs disabled, successful frozen-model
+experiments count in the benchmark's decisive predictions and accuracy/coverage,
+after native proof, freeze, hash and input-domain checks. `scoring_mode` is
+`validation-disabled`; these are not accepted NFV results. Completed full runs
+are eligible for the latest dashboard and README card, without a scoring-mode
+status tag. Detailed statistics retain the scoring policy.
+Native evidence retains diagnostics and experimental artifacts.
 
 Pilots report a denominator of five, not full-dataset accuracy. A full sweep
 uses 26 shards of at most eight entries, with up to ten active six-hour workers.
@@ -223,6 +250,15 @@ Non-cancelling coordinator concurrency serializes publication. A failed
 publication may already have written the archive: **retry only publication**
 while evidence is available, not paid inference. Retrying a failed worker
 reruns that shard; there is no automatic best-of search.
+
+To refresh only the dashboard with the current renderer and existing archived
+statistics, dispatch `nfv-benchmark-pages.yml` with `refresh_dashboard=true`.
+This appends an Actions-owned snapshot without inference, archive edits or
+Pages deployment:
+
+```text
+gh workflow run nfv-benchmark-pages.yml --ref <trusted-ref> -f refresh_dashboard=true --repo microsoft/neuro-formal-verification
+```
 
 ### README statistics card (GitHub Pages)
 

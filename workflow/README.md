@@ -37,6 +37,13 @@ contracts, allowing bounded draft repairs before freezing. It then tries Dafny
 verification first, followed, if needed, by witnessed refutation on the same
 frozen model.
 
+An optional [model-validation repair setting](REFERENCE.md#repository-variables)
+continues experimental proof/refutation search after source/metadata validation
+fails instead of requesting repairs. Diagnostics and unvalidated search results
+are retained separately, never counted as accepted NFV proofs/refutations.
+Integrity and Dafny checks remain mandatory; lower repair time and credit use may
+come with reduced accepted coverage. The default retains draft repairs.
+
 For refutations, it tries to **minimize the failure condition** by removing
 dispensable assumptions with rechecks and seeking a shorter, separately proved
 statement that still fails on the accepted counterexample. Independently, it

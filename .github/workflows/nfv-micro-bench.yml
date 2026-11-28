@@ -12,6 +12,11 @@ on:
         type: choice
         options: ["206", "5"]
         default: "206"
+      repair_model_validation:
+        description: Repair draft model-validation failures (checks always remain enabled)
+        type: choice
+        options: ["repository", "true", "false"]
+        default: "repository"
 
 permissions:
   contents: read
@@ -83,6 +88,7 @@ jobs:
           NFV_RELEASE_SHA: ${{ steps.source.outputs.release_sha }}
           NFV_MODEL: ${{ vars.NFV_MODEL }}
           NFV_SYNTAX_ROUNDS: ${{ vars.NFV_SYNTAX_ROUNDS }}
+          NFV_REPAIR_MODEL_VALIDATION: ${{ github.event_name == 'workflow_dispatch' && inputs.repair_model_validation != 'repository' && inputs.repair_model_validation || vars.NFV_REPAIR_MODEL_VALIDATION }}
           NFV_PROOF_ROUNDS: ${{ vars.NFV_PROOF_ROUNDS }}
           NFV_VERIFIER_TIMEOUT: ${{ vars.NFV_VERIFIER_TIMEOUT }}
           NFV_PROPERTY_SECONDS: ${{ vars.NFV_PROPERTY_SECONDS }}

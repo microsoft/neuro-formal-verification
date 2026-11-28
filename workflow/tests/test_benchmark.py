@@ -157,7 +157,7 @@ class BenchmarkTests(unittest.TestCase):
         cli.save(directory / "results.json", result)
         return directory
 
-    def native_report(self, positive=False, negative=True, optional=False, real=False):
+    def native_report(self, positive=False, negative=True, optional=False, real=False, invalid_metadata=False):
         bundle, _, translation = fixture("python")
         code = next(iter(bundle["sources"].values()))["text"]
         property_text = "assert return_value == n + 1" if positive else "assert return_value == n"
@@ -182,9 +182,12 @@ class BenchmarkTests(unittest.TestCase):
             verifier = Dafny(30)
         else:
             verifier = ProofVerifier(positive, negative)
+        if invalid_metadata:
+            translation.pop("correspondence")
         with redirect_stdout(io.StringIO()):
             report = asyncio.run(run(case["bundle"], case["properties"], self.directory / uuid.uuid4().hex,
-                                     Chat([translation]), Limits(proof_rounds=0, minimize_assumptions=False),
+                                     Chat([translation]), Limits(proof_rounds=0, minimize_assumptions=False,
+                                                                 repair_model_validation=not invalid_metadata),
                                      verifier))
         return case, report, verifier
 
@@ -337,6 +340,49 @@ class BenchmarkTests(unittest.TestCase):
         with self.assertRaises(Abstain):
             benchmark.select(self.prepared, 26, selected, RELEASE, "test-model", "123-1")
 
+    def test_validation_repair_policy_is_frozen_and_used_by_worker(self):
+        prepared = self.directory / "no-validation-repair"
+        with patch.dict(os.environ, {"NFV_REPAIR_MODEL_VALIDATION": "false"}):
+            benchmark.prepare(self.dataset, prepared, RELEASE, "test-model", REPO, 123, 1, count=5)
+        manifest, _ = benchmark.prepared_cases(prepared)
+        self.assertIs(manifest["run"]["limits"]["repair_model_validation"], False)
+        with self.assertRaises(ValueError):
+            Limits(repair_model_validation="false")
+        seen = []
+        def fake_audit(path, limits, options, *, render_report):
+            seen.append(limits.repair_model_validation)
+            case = cli.load(Path(path).with_name("input.json"))
+            report = self.abstention_report(case)
+            report["limits"] = manifest["run"]["limits"]
+            report["properties"][0]["experimental_search"] = {
+                "accepted": False, "search_outcome": EXHAUSTED,
+                "validation_diagnostic": "Missing source correspondence",
+                "evidence": "experimental-search.json",
+            }
+            cli.save(Path(path).with_name("report.json"), report)
+        with patch.dict(os.environ, {**self.environment, "NFV_REPAIR_MODEL_VALIDATION": "true"}, clear=True), \
+                patch.object(benchmark, "audit", side_effect=fake_audit), \
+                patch.object(sandbox, "submit"):
+            result = benchmark.worker(prepared / "shards" / "0.json", self.evidence)
+        self.assertTrue(result["completed"])
+        self.assertEqual(seen, [False] * 5)
+        summary = benchmark.summarize(prepared, self.evidence, self.directory / "stats")
+        self.assertTrue(summary["completed"])
+        self.assertEqual(summary["decisive"], 0)
+        self.assertEqual(summary["accuracy"], 0)
+        self.assertEqual(summary["coverage"], 0)
+        self.assertEqual(summary["experimental_search"], {
+            "accepted": False, "entries": 5, "outcomes": {EXHAUSTED: 5},
+            "included_in_decisive_predictions": True,
+        })
+        self.assertIn("Unvalidated experimental search", benchmark.render(summary))
+        self.assertIn("included in validation-disabled benchmark predictions", benchmark.render(summary))
+        self.assertEqual(summary["scoring_mode"], "validation-disabled")
+        result["rows"][0]["experimental_search"]["validation_diagnostic"] = "changed diagnostic"
+        cli.save(self.evidence / "results.json", result)
+        with self.assertRaisesRegex(Abstain, "experimental search disagrees"):
+            benchmark.summarize(prepared, self.evidence, self.directory / "tampered-stats")
+
     def test_prepared_input_tampering_is_rejected(self):
         copied = self.directory / "copied"
         shutil.copytree(self.prepared, copied)
@@ -369,6 +415,54 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(benchmark.prediction(report, case), "abstain")
         self.assertEqual(report["properties"][0]["status"], EXHAUSTED)
         self.assertFalse(report["findings"])
+
+    def test_experimental_success_is_not_an_accepted_prediction(self):
+        for positive in (True, False):
+            with self.subTest(positive=positive):
+                case, report, verifier = self.native_report(positive=positive, invalid_metadata=True)
+                self.assertEqual(benchmark.prediction(report, case), "abstain")
+                self.assertEqual(report["properties"][0]["status"], INVALID)
+                self.assertEqual(report["properties"][0]["experimental_search"]["search_outcome"],
+                                 "verified" if positive else "refuted")
+                self.assertIn("verification", verifier.calls)
+                self.assertFalse(report["findings"])
+                self.assertFalse(report["verified"])
+
+    def test_validation_disabled_scoring_includes_only_checked_frozen_searches(self):
+        for positive in (True, False):
+            with self.subTest(positive=positive):
+                case, report, _ = self.native_report(positive=positive, invalid_metadata=True)
+                claim_id = report["properties"][0]["id"]
+                artifact = next(path for path in self.directory.rglob("experimental-search.json")
+                                if cli.load(path)["candidate"]["id"] == claim_id
+                                and cli.load(path)["search_outcome"] == ("verified" if positive else "refuted"))
+                directory = artifact.parent.parent
+                self.assertEqual(benchmark.scored_prediction(report, case, directory),
+                                 "correct" if positive else "incorrect")
+                original = cli.load(artifact)
+                for mutate in (
+                        lambda item: item["result"].update(exit_code=4),
+                        lambda item: item.update(dafny=item["dafny"] + "\nassume false;"),
+                        lambda item: item["translation"].update(model=item["translation"]["model"] + "\n"),
+                        lambda item: item.update(candidate={}),
+                        lambda item: item.update(accepted=True)):
+                    evidence = copy.deepcopy(original)
+                    mutate(evidence)
+                    cli.save(artifact, evidence)
+                    with self.assertRaises(Abstain):
+                        benchmark.scored_prediction(report, case, directory)
+                cli.save(artifact, original)
+                with patch.object(benchmark, "prediction", return_value="abstain"):
+                    report["limits"]["repair_model_validation"] = True
+                    self.assertEqual(benchmark.scored_prediction(report, case, directory), "abstain")
+
+    def test_completed_full_run_selection_includes_validation_disabled_scoring(self):
+        summary = {"completed": True, "evaluated": 206, "errors": [],
+                   "publication_run_created_at": "2026-11-28T00:00:00Z",
+                   "run": {**self.run_info, "total": 206}, "scoring_mode": "validation-disabled"}
+        self.assertEqual(len(benchmark.completed_full_records([(summary, "https://example.invalid")])), 1)
+        summary.pop("scoring_mode")
+        self.assertEqual(len(benchmark.completed_full_records([(summary, "https://example.invalid")])), 1)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_real_dafny_accepts_both_branches_with_assumption_minimization_disabled(self):
@@ -818,6 +912,39 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn(f"[{RELEASE[:10]}](https://github.com/{REPO}/commit/{RELEASE})", dashboard)
         self.assertIn("NFV SHA", dashboard)
 
+    def test_dashboard_and_card_show_latest_full_run_without_scoring_tag(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        summary.update(completed=True, evaluated=206, not_evaluated=0, errors=[],
+                       accuracy=137 / 206, answered_accuracy=137 / 143, coverage=143 / 206,
+                       scoring_mode="validation-disabled")
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        saved = benchmark.saved_statistics(api.comments["discussion-1"][0], REPO)
+        original = copy.deepcopy((api.discussions, api.comments, api.mutations))
+        benchmark.publish(saved, api, REPO, "General")
+        self.assertEqual((api.discussions, api.comments, api.mutations), original)
+        dashboard = api.dashboard_body()
+        latest = dashboard.split("## Recent runs")[0]
+        self.assertIn("| Complete (206) | 66.50% | 95.80% | 69.42% |", latest)
+        self.assertNotIn("validation-disabled", dashboard)
+        target = self.directory / "benchmark.svg"
+        benchmark.benchmark_card(api, REPO, target)
+        self.assertIn("Accuracy: 66.50%", target.read_text())
+        self.assertIn("Precision (decisive accuracy): 95.80%", target.read_text())
+
+    def test_dashboard_refresh_template_is_publication_only(self):
+        source = (ROOT / ".github/workflows/nfv-benchmark-pages.yml").read_text(encoding="utf-8")
+        refresh = source.split("\n  refresh_dashboard:", 1)[1].split("\n  build:", 1)[0]
+        self.assertIn("github.event_name == 'workflow_dispatch'", refresh)
+        self.assertIn("inputs.refresh_dashboard", refresh)
+        self.assertIn("discussions: write", refresh)
+        self.assertIn('GH_TOKEN: ${{ github.token }}', refresh)
+        self.assertIn("archived_statistics(api, repo)", refresh)
+        self.assertIn('publish(selected_records(records)[0][0], api, repo, "General")', refresh)
+        self.assertNotIn("COPILOT", refresh)
+        self.assertNotIn("deploy-pages", refresh)
+        self.assertIn("!inputs.refresh_dashboard", source.split("\n  build:", 1)[1])
+
     def test_dashboard_precision_matches_archived_decisive_accuracy(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
         cases = [
@@ -1251,6 +1378,9 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("options: [\"206\", \"5\"]", coordinator)
         self.assertIn("inputs.entries || '206'", coordinator)
         self.assertIn('--entries "$NFV_BENCH_ENTRIES"', coordinator)
+        self.assertIn('options: ["repository", "true", "false"]', coordinator)
+        self.assertIn("inputs.repair_model_validation != 'repository'", coordinator)
+        self.assertIn("inputs.repair_model_validation || vars.NFV_REPAIR_MODEL_VALIDATION", coordinator)
         self.assertIn('pattern: "*-usage"', coordinator)
         self.assertIn("--usage usage", coordinator)
         self.assertIn('--fallback agent-backups', coordinator)

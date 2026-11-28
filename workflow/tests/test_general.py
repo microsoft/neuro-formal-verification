@@ -235,7 +235,8 @@ class GeneralTests(unittest.TestCase):
         bundle, claim, translation = fixture(invariant=False)
         chat = Chat([translation] + [{"annotations": []}] * 10)
         verifier = FailingVerifier()
-        report = self.execute(bundle, claim, chat, verifier=verifier)
+        report = self.execute(bundle, claim, chat, verifier=verifier,
+                              limits=Limits(repair_model_validation=False))
         self.assertFalse(report["findings"])
         self.assertEqual(len(chat.prompts), 11)
         self.assertEqual(sum(op == "verify" for op, _ in verifier.operations), 12)
@@ -257,11 +258,155 @@ class GeneralTests(unittest.TestCase):
                 return {"outcome": "type_error", "exit_code": 2, "mode": "typecheck"}
         verifier = TypeFailures()
         chat = Chat([translation] + [{"model": translation["model"]}] * 6)
-        report = self.execute(bundle, claim, chat, verifier=verifier)
+        report = self.execute(bundle, claim, chat, verifier=verifier,
+                              limits=Limits(repair_model_validation=False))
         self.assertFalse(report["findings"])
         self.assertEqual(len(chat.prompts), 7)
         self.assertEqual(len(verifier.operations), 7)
         self.assertIn("6 syntax repairs", report["failures"][0]["diagnostic"])
+
+    def test_disabled_validation_repair_retains_rejected_draft_and_continues(self):
+        bundle, claim, translation = fixture()
+        translation["model"] = translation["model"].replace("| return r + 1;", "| return r;")
+        next_claim = {**claim, "property": "The result is the iteration count."}
+        chat = Chat([translation, {"abstain": "next property reached translation"}])
+        class Positive(FailingVerifier):
+            def __call__(self, source, directory):
+                self.operations.append(("verify", source))
+                return {"outcome": "verified", "exit_code": 0, "mode": "unbounded",
+                        "stdout": "2 verified, 0 errors"}
+            def run(self, source, directory, **kwargs):
+                self.operations.append(("input-domain", source))
+                return {"outcome": "failed", "exit_code": 4, "mode": "unbounded"}
+        verifier = Positive()
+        report = self.execute_many(bundle, [claim, next_claim], chat, verifier=verifier,
+                                   limits=Limits(repair_model_validation=False))
+        self.assertTrue(report["completed"], report)
+        self.assertFalse(report["errors"], report)
+        self.assertFalse(report["findings"])
+        self.assertFalse(report["verified"])
+        self.assertEqual([op for op, _ in verifier.operations], ["resolve", "verify", "input-domain"])
+        self.assertEqual(len(chat.prompts), 2)
+        self.assertEqual(report["properties"][0]["status"], "type-check/audit failure")
+        self.assertIn("Experimental verification search succeeded", report["failures"][0]["diagnostic"])
+        self.assertIn("next property reached", report["failures"][1]["diagnostic"])
+        directory = self.directory / report["properties"][0]["id"]
+        draft = json.loads((directory / "drafts" / "0.json").read_text(encoding="utf-8"))
+        self.assertEqual(draft["translation"]["model"], translation["model"])
+        self.assertEqual(draft["typecheck"]["outcome"], "verified")
+        diagnostic = json.loads((directory / "drafts" / "0-validation.json").read_text(encoding="utf-8"))
+        self.assertIn("Fabricated source provenance", diagnostic["diagnostic"])
+        search = json.loads((directory / "experimental-search.json").read_text(encoding="utf-8"))
+        self.assertIs(search["accepted"], False)
+        self.assertEqual(search["search_outcome"], "verified")
+        self.assertEqual(search["translation"]["model"], translation["model"])
+        self.assertFalse((directory / "translation.json").exists())
+        self.assertFalse((directory / "verified.json").exists())
+
+    def test_disabled_validation_repair_continues_refutation_without_accepting_it(self):
+        bundle, claim, translation = fixture()
+        translation["model"] = translation["model"].replace(
+            f"// src: {claim['path']}:4 | return r + 1;\n", "")
+        class Negative(FailingVerifier):
+            def __call__(self, source, directory):
+                self.operations.append((directory.name, source))
+                proved = directory.name != "verification"
+                return {"outcome": "verified" if proved else "failed",
+                        "exit_code": 0 if proved else 4, "mode": "unbounded",
+                        "stdout": "2 verified, 0 errors" if proved else "not proved"}
+            def run(self, source, directory, **kwargs):
+                return {"outcome": "failed", "exit_code": 4, "mode": "unbounded"}
+        chat, verifier = Chat([translation]), Negative()
+        report = self.execute(bundle, claim, chat, verifier=verifier,
+                              limits=Limits(repair_model_validation=False, proof_rounds=0))
+        self.assertTrue(report["completed"], report)
+        self.assertFalse(report["errors"])
+        self.assertFalse(report["findings"])
+        self.assertFalse(report["verified"])
+        self.assertEqual(len(chat.prompts), 1)
+        self.assertTrue(any(op == "proof-0" for op, _ in verifier.operations))
+        self.assertEqual(report["properties"][0]["experimental_search"]["search_outcome"], "refuted")
+        directory = self.directory / report["properties"][0]["id"]
+        search = json.loads((directory / "experimental-search.json").read_text(encoding="utf-8"))
+        self.assertIs(search["accepted"], False)
+        self.assertIn("Untagged Dafny line", search["validation_diagnostic"])
+        self.assertIn("NfvWitnessCheck", search["dafny"])
+        self.assertFalse((directory / "finding.json").exists())
+
+    def test_disabled_validation_repair_still_rejects_verification_escapes(self):
+        bundle, claim, translation = fixture()
+        translation["model"] = translation["model"].replace("r := 0;", "assume false;")
+        chat, verifier = Chat([translation]), FailingVerifier()
+        report = self.execute(bundle, claim, chat, verifier=verifier,
+                              limits=Limits(repair_model_validation=False))
+        self.assertFalse(verifier.operations)
+        self.assertEqual(len(chat.prompts), 1)
+        self.assertFalse(report["findings"])
+        self.assertNotIn("experimental_search", report["properties"][0])
+        self.assertIn("unsafe", report["failures"][0]["diagnostic"])
+
+    @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
+    def test_real_dafny_search_continues_with_invalid_source_metadata(self):
+        for positive in (True, False):
+            with self.subTest(positive=positive):
+                bundle, claim, translation = fixture()
+                translation.pop("correspondence")
+                if positive:
+                    translation["model"] = translation["model"].replace("ensures r == n", "ensures r == n + 1")
+                report = self.execute(bundle, claim, Chat([translation]),
+                                      limits=Limits(repair_model_validation=False, proof_rounds=0))
+                self.assertTrue(report["completed"], report)
+                self.assertFalse(report["errors"], report)
+                self.assertFalse(report["verified"])
+                self.assertFalse(report["findings"])
+                self.assertEqual(report["properties"][0]["experimental_search"]["search_outcome"],
+                                 "verified" if positive else "refuted")
+
+    def test_syntax_repair_can_restore_validation_and_normal_acceptance(self):
+        bundle, claim, correct = fixture()
+        initial = copy.deepcopy(correct)
+        initial["model"] = initial["model"].replace("r := 0;", "r := false;").replace(
+            "| return r + 1;", "| return r;")
+        class Repairable(FailingVerifier):
+            def resolve(self, source, directory):
+                if "r := false" in source:
+                    return {"outcome": "type_error", "exit_code": 2, "mode": "typecheck"}
+                return super().resolve(source, directory)
+            def __call__(self, source, directory):
+                return {"outcome": "verified", "exit_code": 0, "mode": "unbounded",
+                        "stdout": "2 verified, 0 errors"}
+            def run(self, source, directory, **kwargs):
+                return {"outcome": "failed", "exit_code": 4, "mode": "unbounded"}
+        report = self.execute(bundle, claim, Chat([initial, {"model": correct["model"]}]),
+                              verifier=Repairable(), limits=Limits(repair_model_validation=False))
+        self.assertEqual(len(report["verified"]), 1, report)
+        self.assertNotIn("experimental_search", report["properties"][0])
+        directory = self.directory / report["properties"][0]["id"]
+        self.assertTrue((directory / "drafts" / "0-validation.json").exists())
+        self.assertFalse((directory / "experimental-search.json").exists())
+
+    def test_disabled_validation_repair_rejects_well_definedness_and_backend_errors(self):
+        for result in ({"outcome": "failed", "exit_code": 4, "mode": "unbounded",
+                        "stdout": "draft.dfy(10,2): Error: index out of range", "stderr": ""},
+                       {"outcome": "tool_error", "exit_code": 2, "mode": "unbounded",
+                        "stderr": "System.ArgumentException: Boogie program had 2 resolution errors:"}):
+            with self.subTest(result=result):
+                bundle, claim, translation = fixture()
+                class InvalidDraft(FailingVerifier):
+                    def __call__(self, source, directory):
+                        self.operations.append(("verify", source))
+                        return result
+                verifier = InvalidDraft()
+                chat = Chat([translation])
+                report = self.execute(bundle, claim, chat, verifier=verifier,
+                                      limits=Limits(repair_model_validation=False))
+                self.assertTrue(report["completed"], report)
+                self.assertFalse(report["errors"], report)
+                self.assertFalse(report["findings"])
+                self.assertFalse(report["verified"])
+                self.assertEqual(len(chat.prompts), 1)
+                self.assertEqual([op for op, _ in verifier.operations], ["resolve", "verify"])
+                self.assertIn("repair is disabled", report["failures"][0]["diagnostic"])
 
     def test_missing_verifier_does_not_spend_repair_calls(self):
         bundle, claim, translation = fixture()
@@ -420,6 +565,32 @@ class GeneralTests(unittest.TestCase):
         with patch.object(cli, "collect", return_value=bundle), patch.object(cli, "run_general", side_effect=fake_run):
             self.assertEqual(cli.main(["evaluate", "--event", str(event), "--submission", str(submitted),
                                        "--out", str(self.directory / "out"), "--model", "fake-model"]), 0)
+
+    def test_cli_validation_repair_override_reaches_each_analysis_entrypoint(self):
+        from nfv_workflow import cli
+        bundle, claim, _ = fixture()
+        cli.save(self.directory / "bundle.json", bundle)
+        cli.save(self.directory / "properties.json", [claim])
+        cli.save(self.directory / "event.json", {})
+        cli.save(self.directory / "submitted.json",
+                 {"items": [{"type": "nfv_submit", "proposals": json.dumps([claim])}]})
+        common = ["--out", str(self.directory / "out"), "--model", "fake-model"]
+        commands = [
+            ["run", "--bundle", str(self.directory / "bundle.json"),
+             "--properties", str(self.directory / "properties.json"), *common],
+            ["evaluate", "--event", str(self.directory / "event.json"),
+             "--submission", str(self.directory / "submitted.json"), *common],
+            ["audit", "--proposals", str(self.directory / "properties.json")],
+        ]
+        for command in commands:
+            with self.subTest(command=command[0]), \
+                    patch.object(cli, "collect", return_value=bundle), \
+                    patch.object(cli, "run_general", return_value={"findings": [], "errors": []}) as run_mock, \
+                    patch.object(cli, "audit", return_value={"findings": 0, "errors": []}) as audit_mock, \
+                    patch.dict("os.environ", {"NFV_REPAIR_MODEL_VALIDATION": "true"}):
+                self.assertEqual(cli.main([*command, "--no-repair-model-validation"]), 0)
+                limits = audit_mock.call_args.args[1] if command[0] == "audit" else run_mock.call_args.args[4]
+                self.assertIs(limits.repair_model_validation, False)
 
     def test_report_shows_input_and_code_with_natural_language_specs(self):
         bundle, claim, translation = fixture("cpp")
@@ -681,7 +852,7 @@ class GeneralTests(unittest.TestCase):
         initial = copy.deepcopy(correct)
         initial["model"] = initial["model"].replace("r := 0;", "r := false;")
         report = self.execute(bundle, claim, Chat([initial, {"model": correct["model"]}]),
-                              limits=Limits(proof_rounds=0))
+                              limits=Limits(proof_rounds=0, repair_model_validation=False))
         self.assertEqual(len(report["findings"]), 1, report)
         self.assertEqual(report["findings"][0]["counters"]["syntax_repairs"], 1)
 

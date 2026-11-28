@@ -151,6 +151,7 @@ steps:
       NFV_CONTEXT_MANIFEST: ${{ runner.temp }}/nfv-context/context.json
       NFV_MODEL: ${{ vars.NFV_MODEL }}
       NFV_SYNTAX_ROUNDS: ${{ vars.NFV_SYNTAX_ROUNDS }}
+      NFV_REPAIR_MODEL_VALIDATION: ${{ vars.NFV_REPAIR_MODEL_VALIDATION }}
       NFV_PROOF_ROUNDS: ${{ vars.NFV_PROOF_ROUNDS }}
       NFV_VERIFIER_TIMEOUT: ${{ vars.NFV_VERIFIER_TIMEOUT }}
       NFV_PROPERTY_SECONDS: ${{ vars.NFV_PROPERTY_SECONDS }}
@@ -205,6 +206,7 @@ steps:
         echo "NFV_MODEL=$NFV_MODEL"
         # Optional repair/time budget; empty values keep the reviewer defaults.
         echo "NFV_SYNTAX_ROUNDS=$NFV_SYNTAX_ROUNDS"
+        echo "NFV_REPAIR_MODEL_VALIDATION=$NFV_REPAIR_MODEL_VALIDATION"
         echo "NFV_PROOF_ROUNDS=$NFV_PROOF_ROUNDS"
         echo "NFV_VERIFIER_TIMEOUT=$NFV_VERIFIER_TIMEOUT"
         echo "NFV_PROPERTY_SECONDS=$NFV_PROPERTY_SECONDS"

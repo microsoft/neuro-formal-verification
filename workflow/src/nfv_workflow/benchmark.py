@@ -25,6 +25,8 @@ import uuid
 
 from .cli import audit, audit_limits, load, save
 from .general import Limits, select_properties, validate_finding, validate_verification
+from .check import accepted
+from .general_gates import BACKEND, annotate, audit as integrity_gate, final_gate, witness_bridge
 from .github import Abstain, GitHub, repository, sha
 from .outcomes import EXHAUSTED, INVALID, REFUTED, VERIFIED
 from .publish import text
@@ -208,6 +210,56 @@ def prediction(report, case):
     return "abstain"
 
 
+def scored_prediction(report, case, directory):
+    """Validation-disabled benchmark scoring; never changes NFV acceptance."""
+    label = prediction(report, case)
+    search = report["properties"][0].get("experimental_search")
+    if (report["limits"].get("repair_model_validation", True) or label != "abstain"
+            or not search or search["search_outcome"] not in ("verified", "refuted")):
+        return label
+    claim = select_properties(case["properties"], case["bundle"])[0]
+    evidence_path = f"{claim['id']}/experimental-search.json"
+    if search.get("accepted") is not False or search["evidence"] != evidence_path:
+        raise Abstain("Experimental search must identify unvalidated native evidence")
+    evidence = load(Path(directory) / claim["id"] / "experimental-search.json")
+    if (evidence.get("accepted") is not False or evidence["candidate"] != claim
+            or evidence["search_outcome"] != search["search_outcome"]
+            or evidence["validation_diagnostic"] != search["validation_diagnostic"]
+            or not evidence["validation_diagnostic"] or not accepted(evidence["result"])
+            or hashlib.sha256(evidence["dafny"].encode()).hexdigest() != evidence["dafny_sha256"]):
+        raise Abstain("Experimental search evidence, proof or hash changed")
+    translation = evidence["translation"]
+    original = translation["model"]
+    if load(Path(directory) / claim["id"] / "experimental-translation.json") != translation:
+        raise Abstain("Experimental translation changed after freezing")
+    integrity_gate(original, translation["entry_point"])
+    if search["search_outcome"] == "verified":
+        if evidence["dafny"] != original:
+            raise Abstain("Experimental positive proof changed frozen computation")
+        domain = evidence["input_domain_result"]
+        label = "correct"
+    else:
+        from nfv.agent import refute
+        inverse = refute.invert_entry_spec(original, translation["entry_point"], BACKEND)
+        if not inverse.ok:
+            raise Abstain("Experimental property cannot be mechanically negated")
+        pins, driver = witness_bridge(original, translation["entry_point"], translation["witness"])
+        frozen = refute.install_precondition(inverse.model, translation["entry_point"], pins, BACKEND)
+        retained = list(range(len(translation["assumptions"])))
+        current = annotate(frozen, evidence["annotation_plan"])
+        gates = final_gate(original, current, translation, retained, pins)
+        if (evidence["frozen_negative_model"] != frozen or evidence["checked_model"] != current
+                or evidence["retained_assumptions"] != retained
+                or evidence["dafny"] != current + "\n" + driver
+                or any(evidence["gates"].get(key) != value for key, value in gates.items())):
+            raise Abstain("Experimental frozen computation, contracts, goal or witness changed")
+        domain = evidence["reachability_result"]
+        label = "incorrect"
+    if domain.get("outcome") != "failed" or domain.get("exit_code") != 4 or domain.get("mode") != "unbounded":
+        raise Abstain("Experimental search lacks input-domain evidence")
+    return label
+
+
 def worker(payload_path, output):
     from .followups import Options
 
@@ -244,7 +296,7 @@ def worker(payload_path, output):
             report = load(directory / "report.json")
             if report["limits"] != run["limits"]:
                 raise Abstain("Benchmark audit did not use the frozen PR-review budgets")
-            label = prediction(report, case)
+            label = scored_prediction(report, case, directory)
         except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
             result["errors"].append(f"{case['id']}: {exc}")
             save(target, result)
@@ -252,6 +304,8 @@ def worker(payload_path, output):
         result["rows"].append({"id": case["id"], "prediction": label,
                                "status": report["properties"][0]["status"],
                                "elapsed_seconds": time.monotonic() - started})
+        if "experimental_search" in report["properties"][0]:
+            result["rows"][-1]["experimental_search"] = report["properties"][0]["experimental_search"]
         save(target, result)
         print(json.dumps({"event": "benchmark_case_completed", "id": case["id"],
                           "status": report["properties"][0]["status"]}), flush=True)
@@ -371,9 +425,11 @@ def summarize(prepared, evidence, output, workers_succeeded=True, usage_director
             report = load(directory / "report.json")
             if report["limits"] != run["limits"]:
                 raise Abstain("Recorded audit budgets disagree with the frozen run")
-            label = prediction(report, inputs[key])
+            label = scored_prediction(report, inputs[key], directory)
             if row["prediction"] != label or row["status"] != report["properties"][0]["status"]:
                 raise Abstain("Recorded prediction disagrees with native proof evidence")
+            if row.get("experimental_search") != report["properties"][0].get("experimental_search"):
+                raise Abstain("Recorded experimental search disagrees with native report")
             rows[key] = {**expected[key], **row}
         assigned = {key for key, case in expected.items() if case["shard"] == shard}
         if result.get("completed") is not True or shard_ids != assigned:
@@ -414,8 +470,17 @@ def summarize(prepared, evidence, output, workers_succeeded=True, usage_director
                                   for field, value in usage.items()} if responses else None,
                "recorded_responses": responses,
                "errors": errors, "rows": list(rows.values())}
+    if run["limits"].get("repair_model_validation") is False:
+        summary["scoring_mode"] = "validation-disabled"
     if recovered:
         summary["recovered_shards"] = sorted(recovered)
+    experimental = [row["experimental_search"] for row in rows.values() if "experimental_search" in row]
+    if experimental:
+        summary["experimental_search"] = {
+            "accepted": False, "entries": len(experimental),
+            "outcomes": dict(Counter(item["search_outcome"] for item in experimental)),
+            "included_in_decisive_predictions": run["limits"].get("repair_model_validation") is False,
+        }
     if usage_directory is not None:
         summary["ai_credits"] = credit_usage(usage_directory, run["shards"])
     output = Path(output)
@@ -455,6 +520,18 @@ def render(summary):
         lines += [f"Actions run created (UTC): {text(summary['publication_run_created_at'])}.", ""]
     if total == 5:
         lines += ["Five-entry pilot only; this is not a full-dataset accuracy estimate.", ""]
+    if summary.get("scoring_mode") == "validation-disabled":
+        lines += ["**Validation-disabled benchmark metrics:** successful frozen-model searches are counted "
+                  "even when source/metadata validation fails. These are experimental predictions, "
+                  "not accepted NFV proofs/refutations. Integrity, freeze, Dafny and input-domain checks remain mandatory.", ""]
+    if summary.get("experimental_search"):
+        experimental = summary["experimental_search"]
+        outcomes = ", ".join(f"{text(outcome)}={count}" for outcome, count in experimental["outcomes"].items())
+        lines += [f"**Unvalidated experimental search:** {experimental['entries']} entries ({outcomes}).",
+                  ("Successful searches are included in validation-disabled benchmark predictions, "
+                   "but are not accepted NFV proofs/refutations." if experimental["included_in_decisive_predictions"]
+                   else "These search results are not accepted NFV proofs/refutations and are excluded from "
+                   "decisive predictions; their benchmark predictions abstain."), ""]
     if summary.get("recovered_shards"):
         lines += [f"Recovered **{len(summary['recovered_shards'])} shard checkpoints** from backup agent artifacts "
                   "without rerunning inference; the same native evidence checks apply.", ""]
