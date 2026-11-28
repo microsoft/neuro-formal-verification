@@ -162,8 +162,12 @@ accuracy, per-entry elapsed time and AIC as well as total run time; five-entry
 random pilots are not paired comparisons or full-dataset estimates.
 
 For invalid drafts, `summary.json` records separate `experimental_search`
-counts and outcomes, excluded from decisive predictions and accuracy/coverage.
-Native evidence retains the diagnostics and unvalidated search artifacts.
+counts and outcomes. With validation repairs disabled, successful frozen-model
+experiments count in the benchmark's decisive predictions and accuracy/coverage,
+after native proof, freeze, hash and input-domain checks. `scoring_mode` is
+`validation-disabled`; these are not accepted NFV results. Such runs are labeled
+in recent-run statistics and cannot replace the validated full-run README card.
+Native evidence retains diagnostics and experimental artifacts.
 
 Pilots report a denominator of five, not full-dataset accuracy. A full sweep
 uses 26 shards of at most eight entries, with up to ten active six-hour workers.

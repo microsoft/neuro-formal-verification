@@ -251,7 +251,10 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
 
     def experimental_result(outcome, **evidence):
         result = {"schema": 1, "accepted": False, "search_outcome": outcome,
-                  "validation_diagnostic": validation_diagnostic, "counters": counters, **evidence}
+                  "validation_diagnostic": validation_diagnostic, "candidate": claim,
+                  "counters": counters, **evidence}
+        if "dafny" in evidence:
+            result["dafny_sha256"] = hashlib.sha256(evidence["dafny"].encode()).hexdigest()
         save(directory / "experimental-search.json", result)
         return result
 
@@ -485,7 +488,9 @@ async def run_property(claim, bundle, chat, directory, limits, verifier):
     if validation_diagnostic:
         experimental_result("refuted", translation=translation, result=final,
                             reachability_result=reach_result, dafny=final_source,
-                            frozen_negative_model=frozen, annotation_plan=plan, proof_log=proof_log)
+                            frozen_negative_model=frozen, checked_model=current,
+                            retained_assumptions=retained, annotation_plan=plan, proof_log=proof_log,
+                            gates=gates)
         raise Abstain("Experimental refutation search succeeded, but model validation failed: "
                       + validation_diagnostic[:2000])
     finding = {

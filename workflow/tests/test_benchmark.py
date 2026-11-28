@@ -355,7 +355,7 @@ class BenchmarkTests(unittest.TestCase):
             report = self.abstention_report(case)
             report["limits"] = manifest["run"]["limits"]
             report["properties"][0]["experimental_search"] = {
-                "accepted": False, "search_outcome": "verified",
+                "accepted": False, "search_outcome": EXHAUSTED,
                 "validation_diagnostic": "Missing source correspondence",
                 "evidence": "experimental-search.json",
             }
@@ -372,12 +372,13 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(summary["accuracy"], 0)
         self.assertEqual(summary["coverage"], 0)
         self.assertEqual(summary["experimental_search"], {
-            "accepted": False, "entries": 5, "outcomes": {"verified": 5},
-            "included_in_decisive_predictions": False,
+            "accepted": False, "entries": 5, "outcomes": {EXHAUSTED: 5},
+            "included_in_decisive_predictions": True,
         })
         self.assertIn("Unvalidated experimental search", benchmark.render(summary))
-        self.assertIn("excluded from decisive predictions", benchmark.render(summary))
-        result["rows"][0]["experimental_search"]["search_outcome"] = "refuted"
+        self.assertIn("included in validation-disabled benchmark predictions", benchmark.render(summary))
+        self.assertEqual(summary["scoring_mode"], "validation-disabled")
+        result["rows"][0]["experimental_search"]["validation_diagnostic"] = "changed diagnostic"
         cli.save(self.evidence / "results.json", result)
         with self.assertRaisesRegex(Abstain, "experimental search disagrees"):
             benchmark.summarize(prepared, self.evidence, self.directory / "tampered-stats")
@@ -426,6 +427,42 @@ class BenchmarkTests(unittest.TestCase):
                 self.assertIn("verification", verifier.calls)
                 self.assertFalse(report["findings"])
                 self.assertFalse(report["verified"])
+
+    def test_validation_disabled_scoring_includes_only_checked_frozen_searches(self):
+        for positive in (True, False):
+            with self.subTest(positive=positive):
+                case, report, _ = self.native_report(positive=positive, invalid_metadata=True)
+                claim_id = report["properties"][0]["id"]
+                artifact = next(path for path in self.directory.rglob("experimental-search.json")
+                                if cli.load(path)["candidate"]["id"] == claim_id
+                                and cli.load(path)["search_outcome"] == ("verified" if positive else "refuted"))
+                directory = artifact.parent.parent
+                self.assertEqual(benchmark.scored_prediction(report, case, directory),
+                                 "correct" if positive else "incorrect")
+                original = cli.load(artifact)
+                for mutate in (
+                        lambda item: item["result"].update(exit_code=4),
+                        lambda item: item.update(dafny=item["dafny"] + "\nassume false;"),
+                        lambda item: item["translation"].update(model=item["translation"]["model"] + "\n"),
+                        lambda item: item.update(candidate={}),
+                        lambda item: item.update(accepted=True)):
+                    evidence = copy.deepcopy(original)
+                    mutate(evidence)
+                    cli.save(artifact, evidence)
+                    with self.assertRaises(Abstain):
+                        benchmark.scored_prediction(report, case, directory)
+                cli.save(artifact, original)
+                with patch.object(benchmark, "prediction", return_value="abstain"):
+                    report["limits"]["repair_model_validation"] = True
+                    self.assertEqual(benchmark.scored_prediction(report, case, directory), "abstain")
+
+    def test_validation_disabled_run_does_not_replace_validated_card_result(self):
+        summary = {"completed": True, "evaluated": 206, "errors": [],
+                   "publication_run_created_at": "2026-11-28T00:00:00Z",
+                   "run": {**self.run_info, "total": 206}, "scoring_mode": "validation-disabled"}
+        self.assertEqual(benchmark.completed_full_records([(summary, "https://example.invalid")]), [])
+        summary.pop("scoring_mode")
+        self.assertEqual(len(benchmark.completed_full_records([(summary, "https://example.invalid")])), 1)
 
     @unittest.skipUnless(shutil.which("dafny"), "Requires real Dafny")
     def test_real_dafny_accepts_both_branches_with_assumption_minimization_disabled(self):

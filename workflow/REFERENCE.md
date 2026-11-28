@@ -32,11 +32,19 @@ Dafny verification/refutation search experimentally. Integrity checks, syntax/ty
 checking, backend translation and well-definedness remain mandatory. Ordinary
 syntax/type and annotation-only proof repairs keep their existing budgets.
 
+The same flag controls benchmark success: `true` requires source/metadata
+validation and repairs failures; `false` counts successful frozen-model searches
+without requiring those validations. There is no separate scoring flag.
+
 If validation still fails after syntax/type repairs, experimental models and
 search results are retained separately as `experimental-translation.json` and
 `experimental-search.json` with `accepted: false`. They are not accepted NFV
 proofs/refutations: the official property outcome remains a failure or exhausted
-search, and benchmark predictions abstain. Validated models follow normal
+search. Validation-disabled benchmark scoring includes successful experimental
+searches as predictions after rechecking native proofs, hashes, frozen
+computation/contracts, witnesses and input-domain evidence. Its metrics are
+explicitly labeled validation-disabled, not accepted NFV results, and do not
+replace the validated full-run README card. Validated models follow normal
 acceptance. This can reduce repair time and credits, but may reduce accepted
 coverage; it does not disable candidate-fix follow-ups for accepted refutations.
 
