@@ -456,11 +456,11 @@ class BenchmarkTests(unittest.TestCase):
                     report["limits"]["repair_model_validation"] = True
                     self.assertEqual(benchmark.scored_prediction(report, case, directory), "abstain")
 
-    def test_validation_disabled_run_does_not_replace_validated_card_result(self):
+    def test_completed_full_run_selection_includes_validation_disabled_scoring(self):
         summary = {"completed": True, "evaluated": 206, "errors": [],
                    "publication_run_created_at": "2026-11-28T00:00:00Z",
                    "run": {**self.run_info, "total": 206}, "scoring_mode": "validation-disabled"}
-        self.assertEqual(benchmark.completed_full_records([(summary, "https://example.invalid")]), [])
+        self.assertEqual(len(benchmark.completed_full_records([(summary, "https://example.invalid")])), 1)
         summary.pop("scoring_mode")
         self.assertEqual(len(benchmark.completed_full_records([(summary, "https://example.invalid")])), 1)
 
@@ -911,6 +911,39 @@ class BenchmarkTests(unittest.TestCase):
         self.assertIn("No completed full run", dashboard)
         self.assertIn(f"[{RELEASE[:10]}](https://github.com/{REPO}/commit/{RELEASE})", dashboard)
         self.assertIn("NFV SHA", dashboard)
+
+    def test_dashboard_and_card_show_latest_full_run_without_scoring_tag(self):
+        summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")
+        summary.update(completed=True, evaluated=206, not_evaluated=0, errors=[],
+                       accuracy=137 / 206, answered_accuracy=137 / 143, coverage=143 / 206,
+                       scoring_mode="validation-disabled")
+        api = PublicationAPI()
+        benchmark.publish(summary, api, REPO, "General")
+        saved = benchmark.saved_statistics(api.comments["discussion-1"][0], REPO)
+        original = copy.deepcopy((api.discussions, api.comments, api.mutations))
+        benchmark.publish(saved, api, REPO, "General")
+        self.assertEqual((api.discussions, api.comments, api.mutations), original)
+        dashboard = api.dashboard_body()
+        latest = dashboard.split("## Recent runs")[0]
+        self.assertIn("| Complete (206) | 66.50% | 95.80% | 69.42% |", latest)
+        self.assertNotIn("validation-disabled", dashboard)
+        target = self.directory / "benchmark.svg"
+        benchmark.benchmark_card(api, REPO, target)
+        self.assertIn("Accuracy: 66.50%", target.read_text())
+        self.assertIn("Precision (decisive accuracy): 95.80%", target.read_text())
+
+    def test_dashboard_refresh_template_is_publication_only(self):
+        source = (ROOT / ".github/workflows/nfv-benchmark-pages.yml").read_text(encoding="utf-8")
+        refresh = source.split("\n  refresh_dashboard:", 1)[1].split("\n  build:", 1)[0]
+        self.assertIn("github.event_name == 'workflow_dispatch'", refresh)
+        self.assertIn("inputs.refresh_dashboard", refresh)
+        self.assertIn("discussions: write", refresh)
+        self.assertIn('GH_TOKEN: ${{ github.token }}', refresh)
+        self.assertIn("archived_statistics(api, repo)", refresh)
+        self.assertIn('publish(selected_records(records)[0][0], api, repo, "General")', refresh)
+        self.assertNotIn("COPILOT", refresh)
+        self.assertNotIn("deploy-pages", refresh)
+        self.assertIn("!inputs.refresh_dashboard", source.split("\n  build:", 1)[1])
 
     def test_dashboard_precision_matches_archived_decisive_accuracy(self):
         summary = benchmark.summarize(self.prepared, self.evidence, self.directory / "stats")

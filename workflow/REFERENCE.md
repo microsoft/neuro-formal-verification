@@ -43,8 +43,9 @@ proofs/refutations: the official property outcome remains a failure or exhausted
 search. Validation-disabled benchmark scoring includes successful experimental
 searches as predictions after rechecking native proofs, hashes, frozen
 computation/contracts, witnesses and input-domain evidence. Its metrics are
-explicitly labeled validation-disabled, not accepted NFV results, and do not
-replace the validated full-run README card. Validated models follow normal
+identified in detailed statistics, not accepted NFV results. Completed full
+runs use the same latest-run selection in the dashboard and README card,
+without a scoring-mode status tag. Validated models follow normal
 acceptance. This can reduce repair time and credits, but may reduce accepted
 coverage; it does not disable candidate-fix follow-ups for accepted refutations.
 

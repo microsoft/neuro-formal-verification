@@ -713,8 +713,7 @@ def selected_records(records):
 def completed_full_records(records):
     return [record for record in selected_records(records) if record[0]["completed"] is True
             and record[0]["run"]["total"] == TOTAL
-            and record[0]["evaluated"] == TOTAL and not record[0]["errors"]
-            and record[0].get("scoring_mode") != "validation-disabled"]
+            and record[0]["evaluated"] == TOTAL and not record[0]["errors"]]
 
 
 def percentage(value):
@@ -734,8 +733,6 @@ def dashboard_body(repo, records, archives, legacy):
         revision = sha(run["release_sha"])
         date = utc_date(summary["publication_run_created_at"]).strftime("%Y-%m-%d")
         status = ("Complete" if summary["completed"] else "PARTIAL / failed") + f" ({run['total']})"
-        if summary.get("scoring_mode") == "validation-disabled":
-            status += " / validation-disabled"
         precision = summary["answered_accuracy"]
         credits = summary.get("ai_credits")
         aic = credits.get("total") if credits is not None else None

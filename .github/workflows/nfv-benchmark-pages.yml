@@ -4,6 +4,11 @@
 name: NFV benchmark README card
 on:
   workflow_dispatch:
+    inputs:
+      refresh_dashboard:
+        description: "Refresh the Discussion dashboard from saved statistics only"
+        type: boolean
+        default: false
   workflow_run:
     workflows: ["NFV nightly micro-benchmark"]
     types: [completed]
@@ -22,10 +27,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  refresh_dashboard:
+    if: >-
+      github.repository == 'microsoft/neuro-formal-verification' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.refresh_dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      discussions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Refresh dashboard without inference or changing saved statistics
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONPATH: workflow/src
+        run: |
+          python - <<'PY'
+          import os
+          from nfv_workflow.benchmark import archived_statistics, publish, selected_records
+          from nfv_workflow.github import Abstain, GitHub
+          api = GitHub()
+          repo = os.environ["GITHUB_REPOSITORY"]
+          _, _, records, _, _ = archived_statistics(api, repo)
+          if not records:
+              raise Abstain("No archived benchmark statistics to refresh")
+          print(publish(selected_records(records)[0][0], api, repo, "General"))
+          PY
+
   build:
     if: >-
       github.repository == 'microsoft/neuro-formal-verification' &&
       github.ref == 'refs/heads/dev' &&
+      !inputs.refresh_dashboard &&
       vars.NFV_BENCH_PAGES_ENABLED == 'true' &&
       (github.event_name != 'workflow_run' ||
        github.event.workflow_run.conclusion == 'success')
@@ -42,7 +82,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Render latest accepted full statistics from persistent archives
+      - name: Render latest completed full statistics from persistent archives
         env:
           GH_TOKEN: ${{ github.token }}
           PYTHONPATH: workflow/src

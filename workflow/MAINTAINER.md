@@ -165,8 +165,9 @@ For invalid drafts, `summary.json` records separate `experimental_search`
 counts and outcomes. With validation repairs disabled, successful frozen-model
 experiments count in the benchmark's decisive predictions and accuracy/coverage,
 after native proof, freeze, hash and input-domain checks. `scoring_mode` is
-`validation-disabled`; these are not accepted NFV results. Such runs are labeled
-in recent-run statistics and cannot replace the validated full-run README card.
+`validation-disabled`; these are not accepted NFV results. Completed full runs
+are eligible for the latest dashboard and README card, without a scoring-mode
+status tag. Detailed statistics retain the scoring policy.
 Native evidence retains diagnostics and experimental artifacts.
 
 Pilots report a denominator of five, not full-dataset accuracy. A full sweep
@@ -249,6 +250,15 @@ Non-cancelling coordinator concurrency serializes publication. A failed
 publication may already have written the archive: **retry only publication**
 while evidence is available, not paid inference. Retrying a failed worker
 reruns that shard; there is no automatic best-of search.
+
+To refresh only the dashboard with the current renderer and existing archived
+statistics, dispatch `nfv-benchmark-pages.yml` with `refresh_dashboard=true`.
+This appends an Actions-owned snapshot without inference, archive edits or
+Pages deployment:
+
+```text
+gh workflow run nfv-benchmark-pages.yml --ref <trusted-ref> -f refresh_dashboard=true --repo microsoft/neuro-formal-verification
+```
 
 ### README statistics card (GitHub Pages)
 
